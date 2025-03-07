@@ -31,10 +31,15 @@ class Admin extends AdminModule
         $search_field_detail_pemberian_obat= $_POST['search_field_detail_pemberian_obat'];
         $search_text_detail_pemberian_obat = $_POST['search_text_detail_pemberian_obat'];
 
+        $tgl_awal = isset_or($_POST['tgl_awal'], date('Y-m-d'));
+        $tgl_akhir = isset_or($_POST['tgl_akhir'], date('Y-m-d'));
+
         $searchQuery = " ";
         if($search_text_detail_pemberian_obat != ''){
             $searchQuery .= " and (".$search_field_detail_pemberian_obat." like '%".$search_text_detail_pemberian_obat."%' ) ";
         }
+
+        $searchQuery .= " and (tgl_perawatan between '".$tgl_awal."' and '".$tgl_akhir."') ";
 
         ## Total number of records without filtering
         $sel = $this->db()->pdo()->prepare("select count(*) as allcount from detail_pemberian_obat");
@@ -57,9 +62,12 @@ class Admin extends AdminModule
         foreach($result as $row) {
             $databarang = $this->db('databarang')->select('nama_brng')->where('kode_brng', $row['kode_brng'])->oneArray();
             $bangsal = $this->db('bangsal')->select('nm_bangsal')->where('kd_bangsal', $row['kd_bangsal'])->oneArray();
+            $no_rkm_medis = $this->core->getRegPeriksaInfo('no_rkm_medis', $row['no_rawat']);
             $data[] = array(
                 'tgl_perawatan'=>$row['tgl_perawatan'],
                 'jam'=>$row['jam'],
+                'no_rkm_medis' => $no_rkm_medis, 
+                'nm_pasien' => $this->core->getPasienInfo('nm_pasien', $no_rkm_medis), 
                 'no_rawat'=>$row['no_rawat'],
                 'kode_brng'=>$row['kode_brng'],
                 'nama_brng'=>$databarang['nama_brng'],
@@ -102,10 +110,15 @@ class Admin extends AdminModule
             $search_field_detail_pemberian_obat= $_POST['search_field_detail_pemberian_obat'];
             $search_text_detail_pemberian_obat = $_POST['search_text_detail_pemberian_obat'];
 
+            $tgl_awal = isset_or($_POST['tgl_awal'], date('Y-m-d'));
+            $tgl_akhir = isset_or($_POST['tgl_akhir'], date('Y-m-d'));
+    
             $searchQuery = " ";
             if($search_text_detail_pemberian_obat != ''){
                 $searchQuery .= " and (".$search_field_detail_pemberian_obat." like '%".$search_text_detail_pemberian_obat."%' ) ";
             }
+
+            $searchQuery .= " and (tgl_perawatan between '".$tgl_awal."' and '".$tgl_akhir."') ";
 
             $user_lihat = $this->db()->pdo()->prepare("SELECT * from detail_pemberian_obat WHERE 1 ".$searchQuery);
             $user_lihat->execute();
@@ -116,9 +129,12 @@ class Admin extends AdminModule
             foreach($result as $row) {
                 $databarang = $this->db('databarang')->select('nama_brng')->where('kode_brng', $row['kode_brng'])->oneArray();
                 $bangsal = $this->db('bangsal')->select('nm_bangsal')->where('kd_bangsal', $row['kd_bangsal'])->oneArray();
+                $no_rkm_medis = $this->core->getRegPeriksaInfo('no_rkm_medis', $row['no_rawat']);
                 $data[] = array(
                     'tgl_perawatan'=>$row['tgl_perawatan'],
                     'jam'=>$row['jam'],
+                    'no_rkm_medis' => $no_rkm_medis, 
+                    'nm_pasien' => $this->core->getPasienInfo('nm_pasien', $no_rkm_medis), 
                     'no_rawat'=>$row['no_rawat'],
                     'kode_brng'=>$row['kode_brng'],
                     'nama_brng'=>$databarang['nama_brng'],
@@ -171,6 +187,9 @@ class Admin extends AdminModule
         $this->core->addJS(url('assets/jscripts/jspdf.min.js'));
         $this->core->addJS(url('assets/jscripts/jspdf.plugin.autotable.min.js'));
         $this->core->addJS(url('assets/jscripts/datatables.min.js'));
+        $this->core->addCSS(url('assets/css/bootstrap-datetimepicker.css'));
+        $this->core->addJS(url('assets/jscripts/moment-with-locales.js'));
+        $this->core->addJS(url('assets/jscripts/bootstrap-datetimepicker.js'));
 
         $this->core->addCSS(url([ADMIN, 'detail_pemberian_obat', 'css']));
         $this->core->addJS(url([ADMIN, 'detail_pemberian_obat', 'javascript']), 'footer');

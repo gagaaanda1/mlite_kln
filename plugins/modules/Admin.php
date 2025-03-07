@@ -19,6 +19,8 @@ class Admin extends AdminModule
     */
     public function getManage($type = 'active')
     {
+        $this->core->addCSS(url('assets/css/datatables.min.css'));
+        $this->core->addJS(url('assets/jscripts/datatables.min.js'));
         $modules = $this->_modulesList($type);
         return $this->draw('manage.html', ['modules' => array_chunk($modules, 2), 'tab' => $type]);
     }
@@ -215,7 +217,7 @@ class Admin extends AdminModule
                     $other['basic'] = false;
                 }
 
-                $other['compatible'] = $this->checkCompatibility(isset_or($details['compatibility'], '4.0.0'));
+                $other['compatible'] = $this->checkCompatibility(isset_or($details['compatibility'], '5.0.0'));
                 $result[] = $details + $urls + $other;
             }
         }

@@ -62,10 +62,9 @@ class Admin extends AdminModule
         if(isset($_POST['status_periksa'])) {
           $status_periksa = $_POST['status_periksa'];
         }
-        $cek_vclaim = $this->db('mlite_modules')->where('dir', 'vclaim')->oneArray();
         $responsivevoice =  $this->settings->get('settings.responsivevoice');
         $this->_Display($tgl_kunjungan, $tgl_kunjungan_akhir, $status_periksa);
-        echo $this->draw('display.html', ['rawat_jalan' => $this->assign, 'cek_vclaim' => $cek_vclaim, 'responsivevoice' => $responsivevoice, 'admin_mode' => $this->settings->get('settings.admin_mode')]);
+        echo $this->draw('display.html', ['rawat_jalan' => $this->assign, 'responsivevoice' => $responsivevoice, 'admin_mode' => $this->settings->get('settings.admin_mode')]);
         exit();
     }
 
@@ -1678,6 +1677,7 @@ class Admin extends AdminModule
         $this->tpl->set('no_rawat', revertNoRawat($no_rawat));
         $this->tpl->set('settings', $this->tpl->noParse_array(htmlspecialchars_array($this->settings('settings'))));
         $this->tpl->set('surat', $this->db('mlite_surat_rujukan')->where('no_rawat', revertNoRawat($no_rawat))->oneArray());
+        $this->tpl->set('nomor_surat', $this->db('mlite_set_nomor_surat')->select('nomor_surat')->oneArray()['nomor_surat'].'/'.$this->settings->get('settings.prefix_surat').'/'.getRomawi(date('m')).'/'.date('Y'));
         echo $this->tpl->draw(MODULES.'/dokter_ralan/view/admin/surat.rujukan.html', true);
         exit();
     }
@@ -1701,6 +1701,7 @@ class Admin extends AdminModule
         $this->tpl->set('no_rawat', revertNoRawat($no_rawat));
         $this->tpl->set('settings', $this->tpl->noParse_array(htmlspecialchars_array($this->settings('settings'))));
         $this->tpl->set('surat', $this->db('mlite_surat_sehat')->where('no_rawat', revertNoRawat($no_rawat))->oneArray());
+        $this->tpl->set('nomor_surat', $this->db('mlite_set_nomor_surat')->select('nomor_surat')->oneArray()['nomor_surat'].'/'.$this->settings->get('settings.prefix_surat').'/'.getRomawi(date('m')).'/'.date('Y'));
         echo $this->tpl->draw(MODULES.'/dokter_ralan/view/admin/surat.sehat.html', true);
         exit();
     }
@@ -1724,6 +1725,7 @@ class Admin extends AdminModule
         $this->tpl->set('no_rawat', revertNoRawat($no_rawat));
         $this->tpl->set('settings', $this->tpl->noParse_array(htmlspecialchars_array($this->settings('settings'))));
         $this->tpl->set('surat', $this->db('mlite_surat_sakit')->where('no_rawat', revertNoRawat($no_rawat))->oneArray());
+        $this->tpl->set('nomor_surat', $this->db('mlite_set_nomor_surat')->select('nomor_surat')->oneArray()['nomor_surat'].'/'.$this->settings->get('settings.prefix_surat').'/'.getRomawi(date('m')).'/'.date('Y'));
         echo $this->tpl->draw(MODULES.'/dokter_ralan/view/admin/surat.sakit.html', true);
         exit();
     }
@@ -1751,6 +1753,10 @@ class Admin extends AdminModule
       ]);
 
       if($query) {
+        $nomor_surat = ltrim($this->db('mlite_set_nomor_surat')->select('nomor_surat')->oneArray()['nomor_surat']);
+        $nomor_surat = sprintf('%03s', ($nomor_surat + 1));
+        $this->db('mlite_set_nomor_surat')->delete();
+        $this->db('mlite_set_nomor_surat')->save(['nomor_surat' => $nomor_surat]);
         $data['status'] = 'success';
         echo json_encode($data);
       } else {
@@ -1786,6 +1792,10 @@ class Admin extends AdminModule
       ]);
 
       if($query) {
+        $nomor_surat = ltrim($this->db('mlite_set_nomor_surat')->select('nomor_surat')->oneArray()['nomor_surat']);
+        $nomor_surat = sprintf('%03s', ($nomor_surat + 1));
+        $this->db('mlite_set_nomor_surat')->delete();
+        $this->db('mlite_set_nomor_surat')->save(['nomor_surat' => $nomor_surat]);
         $data['status'] = 'success';
         echo json_encode($data);
       } else {
@@ -1822,6 +1832,10 @@ class Admin extends AdminModule
       ]);
 
       if($query) {
+        $nomor_surat = ltrim($this->db('mlite_set_nomor_surat')->select('nomor_surat')->oneArray()['nomor_surat']);
+        $nomor_surat = sprintf('%03s', ($nomor_surat + 1));
+        $this->db('mlite_set_nomor_surat')->delete();
+        $this->db('mlite_set_nomor_surat')->save(['nomor_surat' => $nomor_surat]);
         $data['status'] = 'success';
         echo json_encode($data);
       } else {
