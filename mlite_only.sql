@@ -1,3 +1,5 @@
+SET FOREIGN_KEY_CHECKS=0;
+
 # Dump of table mlite_akun_kegiatan
 # ------------------------------------------------------------
 
@@ -1201,7 +1203,7 @@ VALUES
 	(31,'settings','admin_mode','complex'),
 	(32,'settings','input_kasir','tidak'),
 	(33,'settings','editor','wysiwyg'),
-	(34,'settings','version','5.1.0'),
+	(34,'settings','version','5.2.0'),
 	(35,'settings','update_check','0'),
 	(36,'settings','update_changelog',''),
 	(37,'settings','update_version','0'),
@@ -1711,3 +1713,5 @@ CREATE TABLE `mlite_veronisa_feedback` (
 CREATE TABLE `mlite_set_nomor_surat` (
   `nomor_surat` varchar(10) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+
+SET FOREIGN_KEY_CHECKS=1;

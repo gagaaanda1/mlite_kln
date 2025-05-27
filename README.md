@@ -44,9 +44,11 @@ $ composer create-project basoro/mlite
 
 3. Sesuaikan pengaturan di config.php
 
-4. Buka browser Anda dan navigasikan ke alamat tempat file mLITE berada.
+4. Buat database baru di MySQL/MariaDB dan import file `mlite_db.sql`
 
-5. Silahkan login dengan Username: admin dan Password: admin
+5. Buka browser Anda dan navigasikan ke alamat tempat file mLITE berada.
+
+6. Silahkan login dengan Username: admin dan Password: admin
 
 ### Pemasangan Manual
 1. Unduh versi terbaru [mLITE] (https://github.com/basoro/mlite).
@@ -62,11 +64,30 @@ $ composer install
 
 5. Sesuaikan pengaturan di config.php
 
-6. Buka browser Anda dan navigasikan ke alamat tempat file mLITE berada.
+6. Buat database baru di MySQL/MariaDB dan import file `mlite_db.sql`
 
-7. Silahkan login dengan Username: admin dan Password: admin
+7. Buka browser Anda dan navigasikan ke alamat tempat file mLITE berada.
 
-#### Catatan:
+8. Silahkan login dengan Username: admin dan Password: admin
+
+### Pemasangan menggunakan docker.
+1. Download file release terbaru [mLITE] atau lakukan git clone.
+
+```
+$ git clone https://github.com/basoro/mlite.git
+```
+
+2. Jalankan perintah docker-compose
+```
+$ cd mlite/docker && docker-compose up -d
+```
+
+3. Buka browser Anda dan navigasikan ke alamat URL_ADDRESS:8088.
+
+4. Silahkan login dengan Username: admin dan Password: admin
+
+
+## Catatan:
 Untuk setiap kali update, silahkan jalankan perintah
 ```
 $ composer update
@@ -74,7 +95,7 @@ $ composer update
 Ini untuk menambahkan dependensi baru pada aplikasi
 
 
-### Peringatan!
+## Peringatan!
 
 + Untuk pengguna Apache, pastikan file `.htaccess` juga ada di server. Tanpanya mLITE tidak akan berfungsi.
 + Untuk pengguna Nginx, tambahkan konfigurasi berikut di pengaturan nginx.conf (atau sejenisnya)
