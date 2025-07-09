@@ -123,11 +123,13 @@ abstract class Main
 
     private function setSession()
     {
-        ini_set('session.use_only_cookies', 1);
-        session_name('mlite');
-        session_set_cookie_params(0, (mlite_dir() === '/' ? '/' : mlite_dir().'/'));
-        session_start();
-    }
+        if (session_status() !== PHP_SESSION_ACTIVE) {
+            ini_set('session.use_only_cookies', 1);
+            session_name('mlite');
+            session_set_cookie_params(0, (mlite_dir() === '/' ? '/' : mlite_dir().'/'));
+            session_start();
+        }
+    }    
 
     public function setNotify($type, $text, $args = null)
     {
@@ -562,11 +564,56 @@ abstract class Main
         return $css;
     }
     
+    public function loadDisabledMenu($module)
+    {
+        $disable_menu = $this->db('mlite_disabled_menu')->where('user', $this->getUserInfo('username', $_SESSION['mlite_user'], true))->where('module', $module)->oneArray();
+        if(!$disable_menu) {
+            $disable_menu = array('can_create' => 'true', 'can_read' => 'true', 'can_update' => 'true', 'can_delete' => 'true');
+        }
+        if($this->getUserInfo('role', $_SESSION['mlite_user'], true) == 'admin') {
+            $disable_menu = array('can_create' => 'false', 'can_read' => 'false', 'can_update' => 'false', 'can_delete' => 'false');
+        }    
+
+        return $disable_menu;
+    }
+
     public function loadModules()
     {
         if ($this->module == null) {
             $this->module = new Lib\ModulesCollection($this);
         }
     }
+
+    public function umurDaftar($tgl_lahir) {
+        $birthDate = new \DateTime($tgl_lahir);
+        $today = new \DateTime("today");
+    
+        $umur_daftar = 0;
+        $status_umur = 'Hr';
+    
+        if ($birthDate < $today) {
+            $diff = $today->diff($birthDate);
+            $y = $diff->y;
+            $m = $diff->m;
+            $d = $diff->d;
+    
+            if ($y != 0) {
+                $umur_daftar = $y;
+                $status_umur = "Th";
+            } elseif ($m != 0) {
+                $umur_daftar = $m;
+                $status_umur = "Bl";
+            } else {
+                $umur_daftar = $d;
+                $status_umur = "Hr";
+            }
+        }
+    
+        // Kembalikan sebagai array
+        return [
+            'umur_daftar' => $umur_daftar,
+            'status_umur' => $status_umur
+        ];
+    }    
 
 }

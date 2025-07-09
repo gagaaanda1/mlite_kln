@@ -513,6 +513,49 @@ VALUES
 /*!40000 ALTER TABLE `cacat_fisik` ENABLE KEYS */;
 UNLOCK TABLES;
 
+# Dump of table catatan_adime_gizi
+# ------------------------------------------------------------
+
+CREATE TABLE `catatan_adime_gizi` (
+  `no_rawat` varchar(17) NOT NULL,
+  `tanggal` datetime NOT NULL,
+  `asesmen` varchar(1000) DEFAULT NULL,
+  `diagnosis` varchar(1000) DEFAULT NULL,
+  `intervensi` varchar(1000) DEFAULT NULL,
+  `monitoring` varchar(1000) DEFAULT NULL,
+  `evaluasi` varchar(1000) DEFAULT NULL,
+  `instruksi` varchar(1000) DEFAULT NULL,
+  `nip` varchar(20) DEFAULT NULL,
+  PRIMARY KEY (`no_rawat`,`tanggal`),
+  KEY `nip` (`nip`),
+  CONSTRAINT `catatan_adime_gizi_ibfk_1` FOREIGN KEY (`no_rawat`) REFERENCES `reg_periksa` (`no_rawat`) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `catatan_adime_gizi_ibfk_2` FOREIGN KEY (`nip`) REFERENCES `petugas` (`nip`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+
+CREATE TABLE `mlite_satu_sehat_mapping_lab` (
+  `id_template` int(11) NOT NULL,
+  `code` varchar(15) DEFAULT NULL,
+  `system` varchar(100) NOT NULL,
+  `display` varchar(80) DEFAULT NULL,
+  `sampel_code` varchar(15) NOT NULL,
+  `sampel_system` varchar(100) NOT NULL,
+  `sampel_display` varchar(80) NOT NULL,
+  PRIMARY KEY (`id_template`),
+  CONSTRAINT `mlite_satu_sehat_mapping_lab_ibfk_1` FOREIGN KEY (`id_template`) REFERENCES `template_laboratorium` (`id_template`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+
+
+CREATE TABLE `mlite_satu_sehat_mapping_rad` (
+  `kd_jenis_prw` varchar(15) NOT NULL,
+  `code` varchar(15) DEFAULT NULL,
+  `system` varchar(100) NOT NULL,
+  `display` varchar(80) DEFAULT NULL,
+  `sampel_code` varchar(15) NOT NULL,
+  `sampel_system` varchar(100) NOT NULL,
+  `sampel_display` varchar(80) NOT NULL,
+  PRIMARY KEY (`kd_jenis_prw`),
+  CONSTRAINT `mlite_satu_sehat_mapping_rad_ibfk_1` FOREIGN KEY (`kd_jenis_prw`) REFERENCES `jns_perawatan_radiologi` (`kd_jenis_prw`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 ;
 
 # Dump of table catatan_perawatan
 # ------------------------------------------------------------
@@ -2981,6 +3024,7 @@ CREATE TABLE `mlite_satu_sehat_lokasi` (
 CREATE TABLE `mlite_satu_sehat_mapping_praktisi` (
   `practitioner_id` varchar(40) NOT NULL,
   `kd_dokter` varchar(20) NOT NULL,
+  `jenis_praktisi` varchar(20) NOT NULL,
   PRIMARY KEY (`practitioner_id`),
   KEY `kd_dokter` (`kd_dokter`),
   CONSTRAINT `mlite_satu_sehat_mapping_praktisi_ibfk_1` FOREIGN KEY (`kd_dokter`) REFERENCES `dokter` (`kd_dokter`) ON DELETE CASCADE ON UPDATE CASCADE
@@ -3006,11 +3050,56 @@ CREATE TABLE `mlite_satu_sehat_response` (
   `id_observation_ttvtensi` varchar(50) DEFAULT NULL,
   `id_observation_ttvkesadaran` varchar(50) DEFAULT NULL,
   `id_procedure` varchar(50) DEFAULT NULL,
+  `id_clinical_impression` varchar(50) DEFAULT NULL,
   `id_composition` varchar(50) DEFAULT NULL,
+  `id_immunization` varchar(50) DEFAULT NULL,
+  `id_medication_request` varchar(50) DEFAULT NULL,
+  `id_medication_dispense` varchar(50) DEFAULT NULL,
+  `id_medication_statement` varchar(50) DEFAULT NULL,
+  `id_rad_request` varchar(50) DEFAULT NULL,
+  `id_rad_specimen` varchar(50) DEFAULT NULL,
+  `id_rad_observation` varchar(50) DEFAULT NULL,
+  `id_rad_diagnostic` varchar(50) DEFAULT NULL,
+  `id_lab_pk_request` varchar(50) DEFAULT NULL,
+  `id_lab_pk_specimen` varchar(50) DEFAULT NULL,
+  `id_lab_pk_observation` varchar(50) DEFAULT NULL,
+  `id_lab_pk_diagnostic` varchar(50) DEFAULT NULL,
+  `id_lab_pa_request` varchar(50) DEFAULT NULL,
+  `id_lab_pa_specimen` varchar(50) DEFAULT NULL,
+  `id_lab_pa_observation` varchar(50) DEFAULT NULL,
+  `id_lab_pa_diagnostic` varchar(50) DEFAULT NULL,
+  `id_lab_mb_request` varchar(50) DEFAULT NULL,
+  `id_lab_mb_specimen` varchar(50) DEFAULT NULL,
+  `id_lab_mb_observation` varchar(50) DEFAULT NULL,
+  `id_lab_mb_diagnostic` varchar(50) DEFAULT NULL,
+  `id_careplan` varchar(50) DEFAULT NULL,
   PRIMARY KEY (`no_rawat`),
   CONSTRAINT `mlite_satu_sehat_response_ibfk_1` FOREIGN KEY (`no_rawat`) REFERENCES `reg_periksa` (`no_rawat`) ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 
+# Dump of table mlite_satu_sehat_mapping_obat
+# ------------------------------------------------------------
+
+CREATE TABLE `mlite_satu_sehat_mapping_obat` (
+  `kode_brng` varchar(15) NOT NULL DEFAULT '',
+  `kode_kfa` varchar(50) DEFAULT NULL,
+  `nama_kfa` varchar(100) DEFAULT NULL,
+  `kode_bahan` varchar(50) DEFAULT NULL,
+  `nama_bahan` varchar(100) DEFAULT NULL,
+  `numerator` varchar(10) DEFAULT NULL,
+  `satuan_num` varchar(10) DEFAULT NULL,
+  `denominator` varchar(10) DEFAULT NULL,
+  `satuan_den` varchar(10) DEFAULT NULL,
+  `nama_satuan_den` varchar(10) DEFAULT NULL,
+  `kode_sediaan` varchar(50) DEFAULT NULL,
+  `nama_sediaan` varchar(100) DEFAULT NULL,
+  `kode_route` varchar(10) DEFAULT NULL,
+  `nama_route` varchar(50) DEFAULT NULL,
+  `type` enum('obat','vaksin') NOT NULL,
+  `id_medication` varchar(50) DEFAULT NULL,
+  PRIMARY KEY (`kode_brng`),
+  CONSTRAINT `mlite_satu_sehat_mapping_obat_ibfk_1` FOREIGN KEY (`kode_brng`) REFERENCES `databarang` (`kode_brng`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 
 
 # Dump of table mlite_settings

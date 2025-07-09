@@ -84,7 +84,9 @@ class Admin extends AdminModule
             'waapiphonenumber' => $waapiphonenumber,
             'nama_instansi' => $nama_instansi, 
             'username_fp' => $this->settings->get('settings.username_fp'), 
-            'password_fp' => $this->settings->get('settings.password_fp')
+            'password_fp' => $this->settings->get('settings.password_fp'), 
+            'username_frista' => $this->settings->get('settings.username_frista'), 
+            'password_frista' => $this->settings->get('settings.password_frista')
           ]
         );
     }
@@ -385,7 +387,7 @@ class Admin extends AdminModule
         ]);
       }
 
-      if($query->errorInfo()['0'] == '00000') {
+      if($query) {
         $data['status'] = 'success';
         echo json_encode($data);
       } else {

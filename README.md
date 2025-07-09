@@ -76,10 +76,11 @@ $ composer install
 ```
 $ git clone https://github.com/basoro/mlite.git
 ```
+Sesuaikan port di bagian Nginx Service dan MySQL Service dari default ke port yang anda inginkan (atau biarkan defautl saja). 
 
 2. Jalankan perintah docker-compose
 ```
-$ cd mlite/docker && docker-compose up -d
+$ cd mlite/docker && docker-compose build && docker-compose up -d
 ```
 
 3. Buka browser Anda dan navigasikan ke alamat URL_ADDRESS:8088.
