@@ -9,6 +9,7 @@ use PHPMailer\PHPMailer\Exception;
 
 class Admin extends AdminModule
 {
+    protected array $assign = [];
 
     public function navigation()
     {
@@ -39,7 +40,7 @@ class Admin extends AdminModule
         }
         $cek_vclaim = $this->db('mlite_modules')->where('dir', 'vclaim')->oneArray();
         $this->_Display($tgl_kunjungan, $tgl_kunjungan_akhir, $status_periksa, $status_pulang, $status_bayar, $type);
-        return $this->draw('manage.html', ['rawat_jalan' => $this->assign, 'cek_vclaim' => $cek_vclaim, 'type' => $type]);
+        return $this->draw('manage.html', ['rawat_jalan' => $this->assign, 'cek_vclaim' => $cek_vclaim, 'type' => $type, 'no_rawat_baru' => '', 'no_reg_baru' => '']);
     }
 
     public function anyDisplay()
@@ -62,7 +63,7 @@ class Admin extends AdminModule
         }
         $cek_vclaim = $this->db('mlite_modules')->where('dir', 'vclaim')->oneArray();
         $this->_Display($tgl_kunjungan, $tgl_kunjungan_akhir, $status_periksa, $status_pulang, $status_bayar, $type);
-        echo $this->draw('display.html', ['rawat_jalan' => $this->assign, 'cek_vclaim' => $cek_vclaim, 'type' => $type]);
+        echo $this->draw('display.html', ['rawat_jalan' => $this->assign, 'cek_vclaim' => $cek_vclaim, 'type' => $type, 'no_rawat_baru' => '', 'no_reg_baru' => '']);
         exit();
     }
 
@@ -249,7 +250,9 @@ class Admin extends AdminModule
           ->where('no_rawat', $_POST['no_rawat'])
           ->oneArray();
         echo $this->draw('form.html', [
-          'rawat_jalan' => $this->assign
+          'rawat_jalan' => $this->assign,
+          'no_rawat_baru' => '',
+          'no_reg_baru' => ''
         ]);
       } else {
         $this->assign['reg_periksa'] = [
@@ -282,7 +285,9 @@ class Admin extends AdminModule
           'pekerjaan' => ''
         ];
         echo $this->draw('form.html', [
-          'rawat_jalan' => $this->assign
+          'rawat_jalan' => $this->assign,
+          'no_rawat_baru' => '',
+          'no_reg_baru' => ''
         ]);
       }
       exit();
@@ -320,7 +325,11 @@ class Admin extends AdminModule
         $rawat = $this->db('reg_periksa')
           ->where('no_rawat', $_POST['no_rawat'])
           ->oneArray();
-        echo $this->draw('stts.daftar.html', ['stts_daftar' => $rawat['stts_daftar']]);
+        echo $this->draw('stts.daftar.html', [
+          'stts_daftar' => $rawat['stts_daftar'],
+          'stts_daftar_hidden' => $rawat['stts_daftar'],
+          'bg_status' => ''
+        ]);
       }
       exit();
     }
@@ -1094,7 +1103,7 @@ class Admin extends AdminModule
       $binary_content = file_get_contents($file);
 
       if ($binary_content === false) {
-         throw new Exception("Could not fetch remote content from: '$file'");
+         throw new \Exception("Could not fetch remote content from: '$file'");
       }
 
 	    $mail = new PHPMailer(true);

@@ -9,6 +9,7 @@ use PHPMailer\PHPMailer\Exception;
 
 class Admin extends AdminModule
 {
+    protected array $assign = [];
 
     public function navigation()
     {
@@ -39,7 +40,7 @@ class Admin extends AdminModule
         }
         $cek_vclaim = $this->db('mlite_modules')->where('dir', 'vclaim')->oneArray();
         $this->_Display($tgl_kunjungan, $tgl_kunjungan_akhir, $status_periksa, $status_pulang, $status_bayar, $type);
-        return $this->draw('manage.html', ['rawat_jalan' => $this->assign, 'cek_vclaim' => $cek_vclaim, 'type' => $type]);
+        return $this->draw('manage.html', ['rawat_jalan' => $this->assign, 'cek_vclaim' => $cek_vclaim, 'type' => $type, 'no_rawat_baru' => '', 'no_reg_baru' => '']);
     }
 
     public function anyDisplay()
@@ -62,7 +63,7 @@ class Admin extends AdminModule
         }
         $cek_vclaim = $this->db('mlite_modules')->where('dir', 'vclaim')->oneArray();
         $this->_Display($tgl_kunjungan, $tgl_kunjungan_akhir, $status_periksa, $status_pulang, $status_bayar, $type);
-        echo $this->draw('display.html', ['rawat_jalan' => $this->assign, 'cek_vclaim' => $cek_vclaim, 'type' => $type]);
+        echo $this->draw('display.html', ['rawat_jalan' => $this->assign, 'cek_vclaim' => $cek_vclaim, 'type' => $type, 'no_rawat_baru' => '', 'no_reg_baru' => '']);
         exit();
     }
 
@@ -75,6 +76,8 @@ class Admin extends AdminModule
         $this->assign['penjab']       = $this->db('penjab')->where('status', '1')->toArray();
         $this->assign['no_rawat'] = '';
         $this->assign['no_reg']     = '';
+        $this->assign['no_rawat_baru'] = '';
+        $this->assign['no_reg_baru'] = '';
         $this->assign['tgl_registrasi']= date('Y-m-d');
         $this->assign['jam_reg']= date('H:i:s');
 
@@ -238,6 +241,8 @@ class Admin extends AdminModule
       $this->assign['penjab'] = $this->db('penjab')->where('status', '1')->toArray();
       $this->assign['no_rawat'] = '';
       $this->assign['no_reg']     = '';
+      $this->assign['no_rawat_baru'] = '';
+      $this->assign['no_reg_baru'] = '';
       $this->assign['tgl_registrasi']= date('Y-m-d');
       $this->assign['jam_reg']= date('H:i:s');
       if (isset($_POST['no_rawat'])){
@@ -249,7 +254,9 @@ class Admin extends AdminModule
           ->where('no_rawat', $_POST['no_rawat'])
           ->oneArray();
         echo $this->draw('form.html', [
-          'rawat_jalan' => $this->assign
+          'rawat_jalan' => $this->assign,
+          'no_rawat_baru' => '',
+          'no_reg_baru' => ''
         ]);
       } else {
         $this->assign['reg_periksa'] = [
@@ -282,7 +289,9 @@ class Admin extends AdminModule
           'pekerjaan' => ''
         ];
         echo $this->draw('form.html', [
-          'rawat_jalan' => $this->assign
+          'rawat_jalan' => $this->assign,
+          'no_rawat_baru' => '',
+          'no_reg_baru' => ''
         ]);
       }
       exit();
@@ -320,7 +329,11 @@ class Admin extends AdminModule
         $rawat = $this->db('reg_periksa')
           ->where('no_rawat', $_POST['no_rawat'])
           ->oneArray();
-        echo $this->draw('stts.daftar.html', ['stts_daftar' => $rawat['stts_daftar']]);
+        echo $this->draw('stts.daftar.html', [
+          'stts_daftar' => $rawat['stts_daftar'],
+          'stts_daftar_hidden' => $rawat['stts_daftar'],
+          'bg_status' => ''
+        ]);
       }
       exit();
     }
@@ -706,6 +719,35 @@ class Admin extends AdminModule
       }
 
       $rows_periksa_radiologi = $this->db('periksa_radiologi')
+      ->select([
+        'periksa_radiologi.no_rawat',
+        'periksa_radiologi.tgl_periksa',
+        'periksa_radiologi.jam',
+        'periksa_radiologi.nip',
+        'periksa_radiologi.kd_dokter',
+        'periksa_radiologi.kd_jenis_prw',
+        'periksa_radiologi.dokter_perujuk',
+        'periksa_radiologi.bagian_rs',
+        'periksa_radiologi.bhp',
+        'periksa_radiologi.tarif_perujuk',
+        'periksa_radiologi.tarif_tindakan_dokter',
+        'periksa_radiologi.tarif_tindakan_petugas',
+        'periksa_radiologi.kso',
+        'periksa_radiologi.menejemen',
+        'periksa_radiologi.biaya',
+        'periksa_radiologi.status',
+        'periksa_radiologi.proyeksi',
+        'periksa_radiologi.kV',
+        'periksa_radiologi.mAS',
+        'periksa_radiologi.FFD',
+        'periksa_radiologi.BSF',
+        'periksa_radiologi.inak',
+        'periksa_radiologi.jml_penyinaran',
+        'periksa_radiologi.dosis',
+        'dokter.nm_dokter',
+        'penjab.png_jawab',
+        'petugas.nama as nama_petugas'
+      ])
       ->join('reg_periksa', 'reg_periksa.no_rawat=periksa_radiologi.no_rawat')
       ->join('dokter', 'dokter.kd_dokter=periksa_radiologi.kd_dokter')
       ->join('penjab', 'penjab.kd_pj=reg_periksa.kd_pj')
@@ -713,8 +755,14 @@ class Admin extends AdminModule
       ->where('periksa_radiologi.status', $_POST['status'])
       ->where('periksa_radiologi.no_rawat', $_POST['no_rawat'])
       ->group('periksa_radiologi.no_rawat')
-      ->group('tgl_periksa')
-      ->group('jam')
+      ->group('periksa_radiologi.tgl_periksa')
+      ->group('periksa_radiologi.jam')
+      ->group('periksa_radiologi.nip')
+      ->group('periksa_radiologi.kd_dokter')
+      ->group('periksa_radiologi.kd_jenis_prw')
+      ->group('dokter.nm_dokter')
+      ->group('penjab.png_jawab')
+      ->group('petugas.nama')
       ->toArray();
 
       $periksa_radiologi = [];
@@ -739,7 +787,7 @@ class Admin extends AdminModule
         $row['gambar_radiologi'] = $this->db('gambar_radiologi')
           ->where('no_rawat', $_POST['no_rawat'])
           ->where('tgl_periksa', $row['tgl_periksa'])
-          ->where('jam', $row['jam'])
+          // ->where('jam', $row['jam'])
           ->toArray();
         $periksa_radiologi[] = $row;
       }
@@ -785,6 +833,13 @@ class Admin extends AdminModule
       }
       exit();
     }
+
+    public function postValidasiHasilRadiologi()
+    {
+      $this->db('permintaan_radiologi')->where('no_rawat', $_POST['no_rawat'])->where('noorder', $_POST['noorder'])->save(['tgl_hasil' => date('Y-m-d'), 'jam_hasil' => date('H:i:s')]);
+      exit();
+    }
+
 
     public function anyLayananRadiologi()
     {
@@ -869,6 +924,10 @@ class Admin extends AdminModule
           'jam' => $_POST['jam_periksa'],
           'hasil' => $_POST['hasil']
         ]);
+
+      if($result) {
+        $this->db('permintaan_radiologi')->where('no_rawat', $_POST['no_rawat'])->where('noorder', $_POST['noorder'])->save(['tgl_hasil' => date('Y-m-d'), 'jam_hasil' => date('H:i:s')]);
+      }        
       exit();
     }
     public function postUploadHasil()
@@ -922,7 +981,7 @@ class Admin extends AdminModule
       $binary_content = file_get_contents($file);
 
       if ($binary_content === false) {
-         throw new Exception("Could not fetch remote content from: '$file'");
+         throw new \Exception("Could not fetch remote content from: '$file'");
       }
 
 	    $mail = new PHPMailer(true);

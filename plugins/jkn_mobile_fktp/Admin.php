@@ -7,6 +7,17 @@ use Systems\Lib\PcareService;
 
 class Admin extends AdminModule
 {
+    public $assign = [];
+    private $usernamePcare;
+    private $passwordPcare;
+    private $kdAplikasi;
+    private $consumerID;
+    private $consumerSecret;
+    private $consumerUserKey;
+    private $consumerUserKeyAntrol;
+    private $api_url;
+    private $api_url_antrol;
+    private $api_url_icare;
 
     public function init()
     {
@@ -20,7 +31,7 @@ class Admin extends AdminModule
       $this->api_url = $this->settings->get('pcare.PCareApiUrl');
       $this->api_url_antrol = 'https://apijkn.bpjs-kesehatan.go.id/antreanfktp/';
       $this->api_url_icare = 'https://apijkn.bpjs-kesehatan.go.id/wsIHS/api/pcare/validate';
-      if (strpos($this->api_url, 'dev') !== false) { 
+      if (!empty($this->api_url) && strpos($this->api_url, 'dev') !== false) { 
         $this->api_url_antrol = 'https://apijkn-dev.bpjs-kesehatan.go.id/antreanfktp_dev/';
         $this->api_url_icare = 'https://apijkn-dev.bpjs-kesehatan.go.id/ihs_dev/api/pcare/validate';
       }  
@@ -57,17 +68,47 @@ class Admin extends AdminModule
     {
         $this->_addHeaderFiles();
         $this->assign['title'] = 'Pengaturan Modul JKN Mobile FKTP';
-        $this->assign['propinsi'] = $this->db('propinsi')->where('kd_prop', $this->settings->get('jkn_mobile_fktp.kdprop'))->oneArray();
-        $this->assign['kabupaten'] = $this->db('kabupaten')->where('kd_kab', $this->settings->get('jkn_mobile_fktp.kdkab'))->oneArray();
-        $this->assign['kecamatan'] = $this->db('kecamatan')->where('kd_kec', $this->settings->get('jkn_mobile_fktp.kdkec'))->oneArray();
-        $this->assign['kelurahan'] = $this->db('kelurahan')->where('kd_kel', $this->settings->get('jkn_mobile_fktp.kdkel'))->oneArray();
+        
+        // Tambahkan nilai default untuk semua key jkn_mobile_fktp
+        $defaultSettings = [
+            'username' => '',
+            'password' => '',
+            'header' => 'X-Token',
+            'header_username' => 'X-Username',
+            'header_password' => 'X-Password',
+            'kd_pj' => '',
+            'hari' => '3',
+            'display' => '',
+            'kdprop' => '',
+            'kdkab' => '',
+            'kdkec' => '',
+            'kdkel' => ''
+        ];
+        
+        // Ambil settings dari database
+        $dbSettings = $this->settings('jkn_mobile_fktp');
+        if (!is_array($dbSettings)) {
+            $dbSettings = [];
+        }
+        
+        // Gabungkan default settings dengan database settings
+        $mergedSettings = array_merge($defaultSettings, $dbSettings);
+        
+        $kdprop = $mergedSettings['kdprop'];
+        $this->assign['propinsi'] = $kdprop ? $this->db('propinsi')->where('kd_prop', $kdprop)->oneArray() : [];
+        $kdkab = $mergedSettings['kdkab'];
+        $this->assign['kabupaten'] = $kdkab ? $this->db('kabupaten')->where('kd_kab', $kdkab)->oneArray() : [];
+        $kdkec = $mergedSettings['kdkec'];
+        $this->assign['kecamatan'] = $kdkec ? $this->db('kecamatan')->where('kd_kec', $kdkec)->oneArray() : [];
+        $kdkel = $mergedSettings['kdkel'];
+        $this->assign['kelurahan'] = $kdkel ? $this->db('kelurahan')->where('kd_kel', $kdkel)->oneArray() : [];
         $this->assign['suku_bangsa'] = $this->db('suku_bangsa')->toArray();
         $this->assign['bahasa_pasien'] = $this->db('bahasa_pasien')->toArray();
         $this->assign['cacat_fisik'] = $this->db('cacat_fisik')->toArray();
         $this->assign['perusahaan_pasien'] = $this->db('perusahaan_pasien')->toArray();
         $this->assign['penjab'] = $this->db('penjab')->where('status', '1')->toArray();
-        $this->assign['poliklinik'] = $this->_getPoliklinik($this->settings->get('jkn_mobile_fktp.display'));
-        $this->assign['jkn_mobile_fktp'] = htmlspecialchars_array($this->settings('jkn_mobile_fktp'));
+        $this->assign['poliklinik'] = $this->_getPoliklinik($mergedSettings['display']);
+        $this->assign['jkn_mobile_fktp'] = htmlspecialchars_array($mergedSettings);
         return $this->draw('settings.html', ['settings' => $this->assign]);
     }
 
@@ -99,7 +140,11 @@ class Admin extends AdminModule
 
     public function postSaveSettings()
     {
-        $_POST['jkn_mobile_fktp']['display'] = implode(',', $_POST['jkn_mobile_fktp']['display']);
+        if (isset($_POST['jkn_mobile_fktp']['display'])) {
+            $_POST['jkn_mobile_fktp']['display'] = implode(',', $_POST['jkn_mobile_fktp']['display']);
+        } else {
+            $_POST['jkn_mobile_fktp']['display'] = '';
+        }
         foreach ($_POST['jkn_mobile_fktp'] as $key => $val) {
             $this->settings('jkn_mobile_fktp', $key, $val);
         }
@@ -403,7 +448,7 @@ class Admin extends AdminModule
         $hari=$day[$tentukan_hari];
 
         $jadwal = $this->db('jadwal')->where('kd_dokter', $reg_periksa['kd_dokter'])->where('kd_poli', $reg_periksa['kd_poli'])->where('hari_kerja', $hari)->oneArray();        
-        $jampraktek = date('H:i', strtotime($jadwal['jam_mulai'])).'-'.date('H:i', strtotime($jadwal['jam_selesai']));
+        $jampraktek = isset($jadwal['jam_mulai']) && isset($jadwal['jam_selesai']) ? date('H:i', strtotime($jadwal['jam_mulai'])).'-'.date('H:i', strtotime($jadwal['jam_selesai'])) : '07:00-23:00';
 
         $data = [
           'nomorkartu' => $noKartu,
@@ -440,20 +485,29 @@ class Admin extends AdminModule
         if (!empty($stringDecrypt)) {
             $decompress = decompress($stringDecrypt);
         }
+        
         if ($json != null) {
-            echo '{
-                "metaData": {
-                  "code": "' . $code . '",
-                  "message": "' . $message . '"
-                },
-                "response": ' . $decompress . '}';
+          $output = [
+              "metaData" => [
+                  "code" => (string)$code,
+                  "message" => $message
+              ],
+              "response" => $decompress
+          ];
+      
+          header('Content-Type: application/json');
+          echo json_encode($output, JSON_UNESCAPED_UNICODE);
         } else {
-            echo '{
-                "metaData": {
-                  "code": "5000",
-                  "message": "ERROR"
-                },
-                "response": "ADA KESALAHAN ATAU SAMBUNGAN KE SERVER BPJS TERPUTUS."}';
+          $output = [
+              "metaData" => [
+                  "code" => "5000",
+                  "message" => "ERROR"
+              ],
+              "response" => "ADA KESALAHAN ATAU SAMBUNGAN KE SERVER BPJS TERPUTUS."
+          ];
+      
+          header('Content-Type: application/json');
+          echo json_encode($output, JSON_UNESCAPED_UNICODE);
         }
   
         exit();

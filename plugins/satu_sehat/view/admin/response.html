@@ -23,23 +23,28 @@
 </style>
 <div class="panel panel-default">
     <div class="panel-heading">
-        <div class="btn-group pull-right" style="margin-top:-8px;margin-right: 40px;">
+        <div class="btn-group pull-right" style="margin-top:-8px;">
             <span class="btn btn-sm dropdown-toggle" data-toggle="dropdown">
-              <i class="fa fa-calendar"></i><span class="hidden-xs"> Periode</span>
+              <i class="fa fa-calendar"></i><span class="hidden-xs"> Periode Tanggal</span>
             </span>
             <ul class="dropdown-menu dropdown-menu-right">
                 <form action="">
                     <li style="padding-left:5px;padding-right:5px;">
-                        <input type="text" id="periode" class="form-control periode" name="periode" required>
+                        <label style="font-size:12px;margin-bottom:2px;">Tanggal Awal</label>
+                        <input type="text" id="tanggal_awal" class="form-control tanggal" name="tanggal_awal" required>
+                    </li>
+                    <li style="padding-left:5px;padding-right:5px;margin-top:5px;">
+                        <label style="font-size:12px;margin-bottom:2px;">Tanggal Akhir</label>
+                        <input type="text" id="tanggal_akhir" class="form-control tanggal" name="tanggal_akhir" required>
                     </li>
                     <li style="padding-left:5px;padding-right:5px;margin-top:5px;">
                         <input type="hidden" name="t" value="{?=$_SESSION['token']?}">
-                        <input type="submit" class="btn btn-primary btn-block value="Cari">
+                        <input type="submit" class="btn btn-primary btn-block" value="Cari">
                     </li>        
                 </form>
             </ul>
         </div>
-        <h3 class="panel-title">Data Response Satu Sehat</h3>
+        <h3 class="panel-title">Data Response Satu Sehat <a href="{?=url('/satu-sehat/forward-tanggal')?}" class="btn btn-info btn-xs" target="_blank"><i class="fa fa-send"></i> Kirim Massal</a></h3>
     </div>
     <div class="panel-body">
         <div class="row">
@@ -81,10 +86,11 @@
                             <!-- <th style="white-space: nowrap;">ID Vaksin/Imunisasi</th> -->
                             <th style="white-space: nowrap;">ID Medication Request</th>
                             <th style="white-space: nowrap;">ID Medication Dispense</th>
-                            <!-- <th style="white-space: nowrap;">ID Service Request Radiologi</th>
+                            <th style="white-space: nowrap;">ID Service Request Radiologi</th>
                             <th style="white-space: nowrap;">ID Specimen Radiologi</th>
                             <th style="white-space: nowrap;">ID Observation Radiologi</th>
-                            <th style="white-space: nowrap;">ID Diagnostic Report Radiologi</th> -->
+                            <th style="white-space: nowrap;">ID Diagnostic Report Radiologi</th>
+                            <th style="white-space: nowrap;">Image Study</th>
                             <th style="white-space: nowrap;">ID Service Request Lab PK</th>
                             <!-- <th style="white-space: nowrap;">ID Service Request Lab PA</th>
                             <th style="white-space: nowrap;">ID Service Request Lab MB</th> -->
@@ -117,40 +123,44 @@
     $(document).ready(function(){
         // console.log($('.display').length);
         const urlParams = new URLSearchParams(window.location.search);
-        const periode = urlParams.get('periode'); // name will be "John"
+        const tanggal_awal = urlParams.get('tanggal_awal') || '';
+        const tanggal_akhir = urlParams.get('tanggal_akhir') || '';
+        // Prefill inputs when available
+        if (tanggal_awal) $('#tanggal_awal').val(tanggal_awal);
+        if (tanggal_akhir) $('#tanggal_akhir').val(tanggal_akhir);
         var baseURL = mlite.url + '/' + mlite.admin;
-        var urlapi = baseURL + '/satu_sehat/responseapi?t=' + mlite.token + '&periode=' + encodeURIComponent(periode);
+        var urlapi = baseURL + '/satu_sehat/responseapi?t=' + mlite.token + '&tanggal_awal=' + encodeURIComponent(tanggal_awal) + '&tanggal_akhir=' + encodeURIComponent(tanggal_akhir);
         table = $('.display').DataTable({
-        processing: true,
-        serverSide: true,
-        stateSave: true,
-        scrollX: true,
-        scrollCollapse: true,
-        fixedColumns: {
-            left: 4
-        },
-        ajax: {
-            url: urlapi,
-            type: 'POST', 
-            dataSrc: function(json) {
-                console.log(">> Response from backend:", json);
-                return json.data; // pastikan ini sesuai struktur JSON kamu
+            processing: true,
+            serverSide: true,
+            stateSave: true,
+            scrollX: true,
+            scrollCollapse: true,
+            fixedColumns: {
+                left: 4
             },
-            error: function(xhr, error, thrown) {
-                console.error('DataTables AJAX error:', error, thrown, xhr.responseText);
-            }            
-        },
-        "language": { "search": "", "searchPlaceholder": "Search..." },
-        "fixedColumns": {
-            "left": 4
-        },
-        columns: [
+            ajax: {
+                url: urlapi,
+                type: 'POST', 
+                dataSrc: function(json) {
+                    console.log(">> Response from backend:", json);
+                    return json.data; // pastikan ini sesuai struktur JSON kamu
+                },
+                error: function(xhr, error, thrown) {
+                    console.error('DataTables AJAX error:', error, thrown, xhr.responseText);
+                }            
+            },
+            "language": { "search": "", "searchPlaceholder": "Search..." },
+            "fixedColumns": {
+                "left": 4
+            },
+            columns: [
             { data: 'tgl_registrasi' },
             { data: 'no_rawat' },
             { data: 'no_rkm_medis',
             render:function(data, type, row) {
                 if(row.id_encounter == '' && row.diagnosa_pasien != '' && row.tgl_pulang != ''){
-                    return `${data} <br><a href="" class="btn btn-xs btn-info" data-id="${row.no_rawat_converted}" data-tipe="encounterbundle" data-toggle="modal" data-target="#asuransiModal" id="clearModalBtn"><i class="fa fa-plus"></i></a>`;
+                    return `${data} <br><a href="" class="btn btn-xs btn-info" data-id="${row.no_rawat_converted}" data-tipe="encounterbundle" data-toggle="modal" data-target="#asuransiModal" id="clearModalBtn"><i class="fa fa-plus"></i></a> <a href="" class="btn btn-xs btn-danger" data-id="${row.no_rawat_converted}" data-tipe="forwardnorawat" data-toggle="modal" data-target="#asuransiModal" id="clearModalBtn"><i class="fa fa-send"></i></a>`;
                 }else if(row.id_encounter == '' && row.tgl_pulang == ''){
                     return `${data} <br><span class="badge badge-error">Belum Closing</span>`; 
                 }else if(row.id_encounter == '' && row.tgl_pulang == '' && row.diagnosa_pasien == ''){
@@ -300,9 +310,9 @@
             },
             { data: 'id_observation_ttvkesadaran' ,
             render:function(data, type, row) {
-                if(row.id_observation_ttvkesadaran == '' && row.pemeriksaan.kesadaran != ''){
+                if(row.id_observation_ttvkesadaran == '' && row.pemeriksaan.kesadaran != undefined){
                     return `<a href="" class="btn btn-xs btn-info" data-id="${row.no_rawat_converted}" data-tipe="observation" data-ttv="kesadaran" data-toggle="modal" data-target="#asuransiModal" id="clearModalBtn"><i class="fa fa-check"></i></a>`;
-                }else if(row.id_observation_ttvkesadaran == '' && row.pemeriksaan.kesadaran == ''){
+                }else if(row.id_observation_ttvkesadaran == '' && row.pemeriksaan.kesadaran == undefined){
                     return `<span class="badge badge-error">Kesadaran Kosong</span>`; 
                 }else{return `${data}`}
             }
@@ -310,7 +320,7 @@
             { data: 'id_procedure' , 
             render:function(data, type, row) {
                 if(row.id_procedure == '' && row.prosedur_pasien != ''){
-                    return `<a href="" class="btn btn-xs btn-info" data-id="${row.no_rawat_converted}" data-toggle="modal" data-target="#asuransiModal" id="clearModalBtn"><i class="fa fa-check"></i></a>`;
+                    return `<a href="" class="btn btn-xs btn-info" data-id="${row.no_rawat_converted}" data-tipe="procedure" data-toggle="modal" data-target="#asuransiModal" id="clearModalBtn"><i class="fa fa-check"></i></a>`;
                 }else if(row.id_procedure == '' && row.prosedur_pasien == ''){
                     return `<span class="badge badge-error">Prosedur Kosong</span>`; 
                 }else{return `${data}`}
@@ -319,7 +329,7 @@
             { data: 'id_composition', 
             render:function(data, type, row) {
                 if(row.id_composition == '' && row.adime_gizi != ''){
-                    return `<a href="" class="btn btn-xs btn-info" data-id="${row.no_rawat_converted}" data-toggle="modal" data-target="#asuransiModal" id="clearModalBtn"><i class="fa fa-check"></i></a>`;
+                    return `<a href="" class="btn btn-xs btn-info" data-id="${row.no_rawat_converted}" data-tipe="dietgizi" data-toggle="modal" data-target="#asuransiModal" id="clearModalBtn"><i class="fa fa-check"></i></a>`;
                 }else if(row.id_composition == '' && row.adime_gizi == ''){
                     return `<span class="badge badge-error">Adime Gizi Kosong</span>`; 
                 }else{return `${data}`}
@@ -337,7 +347,7 @@
             { data: 'id_medication_request', 
             render:function(data, type, row) {
                 if(row.id_medication_request == '' && row.medication_request != ''){
-                    return `<a href="" class="btn btn-xs btn-info" data-id="${row.no_rawat_converted}" data-toggle="modal" data-target="#asuransiModal" id="clearModalBtn"><i class="fa fa-check"></i></a>`;
+                    return `<a href="" class="btn btn-xs btn-info" data-id="${row.no_rawat_converted}" data-tipe="medication" data-ttv="request" data-toggle="modal" data-target="#asuransiModal" id="clearModalBtn"><i class="fa fa-check"></i></a>`;
                 }else if(row.id_medication_request == '' && row.medication_request == ''){
                     return `<span class="badge badge-error">Permintaan Resep Kosong</span>`; 
                 }else{return `${data}`}
@@ -346,52 +356,61 @@
             { data: 'id_medication_dispense', 
             render:function(data, type, row) {
                 if(row.id_medication_dispense == '' && row.medication_dispense != ''){
-                    return `<a href="" class="btn btn-xs btn-info" data-id="${row.no_rawat_converted}" data-toggle="modal" data-target="#asuransiModal" id="clearModalBtn"><i class="fa fa-check"></i></a>`;
+                    return `<a href="" class="btn btn-xs btn-info" data-id="${row.no_rawat_converted}" data-tipe="medication" data-ttv="dispense" data-toggle="modal" data-target="#asuransiModal" id="clearModalBtn"><i class="fa fa-check"></i></a>`;
                 }else if(row.id_medication_dispense == '' && row.medication_dispense == ''){
                     return `<span class="badge badge-error">Validasi Resep Kosong</span>`; 
                 }else{return `${data}`}
             }
             },
-            // { data: 'id_service_request_radiologi', 
-            // render:function(data, type, row) {
-            //     if(row.id_service_request_radiologi == '' && row.ervice_request_radiologi != ''){
-            //         return `<a href="" class="btn btn-xs btn-info" data-id="${row.no_rawat_converted}" data-toggle="modal" data-target="#asuransiModal" id="clearModalBtn"><i class="fa fa-check"></i></a>`;
-            //     }else if(row.id_service_request_radiologi == '' && row.service_request_radiologi == ''){
-            //         return `<span class="badge badge-error">Service Request Radiologi Kosong</span>`; 
-            //     }else{return `${data}`}
-            // }
-            // },
-            // { data: 'id_specimen_radiologi', 
-            // render:function(data, type, row) {
-            //     if(row.id_specimen_radiologi == '' && row.specimen_radiologi != '0000-00-00' && row.specimen_radiologi != ''){
-            //         return `<a href="" class="btn btn-xs btn-info" data-id="${row.no_rawat_converted}" data-toggle="modal" data-target="#asuransiModal" id="clearModalBtn"><i class="fa fa-check"></i></a>`;
-            //     }else if(row.id_specimen_radiologi == '' && row.specimen_radiologi == ''){
-            //         return `<span class="badge badge-error">Specimen Radiologi Kosong</span>`; 
-            //     }else{return `${data}`}
-            // }
-            // },
-            // { data: 'id_observation_radiologi', 
-            // render:function(data, type, row) {
-            //     if(row.id_observation_radiologi == '' && row.observation_radiologi != '0000-00-00' && row.observation_radiologi != ''){
-            //         return `<a href="" class="btn btn-xs btn-info" data-id="${row.no_rawat_converted}" data-toggle="modal" data-target="#asuransiModal" id="clearModalBtn"><i class="fa fa-check"></i></a>`;
-            //     }else if(row.id_observation_radiologi == '' && row.observation_radiologi == ''){
-            //         return `<span class="badge badge-error">Observation Radiologi Kosong</span>`; 
-            //     }else{return `${data}`}
-            // }
-            // },
-            // { data: 'id_diagnostic_report_radiologi', 
-            // render:function(data, type, row) {
-            //     if(row.id_diagnostic_report_radiologi == '' && row.diagnostic_report_radiologi != ''){
-            //         return `<a href="" class="btn btn-xs btn-info" data-id="${row.no_rawat_converted}" data-toggle="modal" data-target="#asuransiModal" id="clearModalBtn"><i class="fa fa-check"></i></a>`;
-            //     }else if(row.id_diagnostic_report_radiologi == '' && row.diagnostic_report_radiologi == ''){
-            //         return `<span class="badge badge-error">Diagnostic Report Radiologi Kosong</span>`; 
-            //     }else{return `${data}`}
-            // }
-            // },
+            { data: 'id_rad_request', 
+            render:function(data, type, row) {
+                if(row.id_rad_request == '' && row.service_request_radiologi != ''){
+                    return `<a href="" class="btn btn-xs btn-info" data-id="${row.no_rawat_converted}" data-tipe="radiology" data-ttv="request" data-toggle="modal" data-target="#asuransiModal" id="clearModalBtn"><i class="fa fa-check"></i></a>`;
+                }else if(row.id_rad_request == '' && row.service_request_radiologi == ''){
+                    return `<span class="badge badge-error">Service Request Radiologi Kosong</span>`; 
+                }else{return `${data}`}
+            }
+            },
+            { data: 'id_rad_specimen', 
+            render:function(data, type, row) {
+                if(row.id_rad_specimen == '' && row.specimen_radiologi != '0000-00-00' && row.specimen_radiologi != ''){
+                    return `<a href="" class="btn btn-xs btn-info" data-id="${row.no_rawat_converted}" data-tipe="radiology" data-ttv="specimen" data-toggle="modal" data-target="#asuransiModal" id="clearModalBtn"><i class="fa fa-check"></i></a>`;
+                }else if(row.id_rad_specimen == '' && (row.specimen_radiologi == '0000-00-00' || row.specimen_radiologi == '')){
+                    return `<span class="badge badge-error">Specimen Radiologi Kosong</span>`; 
+                }else{return `${data}`}
+            }
+            },
+            { data: 'id_rad_observation', 
+            render:function(data, type, row) {
+                if(row.id_rad_observation == '' && row.observation_radiologi != '0000-00-00' && row.observation_radiologi != ''){
+                    return `<a href="" class="btn btn-xs btn-info" data-id="${row.no_rawat_converted}" data-tipe="radiology" data-ttv="observation" data-toggle="modal" data-target="#asuransiModal" id="clearModalBtn"><i class="fa fa-check"></i></a>`;
+                }else if(row.id_rad_observation == '' && (row.observation_radiologi == '0000-00-00' || row.observation_radiologi == '')){
+                    return `<span class="badge badge-error">Observation Radiologi Kosong</span>`; 
+                }else{return `${data}`}
+            }
+            },
+            { data: 'id_rad_diagnostic', 
+            render:function(data, type, row) {
+                if(row.id_rad_diagnostic == '' && row.diagnostic_report_radiologi != '0000-00-00' && row.diagnostic_report_radiologi != ''){
+                    return `<a href="" class="btn btn-xs btn-info" data-id="${row.no_rawat_converted}" data-tipe="radiology" data-ttv="diagnostic" data-toggle="modal" data-target="#asuransiModal" id="clearModalBtn"><i class="fa fa-check"></i></a>`;
+                }else if(row.id_rad_diagnostic == '' && (row.diagnostic_report_radiologi == '0000-00-00' || row.diagnostic_report_radiologi == '')){
+                    return `<span class="badge badge-error">Diagnostic Report Radiologi Kosong</span>`; 
+                }else{return `${data}`}
+            }
+            },
+            { data: 'id_rad_request', 
+            render:function(data, type, row) {
+                if(row.id_rad_request == '' && row.service_request_radiologi != ''){
+                    return `<span class="badge badge-error">Service Request Radiologi Belum Dikonfirmasi</span>`; 
+                }else if(row.id_rad_request == '' && row.service_request_radiologi == ''){
+                    return `<span class="badge badge-error">Service Request Radiologi Kosong</span>`; 
+                }else{return `<a href="" class="badge badge-success" data-id="${row.no_rawat_converted}" data-tipe="radiology" data-ttv="image" data-toggle="modal" data-target="#asuransiModal" id="clearModalBtn">Post Image Study</a>`}
+            }
+            },
             { data: 'id_lab_pk_request', 
             render:function(data, type, row) {
                 if(row.id_lab_pk_request == '' && row.service_request_lab_pk != ''){
-                    return `<a href="" class="btn btn-xs btn-info" data-id="${row.no_rawat_converted}" data-toggle="modal" data-target="#asuransiModal" id="clearModalBtn"><i class="fa fa-check"></i></a>`;
+                    return `<a href="" class="btn btn-xs btn-info" data-id="${row.no_rawat_converted}" data-tipe="laboratory" data-ttv="request" data-toggle="modal" data-target="#asuransiModal" id="clearModalBtn"><i class="fa fa-check"></i></a>`;
                 }else if(row.id_lab_pk_request == '' && row.service_request_lab_pk == ''){
                     return `<span class="badge badge-error">Request Lab PK Kosong</span>`; 
                 }else{return `${data}`}
@@ -417,81 +436,81 @@
             // },
             { data: 'id_lab_pk_specimen', 
             render:function(data, type, row) {
-                if(row.id_lab_pk_specimen == '' && row.specimen_lab_pk != '0000-00-00' && row.specimen_lab_pk != ''){
-                    return `<a href="" class="btn btn-xs btn-info" data-id="${row.no_rawat_converted}" data-toggle="modal" data-target="#asuransiModal" id="clearModalBtn"><i class="fa fa-check"></i></a>`;
-                }else if(row.id_lab_pk_specimen == '' && row.specimen_lab_pk == ''){
+                if(row.id_lab_pk_specimen == '' && (row.specimen_lab_pk != '0000-00-00' && row.specimen_lab_pk != '')){
+                    return `<a href="" class="btn btn-xs btn-info" data-id="${row.no_rawat_converted}" data-tipe="laboratory" data-ttv="specimen" data-toggle="modal" data-target="#asuransiModal" id="clearModalBtn"><i class="fa fa-check"></i></a>`;
+                }else if(row.id_lab_pk_specimen == '' && (row.specimen_lab_pk == '0000-00-00' || row.specimen_lab_pk == '')){
                     return `<span class="badge badge-error">Specimen Lab PK Kosong</span>`; 
                 }else{return `${data}`}
             }
             },
             // { data: 'id_specimen_lab_pa', 
             // render:function(data, type, row) {
-            //     if(row.id_specimen_lab_pa == '' && row.specimen_lab_pa != '0000-00-00' && row.specimen_lab_pa != ''){
+            //     if(row.id_specimen_lab_pa == '' && (row.specimen_lab_pa != '0000-00-00' && row.specimen_lab_pa != '')){
             //         return `<a href="" class="btn btn-xs btn-info" data-id="${row.no_rawat_converted}" data-toggle="modal" data-target="#asuransiModal" id="clearModalBtn"><i class="fa fa-check"></i></a>`;
-            //     }else if(row.id_specimen_lab_pa == '' && row.specimen_lab_pa == ''){
+            //     }else if(row.id_specimen_lab_pa == '' && (row.specimen_lab_pa == '0000-00-00' || row.specimen_lab_pa == '')){
             //         return `<span class="badge badge-error">Specimen Lab PA Kosong</span>`; 
             //     }else{return `${data}`}
             // }
             // },
             // { data: 'id_specimen_lab_mb', 
             // render:function(data, type, row) {
-            //     if(row.id_specimen_lab_mb == '' && row.specimen_lab_mb != '0000-00-00' && row.specimen_lab_mb != ''){
+            //     if(row.id_specimen_lab_mb == '' && (row.specimen_lab_mb != '0000-00-00' && row.specimen_lab_mb != '')){
             //         return `<a href="" class="btn btn-xs btn-info" data-id="${row.no_rawat_converted}" data-toggle="modal" data-target="#asuransiModal" id="clearModalBtn"><i class="fa fa-check"></i></a>`;
-            //     }else if(row.id_specimen_lab_mb == '' && row.specimen_lab_mb == ''){
+            //     }else if(row.id_specimen_lab_mb == '' && (row.specimen_lab_mb == '0000-00-00' || row.specimen_lab_mb == '')){
             //         return `<span class="badge badge-error">Specimen Lab MB Kosong</span>`; 
             //     }else{return `${data}`}
             // }
             // },
             { data: 'id_lab_pk_observation', 
                 render:function(data, type, row) {
-                    if(row.id_lab_pk_observation == '' && row.observation_lab_pk != '0000-00-00'){
-                        return `<a href="" class="btn btn-xs btn-info" data-id="${row.no_rawat_converted}" data-toggle="modal" data-target="#asuransiModal" id="clearModalBtn"><i class="fa fa-check"></i></a>`;
-                    }else if(row.id_lab_pk_observation == '' && row.observation_lab_pk == '0000-00-00'){
+                    if(row.id_lab_pk_observation == '' && (row.observation_lab_pk != '0000-00-00' && row.observation_lab_pk != '')){
+                        return `<a href="" class="btn btn-xs btn-info" data-id="${row.no_rawat_converted}" data-tipe="laboratory" data-ttv="observation" data-toggle="modal" data-target="#asuransiModal" id="clearModalBtn"><i class="fa fa-check"></i></a>`;
+                    }else if(row.id_lab_pk_observation == '' && (row.observation_lab_pk == '0000-00-00' || row.observation_lab_pk == '')){
                         return `<span class="badge badge-error">Observation Lab PK Kosong</span>`; 
                     }else{return `${data}`}
                 }
             },
             // { data: 'id_observation_lab_pa', 
             // render:function(data, type, row) {
-            //     if(row.id_observation_lab_pa == '' && row.observation_lab_pa != '0000-00-00'){
+            //     if(row.id_observation_lab_pa == '' && (row.observation_lab_pa != '0000-00-00' && row.observation_lab_pa != '')){
             //         return `<a href="" class="btn btn-xs btn-info" data-id="${row.no_rawat_converted}" data-toggle="modal" data-target="#asuransiModal" id="clearModalBtn"><i class="fa fa-check"></i></a>`;
-            //     }else if(row.id_observation_lab_pa == '' && row.observation_lab_pa == '0000-00-00'){
+            //     }else if(row.id_observation_lab_pa == '' && (row.observation_lab_pa == '0000-00-00' || row.observation_lab_pa == '')){
             //         return `<span class="badge badge-error">Observation Lab PA Kosong</span>`; 
             //     }else{return `${data}`}
             // }
             // },
             // { data: 'id_observation_lab_mb', 
             // render:function(data, type, row) {
-            //     if(row.id_observation_lab_mb == '' && row.observation_lab_mb != '0000-00-00'){
+            //     if(row.id_observation_lab_mb == '' && (row.observation_lab_mb != '0000-00-00' && row.observation_lab_mb != '')){
             //         return `<a href="" class="btn btn-xs btn-info" data-id="${row.no_rawat_converted}" data-toggle="modal" data-target="#asuransiModal" id="clearModalBtn"><i class="fa fa-check"></i></a>`;
-            //     }else if(row.id_observation_lab_mb == '' && row.observation_lab_mb == '0000-00-00'){
+            //     }else if(row.id_observation_lab_mb == '' && (row.observation_lab_mb == '0000-00-00' || row.observation_lab_mb == '')){
             //         return `<span class="badge badge-error">Observation Lab PK Kosong</span>`; 
             //     }else{return `${data}`}
             // }
             // },
             { data: 'id_lab_pk_diagnostic', 
                 render:function(data, type, row) {
-                    if(row.id_lab_pk_diagnostic == '' && row.diagnostic_report_lab_pk != ''){
-                        return `<a href="" class="btn btn-xs btn-info" data-id="${row.no_rawat_converted}" data-toggle="modal" data-target="#asuransiModal" id="clearModalBtn"><i class="fa fa-check"></i></a>`;
-                    }else if(row.id_lab_pk_diagnostic == '' && row.diagnostic_report_lab_pk == ''){
+                    if(row.id_lab_pk_diagnostic == '' && (row.diagnostic_report_lab_pk != '0000-00-00' && row.diagnostic_report_lab_pk != '')){
+                        return `<a href="" class="btn btn-xs btn-info" data-id="${row.no_rawat_converted}" data-tipe="laboratory" data-ttv="diagnostic" data-toggle="modal" data-target="#asuransiModal" id="clearModalBtn"><i class="fa fa-check"></i></a>`;
+                    }else if(row.id_lab_pk_diagnostic == '' && (row.diagnostic_report_lab_pk == '0000-00-00' || row.diagnostic_report_lab_pk == '')){
                         return `<span class="badge badge-error">Diagnostic Lab PK Kosong</span>`; 
                     }else{return `${data}`}
                 }
             },
             // { data: 'id_diagnostic_report_lab_pa', 
             // render:function(data, type, row) {
-            //     if(row.id_diagnostic_report_lab_pa == '' && row.diagnostic_report_lab_pa != ''){
+            //     if(row.id_diagnostic_report_lab_pa == '' && (row.diagnostic_report_lab_pa != '0000-00-00' && row.diagnostic_report_lab_pa != '')){
             //         return `<a href="" class="btn btn-xs btn-info" data-id="${row.no_rawat_converted}" data-toggle="modal" data-target="#asuransiModal" id="clearModalBtn"><i class="fa fa-check"></i></a>`;
-            //     }else if(row.id_diagnostic_report_lab_pa == '' && row.diagnostic_report_lab_pa == ''){
+            //     }else if(row.id_diagnostic_report_lab_pa == '' && (row.diagnostic_report_lab_pa == '0000-00-00' || row.diagnostic_report_lab_pa == '')){
             //         return `<span class="badge badge-error">Diagnostic Lab PA Kosong</span>`; 
             //     }else{return `${data}`}
             // }
             // },
             // { data: 'id_diagnostic_report_lab_mb', 
             // render:function(data, type, row) {
-            //     if(row.id_diagnostic_report_lab_mb == '' && row.diagnostic_report_lab_mb != ''){
+            //     if(row.id_diagnostic_report_lab_mb == '' && (row.diagnostic_report_lab_mb != '0000-00-00' && row.diagnostic_report_lab_mb != '')){
             //         return `<a href="" class="btn btn-xs btn-info" data-id="${row.no_rawat_converted}" data-toggle="modal" data-target="#asuransiModal" id="clearModalBtn"><i class="fa fa-check"></i></a>`;
-            //     }else if(row.id_diagnostic_report_lab_mb == '' && row.diagnostic_report_lab_mb == ''){
+            //     }else if(row.id_diagnostic_report_lab_mb == '' && (row.diagnostic_report_lab_mb == '0000-00-00' || row.diagnostic_report_lab_mb == '')){
             //         return `<span class="badge badge-error">Diagnostic Report Lab MB Kosong</span>`; 
             //     }else{return `${data}`}
             // }
@@ -499,7 +518,7 @@
             { data: 'id_careplan', 
             render:function(data, type, row) {
                 if(row.id_careplan == '' && row.care_plan != ''){
-                    return `<a href="" class="btn btn-xs btn-info" data-id="${row.no_rawat_converted}" data-toggle="modal" data-target="#asuransiModal" id="clearModalBtn"><i class="fa fa-check"></i></a>`;
+                    return `<a href="" class="btn btn-xs btn-info" data-id="${row.no_rawat_converted}" data-tipe="careplan" data-toggle="modal" data-target="#asuransiModal" id="clearModalBtn"><i class="fa fa-check"></i></a>`;
                 }else if(row.id_careplan == '' && row.care_plan == ''){
                     return `<span class="badge badge-error">Care Plan Kosong</span>`; 
                 }else{return `${data}`}
@@ -528,6 +547,10 @@
             url = baseURL+"/satu_sehat/"+tipe+"/"+id+"?t="+mlite.token
             
         }
+        if(tipe == 'forwardnorawat'){
+            url = mlite.url+"/satu-sehat/forward-norawat/"+id
+            
+        }
         console.log(url);
 
         $('#modalcontent').html('<div class="p-3 text-muted">Loading...</div>');
@@ -538,7 +561,7 @@
 </script>
 <script type="text/javascript">
     $(function () {
-        $('.periode').datetimepicker({
+        $('.tanggal').datetimepicker({
           defaultDate: '{?=date('Y-m-d')?}',
           format: 'YYYY-MM-DD',
           locale: 'id'

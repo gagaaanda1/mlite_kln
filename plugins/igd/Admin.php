@@ -165,6 +165,10 @@ class Admin extends AdminModule
 
     public function anyForm()
     {
+      // Initialize assign as array to prevent "Cannot access offset of type string on string" error
+      if (!is_array($this->assign)) {
+          $this->assign = [];
+      }
 
       $this->assign['poliklinik'] = $this->db('poliklinik')->where('status', '1')->toArray();
       $this->assign['dokter'] = $this->db('dokter')->where('status', '1')->toArray();
@@ -265,7 +269,11 @@ class Admin extends AdminModule
         $rawat = $this->db('reg_periksa')
           ->where('no_rawat', $_POST['no_rawat'])
           ->oneArray();
-        echo $this->draw('stts.daftar.html', ['stts_daftar' => $rawat['stts_daftar']]);
+        echo $this->draw('stts.daftar.html', [
+          'stts_daftar' => $rawat['stts_daftar'],
+          'stts_daftar_hidden' => $rawat['stts_daftar'],
+          'bg_status' => ''
+        ]);
       }
       exit();
     }
@@ -741,7 +749,7 @@ class Admin extends AdminModule
         $filePath = $_FILES['file']['tmp_name'];
 
         curl_setopt_array($curl, array(
-          CURLOPT_URL => str_replace('webapps','',WEBAPPS_URL).'api/berkasdigital',
+          CURLOPT_URL => substr(rtrim(WEBAPPS_URL, '/'), 0, strrpos(rtrim(WEBAPPS_URL, '/'), '/')).'/api/berkasdigital',
           CURLOPT_RETURNTRANSFER => true,
           CURLOPT_ENCODING => '',
           CURLOPT_MAXREDIRS => 10,
@@ -834,19 +842,30 @@ class Admin extends AdminModule
 
     public function postMaxid()
     {
-      $max_id = $this->db('reg_periksa')->select(['no_rawat' => 'ifnull(MAX(CONVERT(RIGHT(no_rawat,6),signed)),0)'])->where('tgl_registrasi', date('Y-m-d'))->oneArray();
+      if(isset($_POST['tgl_registrasi'])) {
+        $tgl_registrasi = $_POST['tgl_registrasi'];
+      } else {
+        $tgl_registrasi = date('Y-m-d');
+      }
+      $max_id = $this->db('reg_periksa')->select(['no_rawat' => 'ifnull(MAX(CONVERT(RIGHT(no_rawat,6),signed)),0)'])->where('tgl_registrasi', $tgl_registrasi)->oneArray();
       if(empty($max_id['no_rawat'])) {
         $max_id['no_rawat'] = '000000';
       }
       $_next_no_rawat = sprintf('%06s', ($max_id['no_rawat'] + 1));
-      $next_no_rawat = date('Y/m/d').'/'.$_next_no_rawat;
+      $next_no_rawat = date('Y/m/d', strtotime($tgl_registrasi)).'/'.$_next_no_rawat;
       echo $next_no_rawat;
       exit();
     }
 
     public function postMaxAntrian()
     {
-      $max_id = $this->db('reg_periksa')->select(['no_reg' => 'ifnull(MAX(CONVERT(RIGHT(no_reg,3),signed)),0)'])->where('kd_poli', $this->settings('settings', 'igd'))->where('tgl_registrasi', date('Y-m-d'))->desc('no_reg')->limit(1)->oneArray();
+      if(isset($_POST['tgl_registrasi'])) {
+        $tgl_registrasi = $_POST['tgl_registrasi'];
+      } else {
+        $tgl_registrasi = date('Y-m-d');
+      }
+
+      $max_id = $this->db('reg_periksa')->select(['no_reg' => 'ifnull(MAX(CONVERT(RIGHT(no_reg,3),signed)),0)'])->where('kd_poli', $this->settings('settings', 'igd'))->where('tgl_registrasi', $tgl_registrasi)->desc('no_reg')->limit(1)->oneArray();
       if(empty($max_id['no_reg'])) {
         $max_id['no_reg'] = '000';
       }
@@ -862,6 +881,137 @@ class Admin extends AdminModule
         return $text;
     }
 
+    public function getOdontogram($no_rkm_medis)
+    {
+
+      $odt['18'] = $this->db('mlite_odontogram')->where('no_rkm_medis', $no_rkm_medis)->where('pemeriksaan', 'gg_18')->desc('tgl_input')->limit(1)->oneArray();
+      $odt['17'] = $this->db('mlite_odontogram')->where('no_rkm_medis', $no_rkm_medis)->where('pemeriksaan', 'gg_17')->desc('tgl_input')->limit(1)->oneArray();
+      $odt['16'] = $this->db('mlite_odontogram')->where('no_rkm_medis', $no_rkm_medis)->where('pemeriksaan', 'gg_16')->desc('tgl_input')->limit(1)->oneArray();
+      $odt['15'] = $this->db('mlite_odontogram')->where('no_rkm_medis', $no_rkm_medis)->where('pemeriksaan', 'gg_15')->desc('tgl_input')->limit(1)->oneArray();
+      $odt['14'] = $this->db('mlite_odontogram')->where('no_rkm_medis', $no_rkm_medis)->where('pemeriksaan', 'gg_14')->desc('tgl_input')->limit(1)->oneArray();
+      $odt['13'] = $this->db('mlite_odontogram')->where('no_rkm_medis', $no_rkm_medis)->where('pemeriksaan', 'gg_13')->desc('tgl_input')->limit(1)->oneArray();
+      $odt['12'] = $this->db('mlite_odontogram')->where('no_rkm_medis', $no_rkm_medis)->where('pemeriksaan', 'gg_12')->desc('tgl_input')->limit(1)->oneArray();
+      $odt['11'] = $this->db('mlite_odontogram')->where('no_rkm_medis', $no_rkm_medis)->where('pemeriksaan', 'gg_11')->desc('tgl_input')->limit(1)->oneArray();
+      $odt['21'] = $this->db('mlite_odontogram')->where('no_rkm_medis', $no_rkm_medis)->where('pemeriksaan', 'gg_21')->desc('tgl_input')->limit(1)->oneArray();
+      $odt['22'] = $this->db('mlite_odontogram')->where('no_rkm_medis', $no_rkm_medis)->where('pemeriksaan', 'gg_22')->desc('tgl_input')->limit(1)->oneArray();
+      $odt['23'] = $this->db('mlite_odontogram')->where('no_rkm_medis', $no_rkm_medis)->where('pemeriksaan', 'gg_23')->desc('tgl_input')->limit(1)->oneArray();
+      $odt['24'] = $this->db('mlite_odontogram')->where('no_rkm_medis', $no_rkm_medis)->where('pemeriksaan', 'gg_24')->desc('tgl_input')->limit(1)->oneArray();
+      $odt['25'] = $this->db('mlite_odontogram')->where('no_rkm_medis', $no_rkm_medis)->where('pemeriksaan', 'gg_25')->desc('tgl_input')->limit(1)->oneArray();
+      $odt['26'] = $this->db('mlite_odontogram')->where('no_rkm_medis', $no_rkm_medis)->where('pemeriksaan', 'gg_26')->desc('tgl_input')->limit(1)->oneArray();
+      $odt['27'] = $this->db('mlite_odontogram')->where('no_rkm_medis', $no_rkm_medis)->where('pemeriksaan', 'gg_27')->desc('tgl_input')->limit(1)->oneArray();
+      $odt['28'] = $this->db('mlite_odontogram')->where('no_rkm_medis', $no_rkm_medis)->where('pemeriksaan', 'gg_28')->desc('tgl_input')->limit(1)->oneArray();
+      $odt['38'] = $this->db('mlite_odontogram')->where('no_rkm_medis', $no_rkm_medis)->where('pemeriksaan', 'gg_38')->desc('tgl_input')->limit(1)->oneArray();
+      $odt['37'] = $this->db('mlite_odontogram')->where('no_rkm_medis', $no_rkm_medis)->where('pemeriksaan', 'gg_37')->desc('tgl_input')->limit(1)->oneArray();
+      $odt['36'] = $this->db('mlite_odontogram')->where('no_rkm_medis', $no_rkm_medis)->where('pemeriksaan', 'gg_36')->desc('tgl_input')->limit(1)->oneArray();
+      $odt['35'] = $this->db('mlite_odontogram')->where('no_rkm_medis', $no_rkm_medis)->where('pemeriksaan', 'gg_35')->desc('tgl_input')->limit(1)->oneArray();
+      $odt['34'] = $this->db('mlite_odontogram')->where('no_rkm_medis', $no_rkm_medis)->where('pemeriksaan', 'gg_34')->desc('tgl_input')->limit(1)->oneArray();
+      $odt['33'] = $this->db('mlite_odontogram')->where('no_rkm_medis', $no_rkm_medis)->where('pemeriksaan', 'gg_33')->desc('tgl_input')->limit(1)->oneArray();
+      $odt['32'] = $this->db('mlite_odontogram')->where('no_rkm_medis', $no_rkm_medis)->where('pemeriksaan', 'gg_32')->desc('tgl_input')->limit(1)->oneArray();
+      $odt['31'] = $this->db('mlite_odontogram')->where('no_rkm_medis', $no_rkm_medis)->where('pemeriksaan', 'gg_31')->desc('tgl_input')->limit(1)->oneArray();
+      $odt['41'] = $this->db('mlite_odontogram')->where('no_rkm_medis', $no_rkm_medis)->where('pemeriksaan', 'gg_41')->desc('tgl_input')->limit(1)->oneArray();
+      $odt['42'] = $this->db('mlite_odontogram')->where('no_rkm_medis', $no_rkm_medis)->where('pemeriksaan', 'gg_42')->desc('tgl_input')->limit(1)->oneArray();
+      $odt['43'] = $this->db('mlite_odontogram')->where('no_rkm_medis', $no_rkm_medis)->where('pemeriksaan', 'gg_43')->desc('tgl_input')->limit(1)->oneArray();
+      $odt['44'] = $this->db('mlite_odontogram')->where('no_rkm_medis', $no_rkm_medis)->where('pemeriksaan', 'gg_44')->desc('tgl_input')->limit(1)->oneArray();
+      $odt['45'] = $this->db('mlite_odontogram')->where('no_rkm_medis', $no_rkm_medis)->where('pemeriksaan', 'gg_45')->desc('tgl_input')->limit(1)->oneArray();
+      $odt['46'] = $this->db('mlite_odontogram')->where('no_rkm_medis', $no_rkm_medis)->where('pemeriksaan', 'gg_46')->desc('tgl_input')->limit(1)->oneArray();
+      $odt['47'] = $this->db('mlite_odontogram')->where('no_rkm_medis', $no_rkm_medis)->where('pemeriksaan', 'gg_47')->desc('tgl_input')->limit(1)->oneArray();
+      $odt['48'] = $this->db('mlite_odontogram')->where('no_rkm_medis', $no_rkm_medis)->where('pemeriksaan', 'gg_48')->desc('tgl_input')->limit(1)->oneArray();
+      $odt['55'] = $this->db('mlite_odontogram')->where('no_rkm_medis', $no_rkm_medis)->where('pemeriksaan', 'gg_55')->desc('tgl_input')->limit(1)->oneArray();
+      $odt['54'] = $this->db('mlite_odontogram')->where('no_rkm_medis', $no_rkm_medis)->where('pemeriksaan', 'gg_54')->desc('tgl_input')->limit(1)->oneArray();
+      $odt['53'] = $this->db('mlite_odontogram')->where('no_rkm_medis', $no_rkm_medis)->where('pemeriksaan', 'gg_53')->desc('tgl_input')->limit(1)->oneArray();
+      $odt['52'] = $this->db('mlite_odontogram')->where('no_rkm_medis', $no_rkm_medis)->where('pemeriksaan', 'gg_52')->desc('tgl_input')->limit(1)->oneArray();
+      $odt['51'] = $this->db('mlite_odontogram')->where('no_rkm_medis', $no_rkm_medis)->where('pemeriksaan', 'gg_51')->desc('tgl_input')->limit(1)->oneArray();
+      $odt['61'] = $this->db('mlite_odontogram')->where('no_rkm_medis', $no_rkm_medis)->where('pemeriksaan', 'gg_61')->desc('tgl_input')->limit(1)->oneArray();
+      $odt['62'] = $this->db('mlite_odontogram')->where('no_rkm_medis', $no_rkm_medis)->where('pemeriksaan', 'gg_62')->desc('tgl_input')->limit(1)->oneArray();
+      $odt['63'] = $this->db('mlite_odontogram')->where('no_rkm_medis', $no_rkm_medis)->where('pemeriksaan', 'gg_63')->desc('tgl_input')->limit(1)->oneArray();
+      $odt['64'] = $this->db('mlite_odontogram')->where('no_rkm_medis', $no_rkm_medis)->where('pemeriksaan', 'gg_64')->desc('tgl_input')->limit(1)->oneArray();
+      $odt['65'] = $this->db('mlite_odontogram')->where('no_rkm_medis', $no_rkm_medis)->where('pemeriksaan', 'gg_65')->desc('tgl_input')->limit(1)->oneArray();
+      $odt['75'] = $this->db('mlite_odontogram')->where('no_rkm_medis', $no_rkm_medis)->where('pemeriksaan', 'gg_75')->desc('tgl_input')->limit(1)->oneArray();
+      $odt['74'] = $this->db('mlite_odontogram')->where('no_rkm_medis', $no_rkm_medis)->where('pemeriksaan', 'gg_74')->desc('tgl_input')->limit(1)->oneArray();
+      $odt['73'] = $this->db('mlite_odontogram')->where('no_rkm_medis', $no_rkm_medis)->where('pemeriksaan', 'gg_73')->desc('tgl_input')->limit(1)->oneArray();
+      $odt['72'] = $this->db('mlite_odontogram')->where('no_rkm_medis', $no_rkm_medis)->where('pemeriksaan', 'gg_72')->desc('tgl_input')->limit(1)->oneArray();
+      $odt['71'] = $this->db('mlite_odontogram')->where('no_rkm_medis', $no_rkm_medis)->where('pemeriksaan', 'gg_71')->desc('tgl_input')->limit(1)->oneArray();
+      $odt['81'] = $this->db('mlite_odontogram')->where('no_rkm_medis', $no_rkm_medis)->where('pemeriksaan', 'gg_81')->desc('tgl_input')->limit(1)->oneArray();
+      $odt['82'] = $this->db('mlite_odontogram')->where('no_rkm_medis', $no_rkm_medis)->where('pemeriksaan', 'gg_82')->desc('tgl_input')->limit(1)->oneArray();
+      $odt['83'] = $this->db('mlite_odontogram')->where('no_rkm_medis', $no_rkm_medis)->where('pemeriksaan', 'gg_83')->desc('tgl_input')->limit(1)->oneArray();
+      $odt['84'] = $this->db('mlite_odontogram')->where('no_rkm_medis', $no_rkm_medis)->where('pemeriksaan', 'gg_84')->desc('tgl_input')->limit(1)->oneArray();
+      $odt['85'] = $this->db('mlite_odontogram')->where('no_rkm_medis', $no_rkm_medis)->where('pemeriksaan', 'gg_85')->desc('tgl_input')->limit(1)->oneArray();
+
+      echo $this->draw('odontogram.html', [
+        'odontogram' => $this->db('mlite_odontogram')->where('no_rkm_medis', $no_rkm_medis)->toArray(), 
+        'ohis' => $this->db('mlite_ohis')->where('no_rkm_medis', $no_rkm_medis)->toArray(), 
+        'odt' => $odt
+      ]);
+      exit();
+    }
+
+    public function getOdontogramTampil($no_rkm_medis)
+    {
+      echo $this->draw('odontogram.tampil.html', ['odontogram' => $this->db('mlite_odontogram')->where('no_rkm_medis', $no_rkm_medis)->toArray()]);
+      exit();
+    }
+
+    public function postOdontogramSave()
+    {
+      $_POST['id_user']	= $this->core->getUserInfo('id');
+      $_POST['tgl_input'] = date('Y-m-d');
+      $query = $this->db('mlite_odontogram')->save($_POST);
+      exit();
+    }
+
+    public function postOdontogramDelete()
+    {
+      $_POST['id_user']	= $this->core->getUserInfo('id');
+      $query = $this->db('mlite_odontogram')
+      ->where('no_rkm_medis', $_POST['no_rkm_medis'])
+      ->where('pemeriksaan', $_POST['pemeriksaan'])
+      ->where('kondisi', $_POST['kondisi'])
+      ->where('catatan', $_POST['catatan'])
+      ->where('tgl_input', $_POST['tgl_input'])
+      ->where('id_user', $_POST['id_user'])
+      ->delete();
+      exit();
+    }
+
+    public function getOhisTampil($no_rkm_medis)
+    {
+      echo $this->draw('ohis.tampil.html', ['ohis' => $this->db('mlite_ohis')->where('no_rkm_medis', $no_rkm_medis)->toArray()]);
+      exit();
+    }
+
+    public function postOhisSave()
+    {
+      $_POST['id_user']	= $this->core->getUserInfo('id');
+      $_POST['tgl_input'] = date('Y-m-d');
+      $_POST['debris'] = ($_POST['d_16']+$_POST['d_11']+$_POST['d_26']+$_POST['d_36']+$_POST['d_31']+$_POST['d_46'])/6;
+      $_POST['debris'] = ceil($_POST['debris']*100)/100;
+      $_POST['calculus'] = ($_POST['c_16']+$_POST['c_11']+$_POST['c_26']+$_POST['c_36']+$_POST['c_31']+$_POST['c_46'])/6;
+      $_POST['calculus'] = ceil($_POST['calculus']*100)/100;
+      $_POST['nilai'] = $_POST['debris']+$_POST['calculus'];
+      if($_POST['nilai'] >= '0,0' && $_POST['nilai'] <= '1,2') {
+        $_POST['kriteria'] = 'Baik';
+      } elseif($_POST['nilai'] >= '1,3' && $_POST['nilai'] <= '3,0') {
+        $_POST['kriteria'] = 'Sedang';
+      } elseif($_POST['nilai'] >= '1,3' && $_POST['nilai'] <= '3,0') {
+        $_POST['kriteria'] = 'Buruk';
+      } else {
+        $_POST['kriteria'] = '';
+      }
+      $query = $this->db('mlite_ohis')->save($_POST);
+      exit();
+    }
+
+    public function postOhisDelete()
+    {
+      $_POST['id_user']	= $this->core->getUserInfo('id');
+      $query = $this->db('mlite_ohis')
+      ->where('no_rkm_medis', $_POST['no_rkm_medis'])
+      ->where('tgl_input', $_POST['tgl_input'])
+      ->where('id_user', $_POST['id_user'])
+      ->delete();
+      exit();
+    }    
+
     public function getSepDetail($no_sep){
       $sep = $this->db('bridging_sep')->where('no_sep', $no_sep)->oneArray();
       $this->tpl->set('sep', $this->tpl->noParse_array(htmlspecialchars_array($sep)));
@@ -869,6 +1019,106 @@ class Admin extends AdminModule
       $potensi_prb = $this->db('bpjs_prb')->where('no_sep', $no_sep)->oneArray();
       $data_sep['potensi_prb'] = $potensi_prb['prb'];
       echo $this->draw('sep.detail.html', ['data_sep' => $data_sep]);
+      exit();
+    }
+
+    public function postSaveICD10()
+    {
+      $_POST['status_penyakit'] = 'Baru';
+      unset($_POST['nama']);
+      $this->db('diagnosa_pasien')->save($_POST);
+      exit();
+    }  
+
+    public function postHapusICD10()
+    {
+      $this->db('diagnosa_pasien')->where('no_rawat', $_POST['no_rawat'])->where('prioritas', $_POST['prioritas'])->delete();
+      exit();
+    }
+  
+    public function postICD10()
+    {
+  
+      if(isset($_POST["query"])){
+        $output = '';
+        $key = "%".$_POST["query"]."%";
+        $rows = $this->db('penyakit')->like('kd_penyakit', $key)->orLike('nm_penyakit', $key)->asc('kd_penyakit')->limit(10)->toArray();
+        $output = '';
+        if(count($rows)){
+          foreach ($rows as $row) {
+            $output .= '<li class="list-group-item link-class">'.$row["kd_penyakit"].': '.$row["nm_penyakit"].'</li>';
+          }
+        } else {
+          $output .= '<li class="list-group-item link-class">Tidak ada yang cocok.</li>';
+        }
+        echo $output;
+      }
+  
+      exit();
+  
+    }
+
+    public function postSaveICD9()
+    {
+      unset($_POST['nama']);
+      $this->db('prosedur_pasien')->save($_POST);
+      exit();
+    }
+
+    public function postHapusICD9()
+    {
+      $this->db('prosedur_pasien')->where('no_rawat', $_POST['no_rawat'])->where('prioritas', $_POST['prioritas'])->delete();
+      exit();
+    }
+
+    public function postICD9()
+    {
+  
+      if(isset($_POST["query"])){
+        $output = '';
+        $key = "%".$_POST["query"]."%";
+        $rows = $this->db('icd9')->like('kode', $key)->orLike('deskripsi_panjang', $key)->asc('kode')->limit(10)->toArray();
+        $output = '';
+        if(count($rows)){
+          foreach ($rows as $row) {
+            $output .= '<li class="list-group-item link-class">'.$row["kode"].': '.$row["deskripsi_panjang"].'</li>';
+          }
+        } else {
+          $output .= '<li class="list-group-item link-class">Tidak ada yang cocok.</li>';
+        }
+        echo $output;
+      }
+  
+      exit();
+  
+    }
+
+    public function getDisplayICD()
+    {
+      $no_rawat = $_GET['no_rawat'];
+      $prosedurs = $this->db('prosedur_pasien')
+        ->where('no_rawat', $no_rawat)
+        ->asc('prioritas')
+        ->toArray();
+      $prosedur = [];
+      foreach ($prosedurs as $row_prosedur) {
+        $icd9 = $this->db('icd9')->where('kode', $row_prosedur['kode'])->oneArray();
+        $row_prosedur['nama'] = $icd9['deskripsi_panjang'];
+        $prosedur[] = $row_prosedur;
+      }
+  
+      $diagnosas = $this->db('diagnosa_pasien')
+        ->where('no_rawat', $no_rawat)
+        ->asc('prioritas')
+        ->toArray();
+      $diagnosa = [];
+      foreach ($diagnosas as $row_diagnosa) {
+        $icd10 = $this->db('penyakit')->where('kd_penyakit', $row_diagnosa['kd_penyakit'])->oneArray();
+        $row_diagnosa['nama'] = $icd10['nm_penyakit'];
+        $diagnosa[] = $row_diagnosa;
+      }
+  
+      echo $this->draw('display.icd.html', ['diagnosa' => $diagnosa, 'prosedur' => $prosedur]);
       exit();
     }
 
@@ -1115,6 +1365,164 @@ class Admin extends AdminModule
       exit();
     }
     
+    public function getAssessment($no_rawat)
+    {
+      $no_rawat = revertNoRawat($no_rawat);
+      
+      // Cek apakah sudah ada data assessment
+      $penilaian_igd = $this->db('penilaian_awal_keperawatan_igd')
+        ->where('no_rawat', $no_rawat)
+        ->oneArray();
+      
+      // Jika belum ada, ambil data fallback dari pemeriksaan_ralan
+      if(!$penilaian_igd) {
+        $pemeriksaan_ralan = $this->db('pemeriksaan_ralan')
+          ->where('no_rawat', $no_rawat)
+          ->desc('tgl_perawatan')
+          ->desc('jam_rawat')
+          ->oneArray();
+        
+        $penilaian_igd = [
+          'no_rawat' => $no_rawat,
+          'tanggal' => date('Y-m-d H:i:s'),
+          'informasi' => 'Autoanamnesis',
+          'keluhan_utama' => $pemeriksaan_ralan['keluhan'] ?? '',
+          'rpd' => '',
+          'rpo' => '',
+          'status_kehamilan' => 'Tidak Hamil',
+          'gravida' => '',
+          'para' => '',
+          'abortus' => '',
+          'hpht' => '',
+          'tekanan' => 'TAK',
+          'pupil' => 'Normal',
+          'neurosensorik' => 'TAK',
+          'integumen' => 'TAK',
+          'turgor' => 'Baik',
+          'edema' => 'Tidak Ada',
+          'mukosa' => 'Lembab',
+          'perdarahan' => 'Tidak Ada',
+          'jumlah_perdarahan' => '',
+          'warna_perdarahan' => '',
+          'intoksikasi' => 'Tidak Ada',
+          'bab' => '',
+          'xbab' => '',
+          'kbab' => '',
+          'wbab' => '',
+          'bak' => '',
+          'xbak' => '',
+          'wbak' => '',
+          'lbak' => '',
+          'psikologis' => 'Tidak Ada Masalah',
+          'jiwa' => 'Tidak',
+          'perilaku' => '-',
+          'dilaporkan' => '',
+          'sebutkan' => '',
+          'hubungan' => 'Harmonis',
+          'tinggal_dengan' => 'Orang Tua',
+          'ket_tinggal' => '',
+          'budaya' => 'Tidak Ada',
+          'ket_budaya' => '',
+          'pendidikan_pj' => '-',
+          'ket_pendidikan_pj' => '',
+          'edukasi' => 'Pasien',
+          'ket_edukasi' => '',
+          'kemampuan' => 'Mandiri',
+          'aktifitas' => 'Berjalan',
+          'alat_bantu' => 'Tidak',
+          'ket_bantu' => '',
+          'nyeri' => 'Tidak Ada Nyeri',
+          'provokes' => 'Proses Penyakit',
+          'ket_provokes' => '',
+          'quality' => 'Seperti Tertusuk',
+          'ket_quality' => '',
+          'lokasi' => '',
+          'menyebar' => 'Tidak',
+          'skala_nyeri' => '0',
+          'durasi' => '',
+          'nyeri_hilang' => 'Istirahat',
+          'ket_nyeri' => '',
+          'pada_dokter' => 'Tidak',
+          'ket_dokter' => '',
+          'berjalan_a' => 'Tidak',
+          'berjalan_b' => 'Tidak',
+          'berjalan_c' => 'Tidak',
+          'hasil' => 'Tidak beresiko (tidak ditemukan a dan b)',
+          'lapor' => 'Tidak',
+          'ket_lapor' => '',
+          'rencana' => '',
+          'nip' => $this->core->getUserInfo('username', null, true)
+        ];
+      }
+      
+      echo $this->draw('assesment.html', ['penilaian_igd' => $penilaian_igd]);
+      exit();
+    }
+
+    public function postAssessmentsave()
+    {
+      $_POST['nip'] = $this->core->getUserInfo('username', null, true);
+      
+      // Cek apakah sudah ada data
+      $existing = $this->db('penilaian_awal_keperawatan_igd')
+        ->where('no_rawat', $_POST['no_rawat'])
+        ->oneArray();
+      
+      if($existing) {
+        // Update data yang sudah ada
+        $query = $this->db('penilaian_awal_keperawatan_igd')
+          ->where('no_rawat', $_POST['no_rawat'])
+          ->save($_POST);
+      } else {
+        // Insert data baru
+        $query = $this->db('penilaian_awal_keperawatan_igd')->save($_POST);
+      }
+      
+      if($query) {
+        $data['status'] = 'success';
+        echo json_encode($data);
+      } else {
+        $data['status'] = 'error';
+        $data['msg'] = 'Gagal menyimpan data assessment';
+        echo json_encode($data);
+      }
+      exit();
+    }
+
+    public function getAssessmenttampil($no_rawat)
+    {
+      $no_rawat = revertNoRawat($no_rawat);
+      
+      $penilaian_igd = $this->db('penilaian_awal_keperawatan_igd')
+        ->join('petugas', 'petugas.nip=penilaian_awal_keperawatan_igd.nip')
+        ->where('no_rawat', $no_rawat)
+        ->oneArray();
+      
+      if($penilaian_igd) {
+        $penilaian_igd['nama_petugas'] = $penilaian_igd['nama'];
+      }
+      
+      echo $this->draw('assesment.tampil.html', ['penilaian_igd' => $penilaian_igd]);
+      exit();
+    }
+
+    public function postAssessmentdelete()
+    {
+      $query = $this->db('penilaian_awal_keperawatan_igd')
+        ->where('no_rawat', $_POST['no_rawat'])
+        ->delete();
+      
+      if($query) {
+        $data['status'] = 'success';
+        echo json_encode($data);
+      } else {
+        $data['status'] = 'error';
+        $data['msg'] = 'Gagal menghapus data assessment';
+        echo json_encode($data);
+      }
+      exit();
+    }
+
     public function getJavascript()
     {
         header('Content-type: text/javascript');
@@ -1133,6 +1541,244 @@ class Admin extends AdminModule
         exit();
     }
 
+    // ===== TRIASE IGD METHODS =====
+    
+    public function anyTriaseIgd()
+    {
+        if(isset($_POST['no_rawat'])) {
+            $no_rawat = $_POST['no_rawat'];
+            $no_rkm_medis = $_POST['no_rkm_medis'];
+            $nm_pasien = $_POST['nm_pasien'];
+            $tgl_registrasi = $_POST['tgl_registrasi'];
+            
+            // Cek apakah sudah ada data triase
+            $triase_igd = $this->db('mlite_triase_igd')
+                ->where('no_rawat', $no_rawat)
+                ->oneArray();
+            
+            // Jika belum ada, buat data default
+            if(!$triase_igd) {
+                $triase_igd = [
+                    'id_triase' => '',
+                    'no_rawat' => $no_rawat,
+                    'no_rkm_medis' => $no_rkm_medis,
+                    'nm_pasien' => $nm_pasien,
+                    'tgl_registrasi' => $tgl_registrasi,
+                    'tgl_triase' => date('Y-m-d\TH:i'),
+                    'petugas_id' => $this->core->getUserInfo('username', null, true),
+                    'kesadaran' => '',
+                    'airway' => '',
+                    'breathing' => '',
+                    'circulation' => '',
+                    'tekanan_darah' => '',
+                    'nadi' => '',
+                    'respirasi' => '',
+                    'suhu' => '',
+                    'spo2' => '',
+                    'gcs_e' => '',
+                    'gcs_v' => '',
+                    'gcs_m' => '',
+                    'kategori' => '',
+                    'skala_triase' => '',
+                    'keluhan_utama' => '',
+                    'diagnosa_awal' => ''
+                ];
+            } else {
+                $triase_igd['nm_pasien'] = $nm_pasien;
+                $triase_igd['tgl_registrasi'] = $tgl_registrasi;
+                // Format datetime untuk input datetime-local
+                if($triase_igd['tgl_triase']) {
+                    $triase_igd['tgl_triase'] = date('Y-m-d\TH:i', strtotime($triase_igd['tgl_triase']));
+                }
+            }
+            
+            // Ambil data petugas untuk dropdown
+            $petugas = $this->db('petugas')->where('status', '1')->toArray();
+            
+            echo $this->draw('triase_igd.html', [
+                'triase_igd' => $triase_igd,
+                'petugas' => $petugas
+            ]);
+        }
+        exit();
+    }
+    
+    public function postTriaseIgdSave()
+    {
+        try {
+            // Debug: Log raw POST data
+            error_log('DEBUG: Raw POST data: ' . print_r($_POST, true));
+            
+            // Validasi input required
+            $required_fields = ['no_rawat', 'no_rkm_medis', 'tgl_triase', 'petugas_id', 'kesadaran_triase', 'airway', 'breathing', 'circulation', 'kategori'];
+            foreach($required_fields as $field) {
+                if(empty($_POST[$field])) {
+                    throw new \Exception("Field {$field} harus diisi");
+                }
+            }
+            
+            // Prepare clean data array
+            $data_to_save = [];
+            
+            // Copy only allowed fields
+            $allowed_fields = ['no_rawat', 'no_rkm_medis', 'tgl_triase', 'petugas_id', 'kesadaran', 'airway', 'breathing', 'circulation', 'tekanan_darah', 'nadi', 'respirasi', 'suhu', 'spo2', 'gcs_e', 'gcs_v', 'gcs_m', 'kategori', 'skala_triase', 'keluhan_utama', 'diagnosa_awal'];
+            
+            foreach($allowed_fields as $field) {
+                if(isset($_POST[$field]) && $_POST[$field] !== '') {
+                    $data_to_save[$field] = $_POST[$field];
+                }
+            }
+            
+            // Handle kesadaran_triase mapping
+            if(isset($_POST['kesadaran_triase'])) {
+                $data_to_save['kesadaran'] = $_POST['kesadaran_triase'];
+            }
+            
+            // Format datetime
+            if(isset($data_to_save['tgl_triase'])) {
+                $data_to_save['tgl_triase'] = date('Y-m-d H:i:s', strtotime($data_to_save['tgl_triase']));
+            }
+            
+            // Debug: Log cleaned data
+            error_log('DEBUG: Cleaned data to save: ' . print_r($data_to_save, true));
+            
+            // Completely prevent framework from auto-adding timestamp fields
+            // MLite QueryWrapper auto-adds created_at and updated_at with time() if columns exist
+            // We need to bypass this behavior entirely
+            
+            // Explicitly set timestamp fields to NULL to prevent framework auto-addition
+            $data_to_save['created_at'] = null;
+            $data_to_save['updated_at'] = null;
+            
+            // Remove id_triase for insert
+            unset($data_to_save['id_triase']);
+            
+            // Debug: Log final data
+            error_log('DEBUG: Final data after cleanup: ' . print_r($data_to_save, true));
+            
+            // Use direct SQL approach to bypass framework timestamp behavior
+            if(!empty($_POST['id_triase'])) {
+                // Update data yang sudah ada - use direct SQL to avoid framework timestamp issues
+                error_log('DEBUG: Performing UPDATE with direct SQL for id_triase: ' . $_POST['id_triase']);
+                
+                // Remove null timestamp fields and let MySQL handle them
+                unset($data_to_save['created_at']);
+                unset($data_to_save['updated_at']);
+                
+                // Build UPDATE query manually to avoid framework interference
+                $fields = array_keys($data_to_save);
+                $set_clause = [];
+                foreach($fields as $field) {
+                    $set_clause[] = "{$field} = :{$field}";
+                }
+                $sql = "UPDATE mlite_triase_igd SET " . implode(', ', $set_clause) . " WHERE id_triase = :id_triase";
+                
+                // Add id_triase to data for WHERE clause
+                $data_to_save['id_triase'] = $_POST['id_triase'];
+                
+                error_log('DEBUG: Direct UPDATE SQL: ' . $sql);
+                error_log('DEBUG: UPDATE Data: ' . print_r($data_to_save, true));
+                
+                $stmt = $this->db()->pdo()->prepare($sql);
+                $query = $stmt->execute($data_to_save);
+                $message = 'Data triase berhasil diupdate';
+            } else {
+                // Insert data baru - use direct SQL to avoid framework timestamp issues
+                error_log('DEBUG: Performing INSERT with direct SQL');
+                
+                // Remove null timestamp fields and let MySQL handle them
+                unset($data_to_save['created_at']);
+                unset($data_to_save['updated_at']);
+                
+                // Build INSERT query manually to avoid framework interference
+                $fields = array_keys($data_to_save);
+                $placeholders = ':' . implode(', :', $fields);
+                $sql = "INSERT INTO mlite_triase_igd (" . implode(', ', $fields) . ") VALUES (" . $placeholders . ")";
+                
+                error_log('DEBUG: Direct SQL: ' . $sql);
+                error_log('DEBUG: SQL Data: ' . print_r($data_to_save, true));
+                
+                $stmt = $this->db()->pdo()->prepare($sql);
+                $query = $stmt->execute($data_to_save);
+                $message = 'Data triase berhasil disimpan';
+            }
+            
+            if($query) {
+                $data['status'] = 'success';
+                $data['msg'] = $message;
+                error_log('DEBUG: Database operation successful');
+            } else {
+                $data['status'] = 'error';
+                $data['msg'] = 'Gagal menyimpan data triase';
+                error_log('DEBUG: Database operation failed');
+            }
+            
+        } catch(Exception $e) {
+            $data['status'] = 'error';
+            $data['msg'] = $e->getMessage();
+            error_log('DEBUG: Exception caught: ' . $e->getMessage());
+            error_log('DEBUG: Exception trace: ' . $e->getTraceAsString());
+        }
+        
+        echo json_encode($data);
+        exit();
+    }
+    
+    public function postTriaseIgdDelete()
+    {
+        try {
+            if(empty($_POST['no_rawat'])) {
+                throw new \Exception('No rawat tidak boleh kosong');
+            }
+            
+            $query = $this->db('mlite_triase_igd')
+                ->where('no_rawat', $_POST['no_rawat'])
+                ->delete();
+            
+            if($query) {
+                $data['status'] = 'success';
+                $data['msg'] = 'Data triase berhasil dihapus';
+            } else {
+                $data['status'] = 'error';
+                $data['msg'] = 'Gagal menghapus data triase';
+            }
+            
+        } catch(Exception $e) {
+            $data['status'] = 'error';
+            $data['msg'] = $e->getMessage();
+        }
+        
+        echo json_encode($data);
+        exit();
+    }
+    
+    public function postTriaseIgdView()
+    {
+        if(isset($_POST['no_rawat'])) {
+            $triase_igd = $this->db('mlite_triase_igd')
+                ->join('petugas', 'petugas.nip=mlite_triase_igd.petugas_id')
+                ->join('pasien', 'pasien.no_rkm_medis=mlite_triase_igd.no_rkm_medis')
+                ->where('mlite_triase_igd.no_rawat', $_POST['no_rawat'])
+                ->oneArray();
+            
+            if($triase_igd) {
+                $triase_igd['nama_petugas'] = $triase_igd['nama'];
+                // Pastikan nm_pasien tersedia, jika tidak ada berikan fallback
+                if(empty($triase_igd['nm_pasien'])) {
+                    $triase_igd['nm_pasien'] = 'Nama Pasien Tidak Ditemukan';
+                }
+                // Hitung total GCS
+                $total_gcs = ($triase_igd['gcs_e'] ?? 0) + ($triase_igd['gcs_v'] ?? 0) + ($triase_igd['gcs_m'] ?? 0);
+                $triase_igd['total_gcs'] = $total_gcs > 0 ? $total_gcs : '-';
+                
+                echo $this->draw('triase_igd_view.html', ['triase_igd' => $triase_igd]);
+            } else {
+                echo '<div class="alert alert-warning">Data triase tidak ditemukan</div>';
+            }
+        }
+        exit();
+    }
+
     private function _addHeaderFiles()
     {
         $this->core->addCSS(url('assets/css/dataTables.bootstrap.min.css'));
@@ -1143,6 +1789,7 @@ class Admin extends AdminModule
         $this->core->addCSS(url('assets/css/bootstrap-datetimepicker.css'));
         $this->core->addJS(url('assets/jscripts/moment-with-locales.js'));
         $this->core->addJS(url('assets/jscripts/bootstrap-datetimepicker.js'));
+        $this->core->addCSS(url('plugins/igd/css/triase_igd.css'));
         $this->core->addJS(url([ADMIN, 'igd', 'javascript']), 'footer');
     }
 

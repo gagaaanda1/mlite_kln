@@ -4,11 +4,11 @@
       <div class="panel-body">
           <div class="form-group">
             <label for="tanggal">Tanggal</label>
-            <input type="text" id="tgl_perawatan" name="tgl_perawatan" class="form-control tanggal" value="{?=date('Y-m-d')?}">
+            <input type="text" id="soap_tgl_perawatan" name="tgl_perawatan" class="form-control tanggal" value="{?=date('Y-m-d')?}">
           </div>
           <div class="form-group">
             <label for="jam">Jam</label>
-            <input type="text" id="jam_rawat" name="jam_rawat" class="form-control jam" value="{?=date('H:i:s')?}">
+            <input type="text" id="soap_jam_rawat" name="jam_rawat" class="form-control jam" value="{?=date('H:i:s')?}">
           </div>
           <div class="form-group">
             <label for="id_pendaftaran">Id Rawat</label>
@@ -135,6 +135,10 @@
           <button type="button" name="button" class="btn btn-info" id="eresep"><i class="fa fa-medkit"></i><span class="hidden-xs"> E-Resep</span></button>
           <button type="button" name="button" class="btn btn-info" id="buka_riwayat"><i class="fa fa-file-o"></i><span class="hidden-xs"> Riwayat</span></button>
           <button type="button" name="button" class="btn btn-success" id="selesai_soap"><i class="fa fa-check"></i><span class="hidden-xs"> Selesai</span></button>
+          <span class="pull-right">
+            <a href="#" class="btn btn-warning resume"><i class="fa fa-file-text"></i><span class="hidden-xs"> Resume</span></a>
+            <a href="#" class="btn btn-warning assesment" id="buka_assessment"><i class="fa fa-file-text"></i><span class="hidden-xs"> Assesment</span></a>
+          </span>
         </div>
       </div>
     </div>
@@ -248,6 +252,49 @@
     $('#kesadaranList').fadeOut();
   });
 </script>
+
+<!-- Modal Assessment -->
+<div class="modal fade" id="assessmentModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-xl" role="document">
+    <div class="modal-content">
+      <!-- Modal content will be loaded here -->
+    </div>
+  </div>
+</div>
+
+<script type="text/javascript">
+  // Handler untuk tombol Assessment
+  $("#form_soap").on("click","#buka_assessment", function(event){
+    var baseURL = mlite.url + '/' + mlite.admin;
+    event.preventDefault();
+    var no_rawat = $('input:text[name=no_rawat]').val();
+    var loadURL = baseURL + '/dokter_igd/medisigd/' + no_rawat.replaceAll('/','') + '?t=' + mlite.token;
+
+    var modal = $('#assessmentModal');
+    var modalContent = $('#assessmentModal .modal-content');
+
+    modal.off('show.bs.modal');
+    modal.on('show.bs.modal', function () {
+        modalContent.load(loadURL);
+    }).modal();
+    return false;
+  });
+  $("#form_soap").on("click","#assessment", function(event){
+    var baseURL = mlite.url + '/' + mlite.admin;
+    event.preventDefault();
+    var no_rawat = $('input:text[name=no_rawat]').val();
+    var loadURL = baseURL + '/dokter_igd/medisigd/' + no_rawat.replaceAll('/','') + '?t=' + mlite.token;
+
+    var modal = $('#assessmentModal');
+    var modalContent = $('#assessmentModal .modal-content');
+
+    modal.off('show.bs.modal');
+    modal.on('show.bs.modal', function () {
+        modalContent.load(loadURL);
+    }).modal();
+    return false;
+  });
+</script>
 <script type="text/javascript">
   $(document).ready(function () {
     $("#icd10dan9").hide();
@@ -275,7 +322,7 @@
        if(query != '')
        {
             $.ajax({
-                 url: "{?=url([ADMIN, 'icd_9', 'icd9'])?}",
+                 url: "{?=url([ADMIN, 'dokter_igd', 'icd9'])?}",
                  method:"POST",
                  data:{query:query},
                  success:function(data)
@@ -300,7 +347,7 @@
        if(query != '')
        {
             $.ajax({
-                 url: "{?=url([ADMIN, 'icd_10', 'icd10'])?}",
+                 url: "{?=url([ADMIN, 'dokter_igd', 'icd10'])?}",
                  method:"POST",
                  data:{query:query},
                  success:function(data)
@@ -330,7 +377,7 @@
     var kode = $('#kode_icd9').text();
     var status = $('input:hidden[name=status]').val();
 
-    var url = baseURL + '/icd_9/saveicd9?t=' + mlite.token;
+    var url = baseURL + '/dokter_igd/saveicd9?t=' + mlite.token;
 
     $.post(url,{
       no_rawat: no_rawat,
@@ -339,7 +386,7 @@
       status: status,
       kode: kode
     } ,function(data) {
-      $("#display_icd").show().load(baseURL + '/icd_10/display?no_rawat=' + no_rawat + '&t=' + mlite.token);
+      $("#display_icd").show().load(baseURL + '/dokter_igd/displayicd?no_rawat=' + no_rawat + '&t=' + mlite.token);
       //bersih();
       $('#notif').html("<div class=\"alert alert-success alert-dismissible fade in\" role=\"alert\" style=\"border-radius:0px;margin-top:-15px;\">"+
       "Data ICD 9 (Prosedur) pasien telah disimpan!"+
@@ -359,7 +406,7 @@
     var kode = $('#kode_icd10').text();
     var status = $('input:hidden[name=status]').val();
 
-    var url = baseURL + '/icd_10/saveicd10?t=' + mlite.token;
+    var url = baseURL + '/dokter_igd/saveicd10?t=' + mlite.token;
 
     $.post(url,{
       no_rawat: no_rawat,
@@ -368,7 +415,7 @@
       status: status,
       kd_penyakit: kode
     } ,function(data) {
-      $("#display_icd").show().load(baseURL + '/icd_10/display?no_rawat=' + no_rawat + '&t=' + mlite.token);
+      $("#display_icd").show().load(baseURL + '/dokter_igd/displayicd?no_rawat=' + no_rawat + '&t=' + mlite.token); 
       //bersih();
       $('#notif').html("<div class=\"alert alert-success alert-dismissible fade in\" role=\"alert\" style=\"border-radius:0px;margin-top:-15px;\">"+
       "Data ICD 10 (Diagnosa) pasien telah disimpan!"+

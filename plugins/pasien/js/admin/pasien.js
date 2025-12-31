@@ -120,7 +120,7 @@ $("#form").on("click", "#simpan", function(event){
       no_peserta: no_peserta,
       manual: manual 
     } ,function(data) {
-      console.log(data);
+      // console.log(data);
       data = JSON.parse(data);
       var audio = new Audio('{?=url()?}/assets/sound/' + data.status + '.mp3');
       audio.play();
@@ -131,7 +131,7 @@ $("#form").on("click", "#simpan", function(event){
               'modul' : 'pasien'
           }
           ws.send(JSON.stringify(payload));
-          console.log(payload);
+          // console.log(payload);
         } else {
           $("#display").show().load(baseURL + '/pasien/display?t=' + mlite.token);
         }
@@ -260,14 +260,6 @@ $("#form").on("click","#kartu", function(event){
   $("#printModal").modal('show').html('<div style="text-align:center;margin:20px auto;width:50%;height:50%;"><iframe src="' + baseURL + '/pasien/cetakkartu/' + no_rkm_medis + '?t=' + mlite.token + '" frameborder="no" width="100%" height="100%"></iframe></div>');
 });
 
-// ketika tombol cetak ditekan
-$("#btn_cetak_jasper").click(function(event) {
-  var baseURL = mlite.url + '/' + mlite.admin;
-  event.preventDefault();
-  var cari = $('input:text[name=cari]').val();
-  window.open(baseURL + '/jasper/pasien?cari=' + cari + '&t=' + mlite.token);
-});
-
 // reset form
 function bersih(){
   $('input:text[name=no_rkm_medis]').val("").removeAttr('disabled');
@@ -361,7 +353,7 @@ $(function (event) {
         }
       }
     }catch(e){
-      console.log(e);
+      // console.log(e);
     }
   }
   

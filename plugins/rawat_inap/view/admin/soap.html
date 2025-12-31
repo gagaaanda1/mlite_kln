@@ -7,7 +7,26 @@
 <script type="text/javascript" src="{?=url()?}/assets/jscripts/jquery.qrcode.js"></script>
 <script type="text/javascript" src="{?=url()?}/assets/jscripts/qrcode.js"></script>
 <div id="display_icd">
-  {include: ../plugins/icd_10/view/admin/display.html}
+  {include: ../plugins/rawat_inap/view/admin/display.icd.html}
+</div>
+<!-- Grafik Tanda Vital -->
+<div class="col-md-12" style="margin-top: 20px;">
+  <div class="panel panel-default">
+    <div class="panel-header">
+      <h4 class="panel-title" style="padding: 15px;"><i class="fa fa-line-chart"></i> Grafik Tanda Vital</h4>
+    </div>
+    <div class="panel-body">
+      <div class="chart-container" style="position: relative; height: 400px; width: 100%;">
+        <canvas id="vitalSignsChart"></canvas>
+      </div>
+      <div class="text-center" id="chart-loading" style="display: none;">
+        <i class="fa fa-spinner fa-spin"></i> Memuat data grafik...
+      </div>
+      <div class="text-center" id="chart-no-data" style="display: none; color: #999;">
+        <i class="fa fa-info-circle"></i> Belum ada data tanda vital untuk ditampilkan
+      </div>
+    </div>
+  </div>
 </div>
 <h4>Rincian Riwayat</h4>
 <div class="table-responsive no-margin">
@@ -202,8 +221,8 @@
               data-penilaian="{$data.penilaian}"
               data-rtl="{$data.rtl}"
               data-instruksi="{$data.instruksi}"
-              data-evaluasi="{$value.evaluasi}"
-              data-spo2="{$value.spo2}"
+              data-evaluasi="{$data.evaluasi}"
+              data-spo2="{$data.spo2}"
               ><span class="fa fa-copy"></span><span class="hidden-xs"> Copy</span></button>
             <button type="button" name="button" class="btn btn-success btn-xs edit_soap"
               data-no_rawat="{$data.no_rawat}"
@@ -223,15 +242,15 @@
               data-penilaian="{$data.penilaian}"
               data-rtl="{$data.rtl}"
               data-instruksi="{$data.instruksi}"
-              data-evaluasi="{$value.evaluasi}"
-              data-spo2="{$value.spo2}"
-              {if: $this->core->getUserInfo('username', $_SESSION['mlite_user']) != $value.nip}disabled{/if}
+              data-evaluasi="{$data.evaluasi}"
+              data-spo2="{$data.spo2}"
+              {if: $this->core->getUserInfo('username', $_SESSION['mlite_user']) != $data.nip}disabled{/if}
               ><span class="fa fa-edit"></span><span class="hidden-xs"> Edit</span></button>
             <button type="button" name="button" class="btn btn-danger btn-xs hapus_soap"
               data-no_rawat="{$data.no_rawat}"
               data-tgl_perawatan="{$data.tgl_perawatan}"
               data-jam_rawat="{$data.jam_rawat}"
-              {if: $this->core->getUserInfo('username', $_SESSION['mlite_user']) != $value.nip}disabled{/if}
+              {if: $this->core->getUserInfo('username', $_SESSION['mlite_user']) != $data.nip}disabled{/if}
               ><span class="fa fa-trash"></span><span class="hidden-xs"> Hapus</span></button>
           </div>
         </td>

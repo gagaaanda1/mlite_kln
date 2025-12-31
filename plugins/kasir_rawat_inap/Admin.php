@@ -9,11 +9,14 @@ use PHPMailer\PHPMailer\Exception;
 
 class Admin extends AdminModule
 {
+    public $assign = [];
 
     public function navigation()
     {
         return [
             'Kelola'   => 'manage',
+            'Kasir'    => 'shift',
+            'Laporan'  => 'report',
         ];
     }
 
@@ -145,6 +148,92 @@ class Admin extends AdminModule
           $this->assign['list'][] = $row;
         }
 
+    }
+
+    public function anyShift()
+    {
+        $this->_addHeaderFiles();
+        $user_id = $this->core->getUserInfo('id');
+        $open_shift = $this->db('mlite_kasir_shift')->where('user_id', $user_id)->isNull('waktu_tutup')->desc('id_shift')->oneArray();
+        return $this->draw('shift.html', ['open_shift' => $open_shift]);
+    }
+
+    public function postOpenKasir()
+    {
+        $user_id = $this->core->getUserInfo('id');
+        $cek = $this->db('mlite_kasir_shift')->where('user_id', $user_id)->isNull('waktu_tutup')->oneArray();
+        if ($cek) {
+            $this->notify('danger', 'Shift kasir masih terbuka');
+            redirect(url([ADMIN, 'kasir_rawat_inap', 'shift']));
+        }
+        $kas_awal = floatval($_POST['kas_awal'] ?? 0);
+        $this->db('mlite_kasir_shift')->save([
+            'user_id' => $user_id,
+            'waktu_buka' => date('Y-m-d H:i:s'),
+            'waktu_tutup' => null,
+            'kas_awal' => $kas_awal,
+            'keterangan' => $_POST['keterangan'] ?? ''
+        ]);
+        $this->notify('success', 'Shift kasir dibuka');
+        redirect(url([ADMIN, 'kasir_rawat_inap', 'shift']));
+    }
+
+    public function postCloseKasir()
+    {
+        $user_id = $this->core->getUserInfo('id');
+        $shift = $this->db('mlite_kasir_shift')->where('user_id', $user_id)->isNull('waktu_tutup')->desc('id_shift')->oneArray();
+        if (!$shift) {
+            $this->notify('danger', 'Tidak ada shift terbuka');
+            redirect(url([ADMIN, 'kasir_rawat_inap', 'shift']));
+        }
+        $kas_akhir = floatval($_POST['kas_akhir'] ?? 0);
+        $pdo = $this->db()->pdo();
+        $stmt = $pdo->prepare("SELECT IFNULL(SUM(jumlah_harus_bayar),0) as total FROM mlite_billing WHERE id_user = ? AND CONCAT(tgl_billing,' ',jam_billing) BETWEEN ? AND ?");
+        $stmt->execute([$user_id, $shift['waktu_buka'], date('Y-m-d H:i:s')]);
+        $row = $stmt->fetch();
+        $total = floatval($row[0] ?? 0);
+        $selisih = $kas_akhir - ($shift['kas_awal'] + $total);
+        $this->db('mlite_kasir_shift')->where('id_shift', $shift['id_shift'])->save([
+            'waktu_tutup' => date('Y-m-d H:i:s'),
+            'kas_akhir' => $kas_akhir,
+            'total_transaksi' => $total,
+            'selisih' => $selisih
+        ]);
+        $this->notify('success', 'Shift kasir ditutup');
+        redirect(url([ADMIN, 'kasir_rawat_inap', 'shift']));
+    }
+
+    public function anyReport()
+    {
+        $this->_addHeaderFiles();
+        $awal = isset($_GET['awal']) ? $_GET['awal'] : date('Y-m-d').' 00:00:00';
+        $akhir = isset($_GET['akhir']) ? $_GET['akhir'] : date('Y-m-d').' 23:59:59';
+        $pdo = $this->db()->pdo();
+        $stmt = $pdo->prepare("SELECT b.id_user, COALESCE(p.nama, u.fullname) AS nama_kasir, COUNT(*) transaksi, IFNULL(SUM(b.jumlah_harus_bayar),0) total, MIN(CONCAT(b.tgl_billing,' ',b.jam_billing)) mulai, MAX(CONCAT(b.tgl_billing,' ',b.jam_billing)) selesai FROM mlite_billing b INNER JOIN ( SELECT no_rawat, MAX(CONCAT(tgl_billing,' ',jam_billing)) AS max_waktu FROM mlite_billing WHERE kd_billing LIKE 'RI%' AND CONCAT(tgl_billing,' ',jam_billing) BETWEEN ? AND ? GROUP BY no_rawat ) latest ON latest.no_rawat=b.no_rawat AND CONCAT(b.tgl_billing,' ',b.jam_billing)=latest.max_waktu LEFT JOIN mlite_users u ON u.id=b.id_user LEFT JOIN pegawai p ON p.nik=u.username WHERE b.kd_billing LIKE 'RI%' GROUP BY b.id_user, nama_kasir");
+        $stmt->execute([$awal, $akhir]);
+        $rows = $stmt->fetchAll();
+
+        $detailStmt = $pdo->prepare("SELECT b.id_user, COALESCE(p.nama, u.fullname) AS nama_kasir, b.kd_billing, b.no_rawat, b.jumlah_harus_bayar, CONCAT(b.tgl_billing,' ',b.jam_billing) AS waktu, b.keterangan FROM mlite_billing b INNER JOIN ( SELECT no_rawat, MAX(CONCAT(tgl_billing,' ',jam_billing)) AS max_waktu FROM mlite_billing WHERE kd_billing LIKE 'RI%' AND CONCAT(tgl_billing,' ',jam_billing) BETWEEN ? AND ? GROUP BY no_rawat ) latest ON latest.no_rawat=b.no_rawat AND CONCAT(b.tgl_billing,' ',b.jam_billing)=latest.max_waktu LEFT JOIN mlite_users u ON u.id=b.id_user LEFT JOIN pegawai p ON p.nik=u.username WHERE b.kd_billing LIKE 'RI%' ORDER BY waktu ASC");
+        $detailStmt->execute([$awal, $akhir]);
+        $details = $detailStmt->fetchAll();
+
+        return $this->draw('report.html', ['awal' => $awal, 'akhir' => $akhir, 'rows' => $rows, 'details' => $details]);
+    }
+
+    public function anyReportExport()
+    {
+        $awal = isset($_GET['awal']) ? $_GET['awal'] : date('Y-m-d').' 00:00:00';
+        $akhir = isset($_GET['akhir']) ? $_GET['akhir'] : date('Y-m-d').' 23:59:59';
+        header('Content-Type: text/csv');
+        header('Content-Disposition: attachment; filename="laporan_kasir_inap.csv"');
+        $pdo = $this->db()->pdo();
+        $stmt = $pdo->prepare("SELECT b.id_user, COALESCE(p.nama, u.fullname) AS nama_kasir, b.kd_billing, b.jumlah_harus_bayar, CONCAT(b.tgl_billing,' ',b.jam_billing) waktu FROM mlite_billing b INNER JOIN ( SELECT no_rawat, MAX(CONCAT(tgl_billing,' ',jam_billing)) AS max_waktu FROM mlite_billing WHERE kd_billing LIKE 'RI%' AND CONCAT(tgl_billing,' ',jam_billing) BETWEEN ? AND ? GROUP BY no_rawat ) latest ON latest.no_rawat=b.no_rawat AND CONCAT(b.tgl_billing,' ',b.jam_billing)=latest.max_waktu LEFT JOIN mlite_users u ON u.id=b.id_user LEFT JOIN pegawai p ON p.nik=u.username WHERE b.kd_billing LIKE 'RI%' ORDER BY waktu ASC");
+        $stmt->execute([$awal, $akhir]);
+        echo "id_user,nama_kasir,kd_billing,jumlah_harus_bayar,waktu\n";
+        while ($row = $stmt->fetch(\PDO::FETCH_ASSOC)) {
+            echo $row['id_user'].",".($row['nama_kasir'] ?? '').",".$row['kd_billing'].",".$row['jumlah_harus_bayar'].",".$row['waktu']."\n";
+        }
+        exit();
     }
 
     public function postSaveDetail()
@@ -498,12 +587,16 @@ class Admin extends AdminModule
 
       $detail_pemberian_obat = [];
       $jumlah_total_obat = 0;
+      $jumlah_total_embalase = 0;
+      $jumlah_total_tuslah = 0;
       $no_obat = 1;
       foreach ($rows_pemberian_obat as $row) {
         $row['nomor'] = $no_obat++;
         $databarang = $this->db('databarang')->where('kode_brng', $row['kode_brng'])->oneArray();
         $row['nama_brng'] = $databarang['nama_brng'];
         $jumlah_total_obat += floatval($row['total']);
+        $jumlah_total_embalase += floatval($row['embalase']);
+        $jumlah_total_tuslah += floatval($row['tuslah']);
         $detail_pemberian_obat[] = $row;
       }
 
@@ -569,6 +662,8 @@ class Admin extends AdminModule
         'tindakan' => $tindakan,
         'jumlah_total' => $jumlah_total,
         'jumlah_total_obat' => $jumlah_total_obat,
+        'jumlah_total_embalase' => $jumlah_total_embalase,
+        'jumlah_total_tuslah' => $jumlah_total_tuslah,
         'bangsal' => $bangsal,
         'jumlah_total_bangsal' => $jumlah_total_bangsal,
         'detail_pemberian_obat' => $detail_pemberian_obat,
@@ -873,7 +968,7 @@ class Admin extends AdminModule
       $binary_content = file_get_contents($file);
 
       if ($binary_content === false) {
-         throw new Exception("Could not fetch remote content from: '$file'");
+         throw new \Exception("Could not fetch remote content from: '$file'");
       }
 
 	    $mail = new PHPMailer(true);

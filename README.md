@@ -18,7 +18,7 @@ Kebutuhan Sistem
 Persyaratan sistem untuk mLITE  sangat sederhana, sehingga setiap server modern sudah cukup. Berikut persyaratan minimal yang diperlukan
 
 + Apache 2.2+ dengan `mod_rewrite` atau Nginx
-+ PHP versi 7.0 - 8.1
++ PHP versi 7.4 - 8.3+
 + MySQL atau MariaDB
 
 Konfigurasi PHP harus memiliki ekstensi berikut:
@@ -64,7 +64,11 @@ $ composer install
 
 5. Sesuaikan pengaturan di config.php
 
-6. Buat database baru di MySQL/MariaDB dan import file `mlite_db.sql`
+6. Buat database baru di MySQL/MariaDB dan import file `mlite_db.sql` (tambahkan sql-mode = '' pada my.cnf atau jalankan perintah berikut)
+
+```
+$ sed -i "/user=mysql/a sql-mode = ''" /etc/my.cnf
+```
 
 7. Buka browser Anda dan navigasikan ke alamat tempat file mLITE berada.
 

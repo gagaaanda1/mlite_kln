@@ -308,19 +308,19 @@
                              <label class="radio-inline">
                                 <input type="radio" name="keamanan" value="tidak" {if: $settings.keamanan == 'tidak'}checked{/if} /> Tidak
                              </label>
+                     </div>
+                    <div class="form-group">
+                         <label>Aktifkan Kadaluarsa Password (30 hari)</label>
+                         <div class="radio">
+                             <label class="radio-inline">
+                                <input type="radio" name="password_expire" value="ya" {if: $settings.password_expire == 'ya'}checked{/if} /> Ya
+                             </label>
+                             <label class="radio-inline">
+                                <input type="radio" name="password_expire" value="tidak" {if: $settings.password_expire == 'tidak'}checked{/if} /> Tidak
+                             </label>
                          </div>
                     </div>
-                    <div class="form-group">
-                        <label>Aktifkan Versi Beta</label>
-                        <div class="radio">
-                            <label class="radio-inline">
-                               <input type="radio" name="versi_beta" value="ya" {if: $settings.versi_beta == 'ya'}checked{/if} /> Ya
-                            </label>
-                            <label class="radio-inline">
-                               <input type="radio" name="versi_beta" value="tidak" {if: $settings.versi_beta == 'tidak'}checked{/if} /> Tidak
-                            </label>
-                        </div>
-                   </div>
+                    </div>
                    <div class="form-group">
                        <label>Aktifkan Log Query</label>
                        <div class="radio">
@@ -336,19 +336,6 @@
                          <label>Footer</label>
                          <input type="text" name="footer" class="form-control" value="{$settings.footer}" required />
                     </div>
-                    <!--
-                    <div class="form-group">
-                         <label>Editor</label>
-                         <div class="radio">
-                             <label class="radio-inline">
-                                <input type="radio" name="editor" value="wysiwyg" {if: $settings.editor == 'wysiwyg'}checked{/if} /> WYSIWYG
-                             </label>
-                             <label class="radio-inline">
-                                <input type="radio" name="editor" value="html" {if: $settings.editor == 'html'}checked{/if} /> HTML
-                             </label>
-                         </div>
-                    </div>
-                    -->
                     <input type="submit" name="save" class="btn btn-primary" value="Simpan" />
                 </div>
             </div>

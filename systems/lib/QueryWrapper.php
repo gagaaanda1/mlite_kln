@@ -123,8 +123,9 @@ class QueryWrapper
             $operator = '=';
         }
 
-        if (is_array($value)) {
-            $qs = '(' . implode(',', array_fill(0, count($value), '?')) . ')';
+        if (is_array($value) && !empty($value)) {
+            $valueCount = count($value);
+            $qs = '(' . implode(',', array_fill(0, $valueCount, '?')) . ')';
             if (empty($this->having)) {
                 array_push($this->having, "$aggregate_function $operator $qs");
             } else {
@@ -174,11 +175,12 @@ class QueryWrapper
             $operator = '=';
         }
 
-        if (is_array($value)) {
+        if (is_array($value) && !empty($value)) {
             foreach ($value as $v) {
                 array_push($this->condition_binds, $v);
             }
-            $value = '(' . implode(',', array_fill(0, count($value), '?')) . ')';
+            $valueCount = count($value);
+            $value = '(' . implode(',', array_fill(0, $valueCount, '?')) . ')';
         } else {
             array_push($this->condition_binds, $value);
             $value = "?";
@@ -471,9 +473,10 @@ class QueryWrapper
             // if there are some conditions then UPDATE
             if (!empty($this->conditions)) {
                 $insert = false;
-                $columns = implode('=?,', array_keys($this->sets)) . '=?';
+                $keys = array_keys($this->sets);
+                $quoted_columns = implode('=?,', array_map(function($c){ return "`$c`"; }, $keys)) . '=?';
                 $this->set_binds = array_values($this->sets);
-                $sql = "UPDATE $this->table SET $columns";
+                $sql = "UPDATE `{$this->table}` SET $quoted_columns";
                 $sql .= $sql_where;
 
                 return $sql;
@@ -485,10 +488,11 @@ class QueryWrapper
                     $this->set('created_at', time());
                 }
 
-                $columns = implode(',', array_keys($this->sets));
+                $columns = implode(',', array_map(function($c){ return "`$c`"; }, array_keys($this->sets)));
                 $this->set_binds = array_values($this->sets);
-                $qs = implode(',', array_fill(0, count($this->sets), '?'));
-                $sql = "INSERT INTO $this->table($columns) VALUES($qs)";
+                $setsCount = is_array($this->sets) ? count($this->sets) : 0;
+                $qs = implode(',', array_fill(0, $setsCount, '?'));
+                $sql = "INSERT INTO `{$this->table}`($columns) VALUES($qs)";
                 $this->condition_binds = array();
 
                 return $sql;
@@ -515,12 +519,12 @@ class QueryWrapper
                     $sql .= " $joins";
                 }
                 $order = '';
-                if (count($this->orders) > 0) {
+                if (is_array($this->orders) && count($this->orders) > 0) {
                     $order = ' ORDER BY ' . implode(',', $this->orders);
                 }
 
                 $group_by = '';
-                if (count($this->group_by) > 0) {
+                if (is_array($this->group_by) && count($this->group_by) > 0) {
                     $group_by = ' GROUP BY ' . implode(',', $this->group_by);
                 }
 

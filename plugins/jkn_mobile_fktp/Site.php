@@ -7,6 +7,15 @@ use Systems\Lib\PcareService;
 
 class Site extends SiteModule
 {
+    // Declare properties to fix PHP 8.3 deprecation warnings
+    public $usernamePcare;
+    public $passwordPcare;
+    public $kdAplikasi;
+    public $consumerID;
+    public $consumerSecret;
+    public $consumerUserKey;
+    public $api_url;
+    public $api_url_antrol;
 
     public function init()
     {
@@ -18,7 +27,7 @@ class Site extends SiteModule
       $this->consumerUserKey = $this->settings->get('pcare.consumerUserKey');
       $this->api_url = $this->settings->get('pcare.PCareApiUrl');
       $this->api_url_antrol = 'https://apijkn.bpjs-kesehatan.go.id/antreanfktp/';
-      if (strpos($this->api_url, 'dev') !== false) { 
+      if ($this->api_url !== null && strpos($this->api_url, 'dev') !== false) { 
         $this->api_url_antrol = 'https://apijkn-dev.bpjs-kesehatan.go.id/antreanfktp_dev/';
       }    
     }
@@ -50,8 +59,9 @@ class Site extends SiteModule
     {
         $powered = 'Powered by <a href="https://mlite.id/">mLITE.id</a>';
         $fktp = $this->settings->get('settings.nama_instansi');
-        $poliklinik = $this->db('poliklinik')->toArray();
-        echo $this->draw('antrian.html', ['powered' => $powered, 'fktp' => $fktp]);
+        $poliklinik = $this->db('poliklinik')->where('status', '1')->toArray();
+        $penjab = $this->db('penjab')->where('status', '1')->toArray();
+        echo $this->draw('antrian.html', ['powered' => $powered, 'fktp' => $fktp, 'poliklinik' => $poliklinik, 'penjab' => $penjab]);
         exit();
     }
 
@@ -64,7 +74,7 @@ class Site extends SiteModule
         $antrean_periksa = $this->db('reg_periksa')->select('no_reg')->select('kd_poli')->where('stts', 'Berkas Diterima')->where('tgl_registrasi', $tanggal)->desc('no_reg')->oneArray();
         $antrean_selesai = $this->db('reg_periksa')->select('no_reg')->where('stts', 'Sudah')->where('tgl_registrasi', $tanggal)->toArray();
         $antrean = $this->db('reg_periksa')->select('no_reg')->where('tgl_registrasi', $tanggal)->toArray();
-        $sisa_antrean = count($antrean) - isset_or($antrean_periksa['no_reg'], '0');
+        $sisa_antrean = count($antrean) - count($antrean_selesai);
         $total = count($antrean);
         
         $kode = '';
@@ -193,16 +203,18 @@ class Site extends SiteModule
 
               if($result) {
                 if($_POST['kd_pj'] == 'BPJ') {
+                    // Untuk pasien BPJ, ambil response dari getAntrolAddAntrian dan kirimkan
                     $this->getAntrolAddAntrian($no_rkm_medis, $kd_poli, $kd_pj);
-                    // $send_data['state'] = 'success';
+                    // Fungsi getAntrolAddAntrian akan mengirim response-nya sendiri
+                    exit();
                 } else {
                     $send_data['state'] = 'success';
+                    echo json_encode($send_data);
                 }
               } else {
                 $send_data['state'] = 'error';
+                echo json_encode($send_data);
               }
-
-              echo json_encode($send_data);
             break;
             default:
               echo 'Default';
@@ -293,29 +305,43 @@ class Site extends SiteModule
         $json = json_decode($output, true);
         // echo json_encode($json);
   
-        $code = $json['metadata']['code'];
-        $message = $json['metadata']['message'];
+        $code = isset_or($json['metadata']['code'], '5000');
+        $message = isset_or($json['metadata']['message'], 'ERROR');
         $stringDecrypt = stringDecrypt($key, isset_or($json['response']));
-        $decompress = '""';
+        $decompress = null;
         if (!empty($stringDecrypt)) {
             $decompress = decompress($stringDecrypt);
         }
+        
+        // Pastikan response adalah JSON valid
+        $responseData = null;
+        if (!empty($decompress)) {
+            $responseData = json_decode($decompress, true);
+            if (json_last_error() !== JSON_ERROR_NONE) {
+                $responseData = $decompress; // Gunakan string jika bukan JSON valid
+            }
+        }
+        
         if ($json != null) {
-            echo '{
-                "state": "sukses", 
-                "metaData": {
-                  "code": "' . $code . '",
-                  "message": "' . $message . '"
-                },
-                "response": ' . $decompress . '}';
+            $response = [
+                "state" => "success", 
+                "metaData" => [
+                  "code" => $code,
+                  "message" => $message
+                ],
+                "response" => $responseData
+            ];
+            echo json_encode($response);
         } else {
-            echo '{
-                "state": "gagal", 
-                "metaData": {
-                  "code": "5000",
-                  "message": "ERROR"
-                },
-                "response": "ADA KESALAHAN ATAU SAMBUNGAN KE SERVER BPJS TERPUTUS."}';
+            $response = [
+                "state" => "error", 
+                "metaData" => [
+                  "code" => "5000",
+                  "message" => "ERROR"
+                ],
+                "response" => "ADA KESALAHAN ATAU SAMBUNGAN KE SERVER BPJS TERPUTUS."
+            ];
+            echo json_encode($response);
         }
   
         exit();
@@ -555,7 +581,7 @@ class Site extends SiteModule
             elseif (!empty($decode['nomorkartu']) && !empty($decode['nik']) && !empty($decode['kodepoli']) && !empty($decode['tanggalperiksa'])) {
                 $data_pasien = $this->db('pasien')->where('no_peserta', $decode['nomorkartu'])->oneArray();
                 $poli = $this->db('maping_poliklinik_pcare')->where('kd_poli_pcare', $decode['kodepoli'])->oneArray();
-                $cek_kouta = $this->db()->pdo()->prepare("SELECT jadwal.kuota - (SELECT COUNT(reg_periksa.tgl_registrasi) FROM reg_periksa WHERE reg_periksa.tgl_registrasi='$decode[tanggalperiksa]' AND reg_periksa.kd_dokter=jadwal.kd_dokter) as sisa_kouta, jadwal.kd_dokter, jadwal.kd_poli, jadwal.jam_mulai as jam_mulai, poliklinik.nm_poli, dokter.nm_dokter FROM jadwal INNER JOIN maping_poliklinik_pcare ON maping_poliklinik_pcare.kd_poli_rs=jadwal.kd_poli INNER JOIN poliklinik ON poliklinik.kd_poli=jadwal.kd_poli INNER JOIN dokter ON dokter.kd_dokter=jadwal.kd_dokter WHERE jadwal.hari_kerja='$hari' AND maping_poliklinik_pcare.kd_poli_pcare='$decode[kodepoli]' GROUP BY jadwal.kd_dokter HAVING sisa_kouta > 0 ORDER BY sisa_kouta DESC LIMIT 1");
+                $cek_kouta = $this->db()->pdo()->prepare("SELECT jadwal.kuota - (SELECT COUNT(reg_periksa.tgl_registrasi) FROM reg_periksa WHERE reg_periksa.tgl_registrasi='$decode[tanggalperiksa]' AND reg_periksa.kd_dokter=jadwal.kd_dokter) as sisa_kouta, jadwal.kd_dokter, jadwal.kd_poli, jadwal.jam_mulai as jam_mulai, poliklinik.nm_poli, dokter.nm_dokter FROM jadwal INNER JOIN maping_poliklinik_pcare ON maping_poliklinik_pcare.kd_poli_rs=jadwal.kd_poli INNER JOIN poliklinik ON poliklinik.kd_poli=jadwal.kd_poli INNER JOIN dokter ON dokter.kd_dokter=jadwal.kd_dokter WHERE jadwal.hari_kerja='$hari' AND maping_poliklinik_pcare.kd_poli_pcare='$decode[kodepoli]' GROUP BY jadwal.kd_dokter, jadwal.kd_poli, jadwal.jam_mulai, jadwal.kuota, poliklinik.nm_poli, dokter.nm_dokter HAVING sisa_kouta > 0 ORDER BY sisa_kouta DESC LIMIT 1");
                 $cek_kouta->execute();
                 $cek_kouta = $cek_kouta->fetch();
 

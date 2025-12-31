@@ -92,7 +92,7 @@ class Admin extends AdminModule
         $filePath = $_FILES['files']['tmp_name'];
 
         curl_setopt_array($curl, array(
-          CURLOPT_URL => str_replace('webapps','',WEBAPPS_URL).'api/berkasdigital',
+          CURLOPT_URL => substr(rtrim(WEBAPPS_URL, '/'), 0, strrpos(rtrim(WEBAPPS_URL, '/'), '/')).'/api/berkasdigital',
           CURLOPT_RETURNTRANSFER => true,
           CURLOPT_ENCODING => '',
           CURLOPT_MAXREDIRS => 10,
@@ -323,7 +323,10 @@ class Admin extends AdminModule
     $sep_data = $this->db('mlite_apotek_online_sep_data')
       ->where('no_rawat', $this->revertNorawat($no_rawat))
       ->oneArray();
-    
+    if(!$sep_data) {
+      $sep_data = $this->db('bridging_sep')->where('no_rawat', $this->revertNorawat($no_rawat))->oneArray();
+    }
+
     // Ambil data obat yang diberikan dengan mapping obat apotek online (non-racikan dan racikan)
     $no_rawat_reverted = $this->revertNorawat($no_rawat);
     $obat_data = $this->db()->pdo()->prepare("
@@ -1046,7 +1049,7 @@ public function postHapusResepResponse()
         if (!empty($parameters)) {
             $url_params = [];
             foreach ($parameters as $param_key => $value) {
-                if (!empty($value)) {
+                if (isset($value) && $value !== '') {
                     $url_params[] = urlencode($value);
                 }
             }
@@ -1812,7 +1815,11 @@ public function postHapusResepResponse()
   private function _getSEPInfo($field, $no_rawat)
   {
       $row = $this->db('bridging_sep')->where('no_rawat', $no_rawat)->oneArray();
-      return $row[$field];
+      // Pastikan array memiliki key yang diminta, jika tidak kembalikan string kosong
+      if (!is_array($row) || !array_key_exists($field, $row)) {
+          return '';
+      }
+      return $row[$field] ?? '';
   }
 
   public function convertNorawat($text)

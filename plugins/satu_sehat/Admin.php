@@ -37,27 +37,9 @@ class Admin extends AdminModule
     $this->organizationid = $this->settings->get('satu_sehat.organizationid');
   }
 
-  public function getTest()
-  {
-    // $searchResult = $this->searchObat('paracetamol');
-    // echo json_encode($searchResult);
-    // echo json_encode($this->getObatByCode('93021992'));
-
-    $row['medications'] = $this->db('resep_obat')
-      ->join('resep_dokter', 'resep_dokter.no_resep=resep_obat.no_resep')
-      ->join('mlite_satu_sehat_mapping_obat', 'mlite_satu_sehat_mapping_obat.kode_brng=resep_dokter.kode_brng')
-      ->where('mlite_satu_sehat_mapping_obat.tipe', 'obat')
-      ->where('no_rawat', '2025/06/08/000001')->toArray();
-
-    // echo json_encode($row['medications']);
-    echo date('c', strtotime('2025-06-08'));
-
-    exit();
-  }
-
   public function getObatByCode($code)
   {
-    if (!json_decode($this->getToken())->access_token) {
+    if ($this->getAccessToken() === '') {
       return ['error' => 'Gagal mendapatkan access token'];
     }
 
@@ -70,7 +52,7 @@ class Admin extends AdminModule
       CURLOPT_URL => $baseUrl . '/kfa-v2/products?identifier=kfa&code=' . urlencode($code),
       CURLOPT_RETURNTRANSFER => true,
       CURLOPT_HTTPHEADER => [
-        'Authorization: Bearer ' . json_decode($this->getToken())->access_token,
+        'Authorization: Bearer ' . $this->getAccessToken(),
         'Accept: application/json'
       ]
     ]);
@@ -142,6 +124,16 @@ class Admin extends AdminModule
     // exit();
   }
 
+  private function getAccessToken(): string
+  {
+    $raw = $this->getToken();
+    $obj = json_decode($raw);
+    if (is_object($obj) && isset($obj->access_token) && is_string($obj->access_token)) {
+      return $obj->access_token;
+    }
+    return '';
+  }
+
   public function getPractitioner($nik_dokter)
   {
 
@@ -155,7 +147,7 @@ class Admin extends AdminModule
       CURLOPT_TIMEOUT => 0,
       CURLOPT_FOLLOWLOCATION => true,
       CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
-      CURLOPT_HTTPHEADER => array('Content-Type: application/json', 'Authorization: Bearer ' . json_decode($this->getToken())->access_token),
+      CURLOPT_HTTPHEADER => array('Content-Type: application/json', 'Authorization: Bearer ' . $this->getAccessToken()),
       CURLOPT_CUSTOMREQUEST => 'GET'
     ));
 
@@ -165,6 +157,31 @@ class Admin extends AdminModule
     return $response;
     // echo $response;
     // exit();
+
+  }
+
+  public function getDicomRouter()
+  {
+
+    $curl = curl_init();
+
+    curl_setopt_array($curl, array(
+      CURLOPT_URL => 'https://api-satusehat.kemkes.go.id/dicom-router',
+      CURLOPT_RETURNTRANSFER => true,
+      CURLOPT_ENCODING => '',
+      CURLOPT_MAXREDIRS => 10,
+      CURLOPT_TIMEOUT => 0,
+      CURLOPT_FOLLOWLOCATION => true,
+      CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+      CURLOPT_HTTPHEADER => array('Content-Type: application/json', 'Authorization: Bearer ' . $this->getAccessToken()),
+      CURLOPT_CUSTOMREQUEST => 'GET'
+    ));
+
+    $response = curl_exec($curl);
+
+    curl_close($curl);
+    echo '<pre>' . $response . '</pre>';
+    exit();
 
   }
 
@@ -188,7 +205,7 @@ class Admin extends AdminModule
       CURLOPT_FOLLOWLOCATION => true,
       CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
       CURLOPT_CUSTOMREQUEST => 'GET',
-      CURLOPT_HTTPHEADER => array('Content-Type: application/json', 'Authorization: Bearer ' . json_decode($this->getToken())->access_token),
+      CURLOPT_HTTPHEADER => array('Content-Type: application/json', 'Authorization: Bearer ' . $this->getAccessToken()),
     ));
 
     $response = curl_exec($curl);
@@ -211,7 +228,7 @@ class Admin extends AdminModule
       CURLOPT_TIMEOUT => 0,
       CURLOPT_FOLLOWLOCATION => true,
       CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
-      CURLOPT_HTTPHEADER => array('Content-Type: application/json', 'Authorization: Bearer ' . json_decode($this->getToken())->access_token),
+      CURLOPT_HTTPHEADER => array('Content-Type: application/json', 'Authorization: Bearer ' . $this->getAccessToken()),
       CURLOPT_CUSTOMREQUEST => 'GET'
     ));
 
@@ -244,7 +261,7 @@ class Admin extends AdminModule
       CURLOPT_FOLLOWLOCATION => true,
       CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
       CURLOPT_CUSTOMREQUEST => 'GET',
-      CURLOPT_HTTPHEADER => array('Content-Type: application/json', 'Authorization: Bearer ' . json_decode($this->getToken())->access_token),
+      CURLOPT_HTTPHEADER => array('Content-Type: application/json', 'Authorization: Bearer ' . $this->getAccessToken()),
     ));
 
     $response = curl_exec($curl);
@@ -272,7 +289,7 @@ class Admin extends AdminModule
       CURLOPT_TIMEOUT => 0,
       CURLOPT_FOLLOWLOCATION => true,
       CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
-      CURLOPT_HTTPHEADER => array('Content-Type: application/json', 'Authorization: Bearer ' . json_decode($this->getToken())->access_token),
+      CURLOPT_HTTPHEADER => array('Content-Type: application/json', 'Authorization: Bearer ' . $this->getAccessToken()),
       CURLOPT_CUSTOMREQUEST => 'POST',
       CURLOPT_POSTFIELDS => '{
         "resourceType": "Organization",
@@ -377,7 +394,7 @@ class Admin extends AdminModule
       CURLOPT_TIMEOUT => 0,
       CURLOPT_FOLLOWLOCATION => true,
       CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
-      CURLOPT_HTTPHEADER => array('Content-Type: application/json', 'Authorization: Bearer ' . json_decode($this->getToken())->access_token),
+      CURLOPT_HTTPHEADER => array('Content-Type: application/json', 'Authorization: Bearer ' . $this->getAccessToken()),
       CURLOPT_CUSTOMREQUEST => 'GET',
     ));
 
@@ -403,7 +420,7 @@ class Admin extends AdminModule
       CURLOPT_TIMEOUT => 0,
       CURLOPT_FOLLOWLOCATION => true,
       CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
-      CURLOPT_HTTPHEADER => array('Content-Type: application/json', 'Authorization: Bearer ' . json_decode($this->getToken())->access_token),
+      CURLOPT_HTTPHEADER => array('Content-Type: application/json', 'Authorization: Bearer ' . $this->getAccessToken()),
       CURLOPT_CUSTOMREQUEST => 'GET',
     ));
 
@@ -429,7 +446,7 @@ class Admin extends AdminModule
       CURLOPT_TIMEOUT => 0,
       CURLOPT_FOLLOWLOCATION => true,
       CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
-      CURLOPT_HTTPHEADER => array('Content-Type: application/json', 'Authorization: Bearer ' . json_decode($this->getToken())->access_token),
+      CURLOPT_HTTPHEADER => array('Content-Type: application/json', 'Authorization: Bearer ' . $this->getAccessToken()),
       CURLOPT_CUSTOMREQUEST => 'PUT',
       CURLOPT_POSTFIELDS => '{
         "resourceType": "Organization",
@@ -538,7 +555,7 @@ class Admin extends AdminModule
       CURLOPT_TIMEOUT => 0,
       CURLOPT_FOLLOWLOCATION => true,
       CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
-      CURLOPT_HTTPHEADER => array('Content-Type: application/json', 'Authorization: Bearer ' . json_decode($this->getToken())->access_token),
+      CURLOPT_HTTPHEADER => array('Content-Type: application/json', 'Authorization: Bearer ' . $this->getAccessToken()),
       CURLOPT_CUSTOMREQUEST => 'POST',
       CURLOPT_POSTFIELDS => '{
         "resourceType": "Location",
@@ -641,7 +658,7 @@ class Admin extends AdminModule
         CURLOPT_TIMEOUT => 0,
         CURLOPT_FOLLOWLOCATION => true,
         CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
-        CURLOPT_HTTPHEADER => array('Content-Type: application/json', 'Authorization: Bearer ' . json_decode($this->getToken())->access_token),
+        CURLOPT_HTTPHEADER => array('Content-Type: application/json', 'Authorization: Bearer ' . $this->getAccessToken()),
         CURLOPT_CUSTOMREQUEST => 'GET',
       ));
 
@@ -669,7 +686,7 @@ class Admin extends AdminModule
       CURLOPT_TIMEOUT => 0,
       CURLOPT_FOLLOWLOCATION => true,
       CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
-      CURLOPT_HTTPHEADER => array('Content-Type: application/json', 'Authorization: Bearer ' . json_decode($this->getToken())->access_token),
+      CURLOPT_HTTPHEADER => array('Content-Type: application/json', 'Authorization: Bearer ' . $this->getAccessToken()),
       CURLOPT_CUSTOMREQUEST => 'GET',
     ));
 
@@ -695,7 +712,7 @@ class Admin extends AdminModule
       CURLOPT_TIMEOUT => 0,
       CURLOPT_FOLLOWLOCATION => true,
       CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
-      CURLOPT_HTTPHEADER => array('Content-Type: application/json', 'Authorization: Bearer ' . json_decode($this->getToken())->access_token),
+      CURLOPT_HTTPHEADER => array('Content-Type: application/json', 'Authorization: Bearer ' . $this->getAccessToken()),
       CURLOPT_CUSTOMREQUEST => 'PUT',
       CURLOPT_POSTFIELDS => '{
         "resourceType": "Location",
@@ -798,7 +815,7 @@ class Admin extends AdminModule
     exit();
   }
 
-  public function getEncounter($no_rawat)
+  public function getEncounter($no_rawat, $render = true)
   {
 
     $zonawaktu = '+07:00';
@@ -835,6 +852,15 @@ class Admin extends AdminModule
     }
 
     $mlite_satu_sehat_lokasi = $this->db('mlite_satu_sehat_lokasi')->where('kode', $kd_poli)->oneArray();
+    $praktisi_id = isset($no_ktp_dokter['practitioner_id']) ? $no_ktp_dokter['practitioner_id'] : '';
+    $lokasi_id = isset($mlite_satu_sehat_lokasi['id_lokasi_satusehat']) ? $mlite_satu_sehat_lokasi['id_lokasi_satusehat'] : '';
+
+    $__patientResp = $this->getPatient($no_ktp_pasien);
+    $__patientJson = json_decode($__patientResp);
+    $ihs_patient = '';
+    if (is_object($__patientJson) && isset($__patientJson->entry) && is_array($__patientJson->entry) && isset($__patientJson->entry[0]) && isset($__patientJson->entry[0]->resource) && isset($__patientJson->entry[0]->resource->id)) {
+      $ihs_patient = $__patientJson->entry[0]->resource->id;
+    }
 
     $curl = curl_init();
     $json = '{
@@ -846,7 +872,7 @@ class Admin extends AdminModule
           "display": "' . $display . '"
       },
       "subject": {
-          "reference": "Patient/' . json_decode($this->getPatient($no_ktp_pasien))->entry[0]->resource->id . '",
+          "reference": "Patient/' . $ihs_patient . '",
           "display": "' . $nama_pasien . '"
       },
       "participant": [
@@ -863,7 +889,7 @@ class Admin extends AdminModule
                   }
               ],
               "individual": {
-                  "reference": "Practitioner/' . $no_ktp_dokter['practitioner_id'] . '",
+                  "reference": "Practitioner/' . $praktisi_id . '",
                   "display": "' . $nama_dokter . '"
               }
           }
@@ -874,7 +900,7 @@ class Admin extends AdminModule
       "location": [
           {
               "location": {
-                  "reference": "Location/' . $mlite_satu_sehat_lokasi['id_lokasi_satusehat'] . '",
+                  "reference": "Location/' . $lokasi_id . '",
                   "display": "' . $kd_poli . ' ' . $nm_poli . '"
               }
           }
@@ -906,14 +932,15 @@ class Admin extends AdminModule
       CURLOPT_TIMEOUT => 0,
       CURLOPT_FOLLOWLOCATION => true,
       CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
-      CURLOPT_HTTPHEADER => array('Content-Type: application/json', 'Authorization: Bearer ' . json_decode($this->getToken())->access_token),
+      CURLOPT_HTTPHEADER => array('Content-Type: application/json', 'Authorization: Bearer ' . $this->getAccessToken()),
       CURLOPT_CUSTOMREQUEST => 'POST',
       CURLOPT_POSTFIELDS => $json,
     ));
 
     $response = curl_exec($curl);
 
-    $id_encounter = json_decode($response)->id;
+    $decoded = json_decode($response);
+    $id_encounter = (is_object($decoded) && isset($decoded->id)) ? $decoded->id : null;
     $pesan = 'Gagal mengirim encounter platform Satu Sehat!!';
     if ($id_encounter) {
       $this->db('mlite_satu_sehat_response')->save([
@@ -924,8 +951,12 @@ class Admin extends AdminModule
     }
 
     curl_close($curl);
-    // echo $response;
-    echo $this->draw('encounter.html', ['pesan' => $pesan, 'response' => $response, 'json' => $json]);
+    if ($render) {
+      echo $this->draw('encounter.html', ['pesan' => $pesan, 'response' => $response, 'json' => $json]);
+    } else {
+      $data = json_decode($response);
+      echo $data ? json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) : $response;
+    }
     exit();
   }
 
@@ -954,13 +985,12 @@ class Admin extends AdminModule
       ->where('prioritas', '1')
       ->oneArray();
     $_prosedure_pasien = $this->db('prosedur_pasien')->select(['deskripsi_pendek' => 'icd9.deskripsi_pendek', 'kode' => 'icd9.kode'])->join('icd9', 'icd9.kode = prosedur_pasien.kode')->where('prosedur_pasien.no_rawat', $no_rawat)->where('prosedur_pasien.status', 'Ralan')->where('prosedur_pasien.prioritas', '1')->oneArray();
-    $prosedure_pasien = $_prosedure_pasien['deskripsi_pendek'];
-    $kode_prosedure_pasien = $_prosedure_pasien['kode'];
-    if (strpos($kode_prosedure_pasien, '.') !== false) {
-      $kode_prosedure_pasien = $kode_prosedure_pasien;
-    } else {
-      $kode_prosedure_pasien = substr_replace($kode_prosedure_pasien, '.', 2, 0);
-    }
+$prosedure_pasien = $_prosedure_pasien['deskripsi_pendek'] ?? '';
+$kode_prosedure_pasien = $_prosedure_pasien['kode'] ?? '';
+// Harden: avoid deprecated calls with null and only mutate when safe
+if ($kode_prosedure_pasien !== '' && strpos($kode_prosedure_pasien, '.') === false && strlen($kode_prosedure_pasien) >= 2) {
+  $kode_prosedure_pasien = substr_replace($kode_prosedure_pasien, '.', 2, 0);
+}
 
     $mlite_billing = $this->db('mlite_billing')->where('no_rawat', $no_rawat)->oneArray();
 
@@ -1001,7 +1031,12 @@ class Admin extends AdminModule
     // $cek_ihs = $this->core->getPasienInfo('nip',$no_rkm_medis);
     // $ihs_patient = $cek_ihs;
     // if ($ihs_patient == '' || $ihs_patient == '-') {
-    $ihs_patient = json_decode($this->getPatient($no_ktp_pasien))->entry[0]->resource->id;
+    $ihs_patient = '';
+    $__patientResp = $this->getPatient($no_ktp_pasien);
+    $__patientJson = json_decode($__patientResp);
+    if (is_object($__patientJson) && isset($__patientJson->entry) && is_array($__patientJson->entry) && isset($__patientJson->entry[0]) && isset($__patientJson->entry[0]->resource) && isset($__patientJson->entry[0]->resource->id)) {
+      $ihs_patient = $__patientJson->entry[0]->resource->id;
+    }
     // $this->db('pasien')->where('no_rkm_medis',$no_rkm_medis)->update('nip',$ihs_patient);
     // }
 
@@ -1253,6 +1288,8 @@ class Admin extends AdminModule
 
     $medicationforrequest_json = '';
     $medicationrequest_json = '';
+    // map of MedicationRequest UUIDs by drug code for later linking
+    $medicationrequest_ids = [];
     $no = 1;
     $cek_resep = $this->db('resep_dokter')->join('resep_obat', 'resep_obat.no_resep = resep_dokter.no_resep')->where('no_rawat', $no_rawat)->where('status', 'ralan')->toArray();
     foreach ($cek_resep as $value) {
@@ -1309,6 +1346,10 @@ class Admin extends AdminModule
           $no . $this->ran_char()
         );
         $medicationrequest_json .= $medicationrequest->toJson();
+        // store MR id by drug code for linking in dispense section
+        if (!empty($value['kode_brng'])) {
+          $medicationrequest_ids[$value['kode_brng']] = $uuid_medicationrequest;
+        }
 
         $no++;
       }
@@ -1319,8 +1360,17 @@ class Admin extends AdminModule
     $no = 1;
     $cek_detail = $this->db('detail_pemberian_obat')->where('no_rawat', $no_rawat)->toArray();
     $praktisi_apoteker = $this->db('mlite_satu_sehat_mapping_praktisi')->select('practitioner_id', 'kd_dokter')->where('jenis_praktisi', 'Apoteker')->toArray();
-    $id_praktisi_apoteker = $praktisi_apoteker[array_rand($praktisi_apoteker)];
-    $nama_praktisi_apoteker = $this->core->getPegawaiInfo('nama', $id_praktisi_apoteker['kd_dokter']);
+// Guard against empty practitioner list
+if (!is_array($praktisi_apoteker) || empty($praktisi_apoteker)) {
+  // Fallback: attempt to use prescribing doctor as pharmacist context
+  $id_praktisi_apoteker = [
+    'practitioner_id' => $no_ktp_dokter['practitioner_id'] ?? ($no_ktp_dokter['practitioner_id'] ?? ''),
+    'kd_dokter' => $kd_dokter
+  ];
+} else {
+  $id_praktisi_apoteker = $praktisi_apoteker[array_rand($praktisi_apoteker)];
+}
+$nama_praktisi_apoteker = $this->core->getPegawaiInfo('nama', $id_praktisi_apoteker['kd_dokter'] ?? $kd_dokter);
     foreach ($cek_detail as $value) {
       $cek_obat = $this->db('mlite_satu_sehat_mapping_obat')->where('kode_brng', $value['kode_brng'])->oneArray();
       $cek_aturan_pakai = $this->db('aturan_pakai')->where('no_rawat', $no_rawat)->where('kode_brng', $value['kode_brng'])->where('jam', $value['jam'])->oneArray();
@@ -1352,6 +1402,8 @@ class Admin extends AdminModule
         $medicationfordispense_json .= $medication_for_dispense->toJson();
 
         $time_prepared_handed = $this->convertTimeSatset($value['tgl_perawatan'] . ' ' . $value['jam']) . $zonawaktu;
+        // find matching MedicationRequest id by drug code; fallback to new UUID
+        $mr_uuid_for_dispense = $medicationrequest_ids[$value['kode_brng']] ?? $this->gen_uuid();
         $medication_dispense = new MedicationDispense(
           $uuid_medication_dispense,
           $this->organizationid,
@@ -1364,7 +1416,7 @@ class Admin extends AdminModule
           $id_praktisi_apoteker['practitioner_id'],
           $nama_praktisi_apoteker,
           $mlite_satu_sehat_lokasi['id_lokasi_satusehat'],
-          $uuid_medicationrequest,
+          $mr_uuid_for_dispense,
           $time_prepared_handed,
           $time_prepared_handed,
           $cek_aturan_pakai['aturan'],
@@ -1646,10 +1698,12 @@ class Admin extends AdminModule
     $id_diagnostic_report_lab = NULL;
     $id_careplan = NULL;
 
-    $entry = json_decode($response)->entry;
+    $decodedResponse = json_decode($response);
+    $entry = (is_object($decodedResponse) && isset($decodedResponse->entry) && is_array($decodedResponse->entry)) ? $decodedResponse->entry : [];
     $index = '';
-    foreach ($entry as $key => $value) {
-      $resourceType = $value->response->resourceType;
+    foreach ((array)$entry as $key => $value) {
+      $resourceType = (isset($value->response) && isset($value->response->resourceType)) ? $value->response->resourceType : null;
+      if ($resourceType === null) { continue; }
       $index = $index . ' { ' . $key . '. ' . $resourceType . ' } ';
       if ($resourceType == 'Encounter') {
         $id_encounter = $value->response->resourceID;
@@ -1773,17 +1827,11 @@ class Admin extends AdminModule
       return json_decode($response);
     } else {
       echo $this->draw('encounter.html', ['pesan' => $pesan, 'response' => $response]);
-      print_r($json_bundle);
       exit();
     }
-    // echo $response;
-
-    // DEBUG ******
-    // print_r($response);
-    // $response = json_decode($json_bundle);
   }
 
-  public function getCondition($no_rawat)
+  public function getCondition($no_rawat, $render = true)
   {
 
     $zonawaktu = '+07:00';
@@ -1820,6 +1868,36 @@ class Admin extends AdminModule
     $kunjungan = 'Kunjungan';
     if ($status_lanjut == 'Ranap') {
       $kunjungan = 'Perawatan';
+    }
+
+    $__patientResp = $this->getPatient($no_ktp_pasien);
+    $__patientJson = json_decode($__patientResp);
+    $ihs_patient = '';
+    if (is_object($__patientJson) && isset($__patientJson->entry) && is_array($__patientJson->entry) && isset($__patientJson->entry[0]) && isset($__patientJson->entry[0]->resource) && isset($__patientJson->entry[0]->resource->id)) {
+      $ihs_patient = $__patientJson->entry[0]->resource->id;
+    }
+
+    $kd_penyakit = $diagnosa_pasien['kd_penyakit'] ?? null;
+    $nm_penyakit = $diagnosa_pasien['nm_penyakit'] ?? null;
+    $encounter_id = $mlite_satu_sehat_response['id_encounter'] ?? null;
+
+    if ($ihs_patient === '' || !$kd_penyakit || !$nm_penyakit || !$encounter_id) {
+      $error = [
+        'error' => 'Data tidak lengkap untuk Condition',
+        'missing' => [
+          'patient_id' => $ihs_patient === '' ? 'missing' : 'ok',
+          'kd_penyakit' => !$kd_penyakit ? 'missing' : 'ok',
+          'nm_penyakit' => !$nm_penyakit ? 'missing' : 'ok',
+          'id_encounter' => !$encounter_id ? 'missing' : 'ok'
+        ]
+      ];
+      $response = json_encode($error, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+      if ($render) {
+        echo $this->draw('condition.html', ['pesan' => 'Gagal mengirim condition platform Satu Sehat!!', 'response' => $response]);
+      } else {
+        echo $response;
+      }
+      exit();
     }
 
     $curl = curl_init();
@@ -1860,17 +1938,17 @@ class Admin extends AdminModule
           "coding": [
              {
                 "system": "http://hl7.org/fhir/sid/icd-10",
-                "code": "' . $diagnosa_pasien['kd_penyakit'] . '",
-                "display": "' . $diagnosa_pasien['nm_penyakit'] . '"
+                "code": "' . $kd_penyakit . '",
+                "display": "' . $nm_penyakit . '"
              }
           ]
        },
        "subject": {
-          "reference": "Patient/' . json_decode($this->getPatient($no_ktp_pasien))->entry[0]->resource->id . '",
+          "reference": "Patient/' . $ihs_patient . '",
           "display": "' . $nama_pasien . '"
        },
        "encounter": {
-          "reference": "Encounter/' . $mlite_satu_sehat_response['id_encounter'] . '",
+          "reference": "Encounter/' . $encounter_id . '",
           "display": "' . $kunjungan . ' ' . $nama_pasien . ' dari tanggal ' . $tgl_registrasi . '"
        }
     }',
@@ -1879,7 +1957,8 @@ class Admin extends AdminModule
     $response = curl_exec($curl);
 
 
-    $id_condition = json_decode($response)->id;
+    $decoded = json_decode($response);
+    $id_condition = (is_object($decoded) && isset($decoded->id)) ? $decoded->id : null;
     $pesan = 'Gagal mengirim condition platform Satu Sehat!!';
     if ($id_condition) {
       $mlite_satu_sehat_response = $this->db('mlite_satu_sehat_response')->where('no_rawat', $no_rawat)->oneArray();
@@ -1901,12 +1980,16 @@ class Admin extends AdminModule
     }
 
     curl_close($curl);
-    // echo $response;
-    echo $this->draw('condition.html', ['pesan' => $pesan, 'response' => $response]);
+    if ($render) {
+      echo $this->draw('condition.html', ['pesan' => $pesan, 'response' => $response]);
+    } else {
+      $data = json_decode($response);
+      echo $data ? json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) : $response;
+    }
     exit();
   }
 
-  public function getObservation($no_rawat, $ttv)
+  public function getObservation($no_rawat, $ttv, $render = true)
   {
 
     $zonawaktu = '+07:00';
@@ -1933,6 +2016,19 @@ class Admin extends AdminModule
     $mlite_billing = $this->db('mlite_billing')->where('no_rawat', $no_rawat)->oneArray();
 
     $mlite_satu_sehat_response = $this->db('mlite_satu_sehat_response')->where('no_rawat', $no_rawat)->oneArray();
+    $__patientResp = $this->getPatient($no_ktp_pasien);
+    $__patientJson = json_decode($__patientResp);
+    $ihs_patient = '';
+    if (is_object($__patientJson) && isset($__patientJson->entry) && is_array($__patientJson->entry) && isset($__patientJson->entry[0]) && isset($__patientJson->entry[0]->resource) && isset($__patientJson->entry[0]->resource->id)) {
+      $ihs_patient = $__patientJson->entry[0]->resource->id;
+    }
+    $__pracResp = $this->getPractitioner($no_ktp_dokter);
+    $__pracJson = json_decode($__pracResp);
+    $practitioner_id = '';
+    if (is_object($__pracJson) && isset($__pracJson->entry) && is_array($__pracJson->entry) && isset($__pracJson->entry[0]) && isset($__pracJson->entry[0]->resource) && isset($__pracJson->entry[0]->resource->id)) {
+      $practitioner_id = $__pracJson->entry[0]->resource->id;
+    }
+    $encounter_id = $mlite_satu_sehat_response['id_encounter'] ?? null;
 
     $pemeriksaan = $this->db('pemeriksaan_ralan')
       ->where('no_rawat', $no_rawat)
@@ -1961,7 +2057,13 @@ class Admin extends AdminModule
       $ttv_hl7_display = 'Vital Signs';
       $ttv_loinc_code = '8867-4';
       $ttv_loinc_display = 'Heart rate';
-      $ttv_unitsofmeasure_value = $pemeriksaan['nadi'];
+      $val = isset($pemeriksaan['nadi']) ? trim((string)$pemeriksaan['nadi']) : '';
+      if ($val === '') {
+        $response = json_encode(['error'=>'Data tidak lengkap untuk Observation','missing'=>['nadi'=>'missing']], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+        if ($render) { echo $this->draw('observation.html', ['pesan' => 'Gagal mengirim observation ttv ' . $ttv . ' ke platform Satu Sehat!!', 'response' => $response]); } else { echo $response; }
+        exit();
+      }
+      $ttv_unitsofmeasure_value = $val;
       $ttv_unitsofmeasure_unit = 'beats/minute';
       $ttv_unitsofmeasure_code = '/min';
     }
@@ -1971,7 +2073,13 @@ class Admin extends AdminModule
       $ttv_hl7_display = 'Vital Signs';
       $ttv_loinc_code = '9279-1';
       $ttv_loinc_display = 'Respiratory rate';
-      $ttv_unitsofmeasure_value = $pemeriksaan['respirasi'];
+      $val = isset($pemeriksaan['respirasi']) ? trim((string)$pemeriksaan['respirasi']) : '';
+      if ($val === '') {
+        $response = json_encode(['error'=>'Data tidak lengkap untuk Observation','missing'=>['respirasi'=>'missing']], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+        if ($render) { echo $this->draw('observation.html', ['pesan' => 'Gagal mengirim observation ttv ' . $ttv . ' ke platform Satu Sehat!!', 'response' => $response]); } else { echo $response; }
+        exit();
+      }
+      $ttv_unitsofmeasure_value = $val;
       $ttv_unitsofmeasure_unit = 'breaths/minute';
       $ttv_unitsofmeasure_code = '/min';
     }
@@ -1981,7 +2089,13 @@ class Admin extends AdminModule
       $ttv_hl7_display = 'Vital Signs';
       $ttv_loinc_code = '8310-5';
       $ttv_loinc_display = 'Body temperature';
-      $ttv_unitsofmeasure_value = $pemeriksaan['suhu_tubuh'];
+      $val = isset($pemeriksaan['suhu_tubuh']) ? trim((string)$pemeriksaan['suhu_tubuh']) : '';
+      if ($val === '') {
+        $response = json_encode(['error'=>'Data tidak lengkap untuk Observation','missing'=>['suhu_tubuh'=>'missing']], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+        if ($render) { echo $this->draw('observation.html', ['pesan' => 'Gagal mengirim observation ttv ' . $ttv . ' ke platform Satu Sehat!!', 'response' => $response]); } else { echo $response; }
+        exit();
+      }
+      $ttv_unitsofmeasure_value = $val;
       $ttv_unitsofmeasure_unit = 'degree Celsius';
       $ttv_unitsofmeasure_code = 'Cel';
     }
@@ -1991,7 +2105,13 @@ class Admin extends AdminModule
       $ttv_hl7_display = 'Vital Signs';
       $ttv_loinc_code = '59408-5';
       $ttv_loinc_display = 'Oxygen saturation';
-      $ttv_unitsofmeasure_value = $pemeriksaan['spo2'];
+      $val = isset($pemeriksaan['spo2']) ? trim((string)$pemeriksaan['spo2']) : '';
+      if ($val === '') {
+        $response = json_encode(['error'=>'Data tidak lengkap untuk Observation','missing'=>['spo2'=>'missing']], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+        if ($render) { echo $this->draw('observation.html', ['pesan' => 'Gagal mengirim observation ttv ' . $ttv . ' ke platform Satu Sehat!!', 'response' => $response]); } else { echo $response; }
+        exit();
+      }
+      $ttv_unitsofmeasure_value = $val;
       $ttv_unitsofmeasure_unit = 'percent saturation';
       $ttv_unitsofmeasure_code = '%';
     }
@@ -2001,7 +2121,13 @@ class Admin extends AdminModule
       $ttv_hl7_display = 'Vital Signs';
       $ttv_loinc_code = '9269-2';
       $ttv_loinc_display = 'Glasgow coma score total';
-      $ttv_unitsofmeasure_value = $pemeriksaan['gcs'];
+      $val = isset($pemeriksaan['gcs']) ? trim((string)$pemeriksaan['gcs']) : '';
+      if ($val === '') {
+        $response = json_encode(['error'=>'Data tidak lengkap untuk Observation','missing'=>['gcs'=>'missing']], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+        if ($render) { echo $this->draw('observation.html', ['pesan' => 'Gagal mengirim observation ttv ' . $ttv . ' ke platform Satu Sehat!!', 'response' => $response]); } else { echo $response; }
+        exit();
+      }
+      $ttv_unitsofmeasure_value = $val;
       $ttv_unitsofmeasure_code = '{score}';
     }
 
@@ -2010,7 +2136,13 @@ class Admin extends AdminModule
       $ttv_hl7_display = 'Vital Signs';
       $ttv_loinc_code = '8302-2';
       $ttv_loinc_display = 'Body height';
-      $ttv_unitsofmeasure_value = $pemeriksaan['tinggi'];
+      $val = isset($pemeriksaan['tinggi']) ? trim((string)$pemeriksaan['tinggi']) : '';
+      if ($val === '') {
+        $response = json_encode(['error'=>'Data tidak lengkap untuk Observation','missing'=>['tinggi'=>'missing']], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+        if ($render) { echo $this->draw('observation.html', ['pesan' => 'Gagal mengirim observation ttv ' . $ttv . ' ke platform Satu Sehat!!', 'response' => $response]); } else { echo $response; }
+        exit();
+      }
+      $ttv_unitsofmeasure_value = $val;
       $ttv_unitsofmeasure_unit = 'centimeter';
       $ttv_unitsofmeasure_code = 'cm';
     }
@@ -2020,7 +2152,13 @@ class Admin extends AdminModule
       $ttv_hl7_display = 'Vital Signs';
       $ttv_loinc_code = '29463-7';
       $ttv_loinc_display = 'Body weight';
-      $ttv_unitsofmeasure_value = $pemeriksaan['berat'];
+      $val = isset($pemeriksaan['berat']) ? trim((string)$pemeriksaan['berat']) : '';
+      if ($val === '') {
+        $response = json_encode(['error'=>'Data tidak lengkap untuk Observation','missing'=>['berat'=>'missing']], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+        if ($render) { echo $this->draw('observation.html', ['pesan' => 'Gagal mengirim observation ttv ' . $ttv . ' ke platform Satu Sehat!!', 'response' => $response]); } else { echo $response; }
+        exit();
+      }
+      $ttv_unitsofmeasure_value = $val;
       $ttv_unitsofmeasure_unit = 'kilogram';
       $ttv_unitsofmeasure_code = 'kg';
     }
@@ -2030,7 +2168,13 @@ class Admin extends AdminModule
       $ttv_hl7_display = 'Vital Signs';
       $ttv_loinc_code = '8280-0';
       $ttv_loinc_display = 'Waist Circumference at umbilicus by Tape measure';
-      $ttv_unitsofmeasure_value = $pemeriksaan['berat'];
+      $val = isset($pemeriksaan['lingkar_perut']) ? trim((string)$pemeriksaan['lingkar_perut']) : '';
+      if ($val === '') {
+        $response = json_encode(['error'=>'Data tidak lengkap untuk Observation','missing'=>['lingkar_perut'=>'missing']], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+        if ($render) { echo $this->draw('observation.html', ['pesan' => 'Gagal mengirim observation ttv ' . $ttv . ' ke platform Satu Sehat!!', 'response' => $response]); } else { echo $response; }
+        exit();
+      }
+      $ttv_unitsofmeasure_value = $val;
       $ttv_unitsofmeasure_unit = 'centimeter';
       $ttv_unitsofmeasure_code = 'cm';
     }
@@ -2040,8 +2184,24 @@ class Admin extends AdminModule
       $ttv_hl7_display = 'Vital Signs';
       $ttv_loinc_code = '35094-2';
       $ttv_loinc_display = 'Blood pressure panel';
-      $sistole = strtok($pemeriksaan['tensi'], '/');
-      $diastole = substr($pemeriksaan['tensi'], strpos($pemeriksaan['tensi'], '/') + 1);
+      $bp = isset($pemeriksaan['tensi']) ? trim((string)$pemeriksaan['tensi']) : '';
+      if ($bp === '' || strpos($bp, '/') === false) {
+        $error = [
+          'error' => 'Data tidak lengkap untuk Observation',
+          'missing' => [
+            'tensi' => 'missing'
+          ]
+        ];
+        $response = json_encode($error, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+        if ($render) {
+          echo $this->draw('observation.html', ['pesan' => 'Gagal mengirim observation ttv ' . $ttv . ' ke platform Satu Sehat!!', 'response' => $response]);
+        } else {
+          echo $response;
+        }
+        exit();
+      }
+      $sistole = strtok($bp, '/');
+      $diastole = substr($bp, strpos($bp, '/') + 1);
       $ttv_unitsofmeasure_unit = 'mmHg';
       $ttv_unitsofmeasure_code = 'mm[Hg]';
     }
@@ -2049,13 +2209,38 @@ class Admin extends AdminModule
     if ($ttv == 'kesadaran') {
       $ttv_hl7_code = 'exam';
       $ttv_hl7_display = 'Exam';
-      $ttv_unitsofmeasure_value = 'Alert';
-      if ($pemeriksaan['kesadaran'] == 'Somnolence') {
+      $val = isset($pemeriksaan['kesadaran']) ? trim((string)$pemeriksaan['kesadaran']) : '';
+      if ($val === '') {
+        $response = json_encode(['error'=>'Data tidak lengkap untuk Observation','missing'=>['kesadaran'=>'missing']], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+        if ($render) { echo $this->draw('observation.html', ['pesan' => 'Gagal mengirim observation ttv ' . $ttv . ' ke platform Satu Sehat!!', 'response' => $response]); } else { echo $response; }
+        exit();
+      }
+      $ttv_unitsofmeasure_value = $val;
+      if ($val === 'Somnolence') {
         $ttv_unitsofmeasure_value = 'Voice';
-      }
-      if ($pemeriksaan['kesadaran'] == 'Sopor') {
+      } elseif ($val === 'Sopor') {
         $ttv_unitsofmeasure_value = 'Pain';
+      } elseif ($val === 'Compos Mentis') {
+        $ttv_unitsofmeasure_value = 'Alert';
       }
+    }
+
+    if ($ihs_patient === '' || !$encounter_id || $practitioner_id === '') {
+      $error = [
+        'error' => 'Data tidak lengkap untuk Observation',
+        'missing' => [
+          'patient_id' => $ihs_patient === '' ? 'missing' : 'ok',
+          'id_encounter' => !$encounter_id ? 'missing' : 'ok',
+          'practitioner_id' => $practitioner_id === '' ? 'missing' : 'ok'
+        ]
+      ];
+      $response = json_encode($error, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+      if ($render) {
+        echo $this->draw('observation.html', ['pesan' => 'Gagal mengirim observation ttv ' . $ttv . ' ke platform Satu Sehat!!', 'response' => $response]);
+      } else {
+        echo $response;
+      }
+      exit();
     }
 
     $curl = curl_init();
@@ -2069,7 +2254,7 @@ class Admin extends AdminModule
         CURLOPT_TIMEOUT => 0,
         CURLOPT_FOLLOWLOCATION => true,
         CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
-        CURLOPT_HTTPHEADER => array('Content-Type: application/json', 'Authorization: Bearer ' . json_decode($this->getToken())->access_token),
+        CURLOPT_HTTPHEADER => array('Content-Type: application/json', 'Authorization: Bearer ' . $this->getAccessToken()),
         CURLOPT_CUSTOMREQUEST => 'POST',
         CURLOPT_POSTFIELDS => '{
           "resourceType": "Observation",
@@ -2095,15 +2280,15 @@ class Admin extends AdminModule
               ]
           },
           "subject": {
-              "reference": "Patient/' . json_decode($this->getPatient($no_ktp_pasien))->entry[0]->resource->id . '"
+              "reference": "Patient/' . $ihs_patient . '"
           },
           "performer": [
               {
-                  "reference": "Practitioner/' . json_decode($this->getPractitioner($no_ktp_dokter))->entry[0]->resource->id . '"
+                  "reference": "Practitioner/' . $practitioner_id . '"
               }
           ],
           "encounter": {
-              "reference": "Encounter/' . $mlite_satu_sehat_response['id_encounter'] . '",
+              "reference": "Encounter/' . $encounter_id . '",
               "display": "Pemeriksaan fisik ' . $ttv . ' ' . $nama_pasien . ' tanggal ' . $tgl_registrasi . '"
           },
           "effectiveDateTime": "' . $pemeriksaan['tgl_perawatan'] . 'T' . $pemeriksaan['jam_rawat'] . '' . $zonawaktu . '",
@@ -2122,7 +2307,7 @@ class Admin extends AdminModule
         CURLOPT_TIMEOUT => 0,
         CURLOPT_FOLLOWLOCATION => true,
         CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
-        CURLOPT_HTTPHEADER => array('Content-Type: application/json', 'Authorization: Bearer ' . json_decode($this->getToken())->access_token),
+        CURLOPT_HTTPHEADER => array('Content-Type: application/json', 'Authorization: Bearer ' . $this->getAccessToken()),
         CURLOPT_CUSTOMREQUEST => 'POST',
         CURLOPT_POSTFIELDS => '{
           "resourceType": "Observation",
@@ -2149,15 +2334,15 @@ class Admin extends AdminModule
             "text": "Blood pressure systolic & diastolic"
           },
           "subject": {
-              "reference": "Patient/' . json_decode($this->getPatient($no_ktp_pasien))->entry[0]->resource->id . '"
+              "reference": "Patient/' . $ihs_patient . '"
           },
           "performer": [
               {
-                  "reference": "Practitioner/' . json_decode($this->getPractitioner($no_ktp_dokter))->entry[0]->resource->id . '"
+                  "reference": "Practitioner/' . $practitioner_id . '"
               }
           ],
           "encounter": {
-              "reference": "Encounter/' . $mlite_satu_sehat_response['id_encounter'] . '",
+              "reference": "Encounter/' . $encounter_id . '",
               "display": "Pemeriksaan fisik ' . $ttv . ' ' . $nama_pasien . ' tanggal ' . $tgl_registrasi . '"
           },
           "effectiveDateTime": "' . $pemeriksaan['tgl_perawatan'] . 'T' . $pemeriksaan['jam_rawat'] . '' . $zonawaktu . '",
@@ -2209,7 +2394,7 @@ class Admin extends AdminModule
         CURLOPT_TIMEOUT => 0,
         CURLOPT_FOLLOWLOCATION => true,
         CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
-        CURLOPT_HTTPHEADER => array('Content-Type: application/json', 'Authorization: Bearer ' . json_decode($this->getToken())->access_token),
+        CURLOPT_HTTPHEADER => array('Content-Type: application/json', 'Authorization: Bearer ' . $this->getAccessToken()),
         CURLOPT_CUSTOMREQUEST => 'POST',
         CURLOPT_POSTFIELDS => '{
           "resourceType": "Observation",
@@ -2235,15 +2420,15 @@ class Admin extends AdminModule
               ]
           },
           "subject": {
-              "reference": "Patient/' . json_decode($this->getPatient($no_ktp_pasien))->entry[0]->resource->id . '"
+              "reference": "Patient/' . $ihs_patient . '"
           },
           "performer": [
               {
-                  "reference": "Practitioner/' . json_decode($this->getPractitioner($no_ktp_dokter))->entry[0]->resource->id . '"
+                  "reference": "Practitioner/' . $practitioner_id . '"
               }
           ],
           "encounter": {
-              "reference": "Encounter/' . $mlite_satu_sehat_response['id_encounter'] . '",
+              "reference": "Encounter/' . $encounter_id . '",
               "display": "Pemeriksaan fisik ' . $ttv . ' ' . $nama_pasien . ' tanggal ' . $tgl_registrasi . '"
           },
           "effectiveDateTime": "' . $pemeriksaan['tgl_perawatan'] . 'T' . $pemeriksaan['jam_rawat'] . '' . $zonawaktu . '",
@@ -2261,7 +2446,8 @@ class Admin extends AdminModule
     $response = curl_exec($curl);
 
 
-    $id_observation = json_decode($response)->id;
+    $decoded = json_decode($response);
+    $id_observation = (is_object($decoded) && isset($decoded->id)) ? $decoded->id : null;
     $pesan = 'Gagal mengirim observation ttv ' . $ttv . ' ke platform Satu Sehat!!';
     if ($id_observation) {
       $mlite_satu_sehat_response = $this->db('mlite_satu_sehat_response')->where('no_rawat', $no_rawat)->oneArray();
@@ -2277,57 +2463,23 @@ class Admin extends AdminModule
     }
 
     curl_close($curl);
-    // echo $response;
-    echo $this->draw('observation.html', ['pesan' => $pesan, 'response' => $response]);
+    if ($render) {
+      echo $this->draw('observation.html', ['pesan' => $pesan, 'response' => $response]);
+    } else {
+      $data = json_decode($response);
+      echo $data ? json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) : $response;
+    }
     exit();
   }
 
   public function getMappingLab()
   {
     $this->_addHeaderFiles();
-    $json = file_get_contents(__DIR__ . '/data_tab3.json');
-    $data = json_decode($json, true); 
-    $search = "Permintaan";
-    $data_json = [];
-    $keyMap = [
-        "Nama Pemeriksaan" => "Nama_Pemeriksaan",
-        "Kategori/Kelompok Pemeriksaan" => "Kategori_Kelompok_Pemeriksaan",
-        "Tipe hasil pemeriksaan" => "Tipe_hasil_pemeriksaan",
-        "Metode Analisis" => "Metode_Analisis",
-        "Permintaan/Hasil" => "Permintaan_Hasil",
-        "Unit of Measure" => "Unit_of_Measure",
-        "Code System" => "Code_System",
-    ];
-    // $filtered = array_filter($data, function($item) use ($search) {
-    foreach ($data as $value) {
-      # code...
-      $renamedItem = [];
-      // if(stripos($value['Permintaan/Hasil'], $search) !== false) {
-        foreach ($value as $key => $item) {
-          $newKey = $keyMap[$key] ?? $key;
-          $renamedItem[$newKey] = $item;
-          # code...
-        }
-        $data_json[] = $renamedItem;
-      // }
-    }
-    // });
     $mapping_lab = $this->db('mlite_satu_sehat_mapping_lab')
-      ->select([
-        'kd_jenis_prw' => 'mlite_satu_sehat_mapping_lab.kd_jenis_prw',
-        'id_template'=>'mlite_satu_sehat_mapping_lab.id_template',
-        'Pemeriksaan'=>'template_laboratorium.Pemeriksaan',
-        'code_loinc'=>'mlite_satu_sehat_mapping_lab.code_loinc',
-        'display_loinc'=>'mlite_satu_sehat_mapping_lab.display_loinc',
-        'unit_of_measure'=>'mlite_satu_sehat_mapping_lab.unit_of_measure',
-      ])
-      ->leftJoin('template_laboratorium', 'template_laboratorium.id_template = mlite_satu_sehat_mapping_lab.id_template')
+      ->join('template_laboratorium', 'template_laboratorium.id_template = mlite_satu_sehat_mapping_lab.id_template')
       ->toArray();
-    // $filtered = json_decode($filtered,true);
-    $template_laboratorium = $this->db('template_laboratorium')->select(['id_template'=>'template_laboratorium.id_template','kd_jenis_prw' => 'template_laboratorium.kd_jenis_prw','Pemeriksaan'=>'template_laboratorium.Pemeriksaan','nm_perawatan'=>'jns_perawatan_lab.nm_perawatan'])->leftJoin('jns_perawatan_lab','jns_perawatan_lab.kd_jenis_prw = template_laboratorium.kd_jenis_prw')->where('jns_perawatan_lab.status','1')->toArray();
-    return $this->draw('mapping.lab.html', ['mapping_lab_satu_sehat' => $mapping_lab, 'template_laboratorium' => $template_laboratorium , 'filtered' => $data_json]);
-    // echo json_encode($data_json);
-    // exit();
+    $template_laboratorium = $this->db('template_laboratorium')->toArray();
+    return $this->draw('mapping.lab.html', ['mapping_lab_satu_sehat' => $mapping_lab, 'template_laboratorium' => $template_laboratorium]);
   }
 
   public function getMappingRad()
@@ -2347,11 +2499,11 @@ class Admin extends AdminModule
         [
           'kd_jenis_prw' => $_POST['kd_jenis_prw'],
           'code' => $_POST['code'],
-          'code_system' => $_POST['code_system'],
+          'system' => $_POST['code_system'],
           'display' => $_POST['display'],
-          'sample_code' => $_POST['sample_code'],
-          'sample_system' => $_POST['sample_system'],
-          'sample_display' => $_POST['sample_display']
+          'sampel_code' => $_POST['sample_code'],
+          'sampel_system' => $_POST['sample_system'],
+          'sampel_display' => $_POST['sample_display']
         ]
       );
 
@@ -2378,58 +2530,24 @@ class Admin extends AdminModule
 
   public function postSaveLab()
   {
-    if (isset($_POST['simpan'])) {
-      $json = file_get_contents(__DIR__ . '/data_tab3.json');
-      $data = json_decode($json, true); 
-      $search = $_POST['id_template_json'];
-      $data_json = [];
-      $keyMap = [
-          "Nama Pemeriksaan" => "Nama_Pemeriksaan",
-          "Kategori/Kelompok Pemeriksaan" => "Kategori_Kelompok_Pemeriksaan",
-          "Tipe hasil pemeriksaan" => "Tipe_hasil_pemeriksaan",
-          "Metode Analisis" => "Metode_Analisis",
-          "Permintaan/Hasil" => "Permintaan_Hasil",
-          "Unit of Measure" => "Unit_of_Measure",
-          "Code System" => "Code_System",
-      ];
-      foreach ($data as $value) {
-        $renamedItem = [];
-        if($value['No'] == $search) {
-          foreach ($value as $key => $item) {
-            $newKey = $keyMap[$key] ?? $key;
-            $renamedItem[$newKey] = $item;
-          }
-          $data_json[] = $renamedItem;
-        }
-      }
-      $data_json = json_encode($data_json);
-      $return_json = json_decode($data_json, true);
+    if(isset($_POST['simpan'])) {      
       $parts = explode(":", $_POST['id_template']);
       $id_template = trim($parts[0]);
       $kd_jenis_prw = trim($parts[1]);
-      
-      if ($_POST['is_template'] == '') {
-        $id_template = "";
-      }
-      
-      // echo $_POST['id_template'];
-      // echo '<br>';
-      // echo $_POST['is_template'];
-      // exit();
       $query = $this->db('mlite_satu_sehat_mapping_lab')->save(
         [
-          'id_template' => $id_template,
+          'id_template' => $id_template, 
           'kd_jenis_prw' => $kd_jenis_prw,
-          'jenis_pemeriksaan' => $_POST['type'],
-          'code_loinc' => $return_json[0]['Code'],
-          'display_loinc' => $return_json[0]['Display'],
-          'code_kptl' => '',
-          'display_kptl' => '',
-          'unit_of_measure' => $return_json[0]['Unit_of_Measure']
+          'code' => $_POST['code'], 
+          'system' => $_POST['code_system'],
+          'display' => $_POST['display'],
+          'sampel_code' => $_POST['sample_code'],
+          'sampel_system' => $_POST['sample_system'],
+          'sampel_display' => $_POST['sample_display']
         ]
       );
 
-      if ($query) {
+      if($query){
         $this->notify('success', 'Mapping laboratorium telah disimpan');
       } else {
         $this->notify('danger', 'Mapping laboratorium gagal disimpan');
@@ -2455,9 +2573,6 @@ class Admin extends AdminModule
     if (isset($_POST['simpan'])) {
 
       $get_id_organisasi_satusehat = json_decode($this->getOrganization($_POST['dep_id']));
-      // $id_organisasi_satusehat = $get_id_organisasi_satusehat->id;
-
-      // echo json_encode($get_id_organisasi_satusehat, true);
 
       if ($get_id_organisasi_satusehat->issue[0]->code == 'duplicate') {
 
@@ -2471,7 +2586,7 @@ class Admin extends AdminModule
           CURLOPT_TIMEOUT => 0,
           CURLOPT_FOLLOWLOCATION => true,
           CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
-          CURLOPT_HTTPHEADER => array('Content-Type: application/json', 'Authorization: Bearer ' . json_decode($this->getToken())->access_token),
+          CURLOPT_HTTPHEADER => array('Content-Type: application/json', 'Authorization: Bearer ' . $this->getAccessToken()),
           CURLOPT_CUSTOMREQUEST => 'GET',
         ));
 
@@ -2532,7 +2647,7 @@ class Admin extends AdminModule
     redirect(url([ADMIN, 'satu_sehat', 'departemen']));
   }
 
-  public function getProcedure($no_rawat)
+  public function getProcedure($no_rawat, $render = true)
   {
 
     $zonawaktu = '+07:00';
@@ -2564,12 +2679,36 @@ class Admin extends AdminModule
       ->where('prioritas', '1')
       ->oneArray();
 
+    if (!is_array($prosedur_pasien) || !isset($prosedur_pasien['kode']) || !isset($prosedur_pasien['deskripsi_panjang'])) {
+      $resp = json_encode(['error' => 'Data tidak lengkap untuk Procedure', 'missing' => ['prosedur_pasien.kode' => 'missing', 'prosedur_pasien.deskripsi_panjang' => 'missing']], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+      if ($render) {
+        echo $this->draw('procedure.html', ['pesan' => 'Gagal mengirim procedure platform Satu Sehat!!', 'response' => $resp]);
+      } else {
+        echo $resp;
+      }
+      exit();
+    }
+
     $kode_icd9 = $prosedur_pasien['kode'];
     $deskripsi_icd9 = $prosedur_pasien['deskripsi_panjang'];
 
     $mlite_satu_sehat_response = $this->db('mlite_satu_sehat_response')->where('no_rawat', $no_rawat)->oneArray();
 
-    $id_pasien = json_decode($this->getPatient($no_ktp_pasien))->entry[0]->resource->id;
+    $__patientResp = $this->getPatient($no_ktp_pasien);
+    $__patientJson = json_decode($__patientResp);
+    $id_pasien = '';
+    if (is_object($__patientJson) && isset($__patientJson->entry) && is_array($__patientJson->entry) && isset($__patientJson->entry[0]) && isset($__patientJson->entry[0]->resource) && isset($__patientJson->entry[0]->resource->id)) {
+      $id_pasien = $__patientJson->entry[0]->resource->id;
+    }
+    if ($id_pasien === '') {
+      $resp = json_encode(['error' => 'Data tidak lengkap untuk Procedure', 'missing' => ['patient_id' => 'missing']], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+      if ($render) {
+        echo $this->draw('procedure.html', ['pesan' => 'Gagal mengirim procedure platform Satu Sehat!!', 'response' => $resp]);
+      } else {
+        echo $resp;
+      }
+      exit();
+    }
     $id_encounter = $mlite_satu_sehat_response['id_encounter'];
     $tgl_pulang = $mlite_billing['tgl_billing'];
     $jam_pulang = $mlite_billing['jam_billing'];
@@ -2589,7 +2728,7 @@ class Admin extends AdminModule
       CURLOPT_TIMEOUT => 0,
       CURLOPT_FOLLOWLOCATION => true,
       CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
-      CURLOPT_HTTPHEADER => array('Content-Type: application/json', 'Authorization: Bearer ' . json_decode($this->getToken())->access_token),
+      CURLOPT_HTTPHEADER => array('Content-Type: application/json', 'Authorization: Bearer ' . $this->getAccessToken()),
       CURLOPT_CUSTOMREQUEST => 'POST',
       CURLOPT_POSTFIELDS => '{
         "resourceType": "Procedure", 
@@ -2631,7 +2770,7 @@ class Admin extends AdminModule
 
     $response = curl_exec($curl);
 
-    $id_procedure = json_decode($response)->id;
+    $id_procedure = isset(json_decode($response)->id) ? json_decode($response)->id : null;
     $pesan = 'Gagal mengirim procedure platform Satu Sehat!!';
     if ($id_procedure) {
       $mlite_satu_sehat_response = $this->db('mlite_satu_sehat_response')->where('no_rawat', $no_rawat)->oneArray();
@@ -2654,12 +2793,16 @@ class Admin extends AdminModule
 
     curl_close($curl);
     // echo $response;
-
-    echo $this->draw('procedure.html', ['pesan' => $pesan, 'response' => $response]);
+    if ($render) {
+      echo $this->draw('procedure.html', ['pesan' => $pesan, 'response' => $response]);
+    } else {
+      $data = json_decode($response);
+      echo $data ? json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) : $response;
+    }
     exit();
   }
 
-  public function getDietGizi($no_rawat)
+  public function getDietGizi($no_rawat, $render = true)
   {
 
     $zonawaktu = '+07:00';
@@ -2690,7 +2833,21 @@ class Admin extends AdminModule
 
     $mlite_satu_sehat_response = $this->db('mlite_satu_sehat_response')->where('no_rawat', $no_rawat)->oneArray();
 
-    $id_pasien = json_decode($this->getPatient($no_ktp_pasien))->entry[0]->resource->id;
+    $__patientResp = $this->getPatient($no_ktp_pasien);
+    $__patientJson = json_decode($__patientResp);
+    $id_pasien = '';
+    if (is_object($__patientJson) && isset($__patientJson->entry) && is_array($__patientJson->entry) && isset($__patientJson->entry[0]) && isset($__patientJson->entry[0]->resource) && isset($__patientJson->entry[0]->resource->id)) {
+      $id_pasien = $__patientJson->entry[0]->resource->id;
+    }
+    if ($id_pasien === '') {
+      $resp = json_encode(['error' => 'Data tidak lengkap untuk Diet Gizi', 'missing' => ['patient_id' => 'missing']], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+      if ($render) {
+        echo $this->draw('dietgizi.html', ['pesan' => 'Gagal mengirim diet gizi platform Satu Sehat!!', 'response' => $resp]);
+      } else {
+        echo $resp;
+      }
+      exit();
+    }
     $id_encounter = $mlite_satu_sehat_response['id_encounter'];
 
     $date = date('Y-m-d');
@@ -2699,7 +2856,7 @@ class Admin extends AdminModule
     $nama_dokter = $this->core->getPegawaiInfo('nama', $kd_dokter);
     $tgl_registrasi = $this->core->getRegPeriksaInfo('tgl_registrasi', $no_rawat);
     $adime_gizi = $this->db('catatan_adime_gizi')->where('no_rawat', $no_rawat)->oneArray();
-    $instruksi = $adime_gizi['instruksi'];
+    $instruksi = isset_or($adime_gizi['instruksi'], '');
 
     $curl = curl_init();
 
@@ -2776,14 +2933,14 @@ class Admin extends AdminModule
       CURLOPT_TIMEOUT => 0,
       CURLOPT_FOLLOWLOCATION => true,
       CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
-      CURLOPT_HTTPHEADER => array('Content-Type: application/json', 'Authorization: Bearer ' . json_decode($this->getToken())->access_token),
+      CURLOPT_HTTPHEADER => array('Content-Type: application/json', 'Authorization: Bearer ' . $this->getAccessToken()),
       CURLOPT_CUSTOMREQUEST => 'POST',
       CURLOPT_POSTFIELDS => $data
     ));
 
     $response = curl_exec($curl);
 
-    $id_composition = json_decode($response)->id;
+    $id_composition = isset_or(json_decode($response)->id, '');
     $pesan = 'Gagal mengirim composition platform Satu Sehat!!';
     if ($id_composition) {
       $mlite_satu_sehat_response = $this->db('mlite_satu_sehat_response')->where('no_rawat', $no_rawat)->oneArray();
@@ -2806,13 +2963,16 @@ class Admin extends AdminModule
 
     curl_close($curl);
     // echo $response;
-    echo '<pre>' . $data . '</pre>';
-
-    echo $this->draw('dietgizi.html', ['pesan' => $pesan, 'response' => $response]);
+    // echo '<pre>' . $data . '</pre>';
+    if ($render) {
+      echo $this->draw('dietgizi.html', ['pesan' => $pesan, 'response' => $response]);
+    } else {
+      echo $response;
+    }
     exit();
   }
 
-  public function getVaksin($no_rawat)
+  public function getVaksin($no_rawat, $render = true)
   {
 
     $zonawaktu = '+07:00';
@@ -2830,7 +2990,7 @@ class Admin extends AdminModule
     $row['medications'] = $this->db('resep_obat')
       ->join('resep_dokter', 'resep_dokter.no_resep = resep_obat.no_resep')
       ->join('mlite_satu_sehat_mapping_obat', 'mlite_satu_sehat_mapping_obat.kode_brng = resep_dokter.kode_brng')
-      ->where('mlite_satu_sehat_mapping_obat.tipe', 'vaksin')
+      ->where('mlite_satu_sehat_mapping_obat.type', 'vaksin')
       ->where('no_rawat', $no_rawat)
       ->toArray();
 
@@ -2845,11 +3005,26 @@ class Admin extends AdminModule
       ->select('practitioner_id')
       ->where('kd_dokter', $kd_dokter)
       ->oneArray();
-    $id_pasien     = json_decode($this->getPatient($no_ktp_pasien))
-      ->entry[0]->resource->id;
 
     $mlite_satu_sehat_response = $this->db('mlite_satu_sehat_response')->where('no_rawat', $no_rawat)->oneArray();
 
+    $__patientResp = $this->getPatient($no_ktp_pasien);
+    $__patientJson = json_decode($__patientResp);
+    $id_pasien = '';
+    if (is_object($__patientJson) && isset($__patientJson->entry) && is_array($__patientJson->entry) && isset($__patientJson->entry[0]) && isset($__patientJson->entry[0]->resource) && isset($__patientJson->entry[0]->resource->id)) {
+      $id_pasien = $__patientJson->entry[0]->resource->id;
+    }
+    if ($id_pasien === '') {
+      $resp = json_encode(['error' => 'Data tidak lengkap untuk Vaksin', 'missing' => ['patient_id' => 'missing']], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+      if ($render) {
+        echo $this->draw('vaksin.html', ['pesan' => 'Gagal mengirim vaksin platform Satu Sehat!!', 'response' => $resp]);
+      } else {
+        echo $resp;
+      }
+      exit();
+    }
+    $id_encounter = $mlite_satu_sehat_response['id_encounter'];
+    
     foreach ($row['medications'] as $i => $obat) {
       $medReqId = $this->gen_uuid();
       $medId = $obat['no_resep'] . '' . $obat['kode_brng'];
@@ -2894,7 +3069,7 @@ class Admin extends AdminModule
             "reference": "Patient/' . $id_pasien . '"
         },
         "encounter": {
-            "reference": "Encounter/' . $mlite_satu_sehat_response['id_encounter'] . '"
+            "reference": "Encounter/' . $id_encounter . '"
         },
         "occurrenceDateTime": "' . $obat['tgl_perawatan'] . 'T' . $obat['jam'] . '' . $zonawaktu . '",
         "expirationDate": "' . $databarang['expire'] . '",
@@ -2965,7 +3140,7 @@ class Admin extends AdminModule
         CURLOPT_TIMEOUT => 0,
         CURLOPT_FOLLOWLOCATION => true,
         CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
-        CURLOPT_HTTPHEADER => array('Content-Type: application/json', 'Authorization: Bearer ' . json_decode($this->getToken())->access_token),
+        CURLOPT_HTTPHEADER => array('Content-Type: application/json', 'Authorization: Bearer ' . $this->getAccessToken()),
         CURLOPT_CUSTOMREQUEST => 'POST',
         CURLOPT_POSTFIELDS => $data,
       ));
@@ -2989,12 +3164,15 @@ class Admin extends AdminModule
 
     }
 
-
-    echo $this->draw('vaksin.html', ['pesan' => $pesan, 'response' => $response]);
+    if ($render) { 
+      echo $this->draw('vaksin.html', ['pesan' => isset($pesan) ? $pesan : '', 'response' => isset($response) ? $response : '']);
+    } else {
+      echo isset($response) ? $response : '';
+    }
     exit();
   }
 
-  public function getClinicalImpression($no_rawat)
+  public function getClinicalImpression($no_rawat, $render = true)
   {
 
     $zonawaktu = '+07:00';
@@ -3010,28 +3188,44 @@ class Admin extends AdminModule
     $mlite_satu_sehat_response = $this->db('mlite_satu_sehat_response')->where('no_rawat', $no_rawat)->oneArray();
     $pemeriksaan_ralan = $this->db('pemeriksaan_ralan')->where('no_rawat', $no_rawat)->oneArray();
 
-    $keluhan = $pemeriksaan_ralan['keluhan'];
-    $pemeriksaan = $pemeriksaan_ralan['pemeriksaan'];
-    $penilaian = $pemeriksaan_ralan['penilaian'];
+    $keluhan = isset_or($pemeriksaan_ralan['keluhan'], '');
+    $pemeriksaan = isset_or($pemeriksaan_ralan['pemeriksaan'], '');
+    $penilaian = isset_or($pemeriksaan_ralan['penilaian'], '');
     $no_rkm_medis = $this->core->getRegPeriksaInfo('no_rkm_medis', $no_rawat);
     $no_ktp_pasien = $this->core->getPasienInfo('no_ktp', $no_rkm_medis);
     $nama_pasien = $this->core->getPasienInfo('nm_pasien', $no_rkm_medis);
     $kd_dokter = $this->core->getRegPeriksaInfo('kd_dokter', $no_rawat);
-    $tgl_perawatan = $pemeriksaan_ralan['tgl_perawatan'];
-    $jam_rawat = $pemeriksaan_ralan['jam_rawat'];
+    $tgl_perawatan = isset_or($pemeriksaan_ralan['tgl_perawatan'], date('Y-m-d'));
+    $jam_rawat = isset_or($pemeriksaan_ralan['jam_rawat'], date('H:i:s'));
     $id_dokter = $this->db('mlite_satu_sehat_mapping_praktisi')->select('practitioner_id')->where('kd_dokter', $kd_dokter)->oneArray();
     $nama_dokter = $this->db('dokter')->where('kd_dokter', $kd_dokter)->oneArray();
-    $id_condition = $mlite_satu_sehat_response['id_condition'];
+    $id_condition = isset_or($mlite_satu_sehat_response['id_condition'], '');
     $diagnosa_pasien = $this->db('diagnosa_pasien')
       ->join('penyakit', 'penyakit.kd_penyakit=diagnosa_pasien.kd_penyakit')
       ->where('no_rawat', $no_rawat)
       ->where('prioritas', '1')
       ->oneArray();
 
-    $kd_penyakit = $diagnosa_pasien['kd_penyakit'];
-    $nm_penyakit = $diagnosa_pasien['nm_penyakit'];
+    $kd_penyakit = isset_or($diagnosa_pasien['kd_penyakit'], '');
+    $nm_penyakit = isset_or($diagnosa_pasien['nm_penyakit'], '');
 
-    $id_pasien = json_decode($this->getPatient($no_ktp_pasien))->entry[0]->resource->id;
+
+    $__patientResp = $this->getPatient($no_ktp_pasien);
+    $__patientJson = json_decode($__patientResp);
+    $id_pasien = '';
+    if (is_object($__patientJson) && isset($__patientJson->entry) && is_array($__patientJson->entry) && isset($__patientJson->entry[0]) && isset($__patientJson->entry[0]->resource) && isset($__patientJson->entry[0]->resource->id)) {
+      $id_pasien = $__patientJson->entry[0]->resource->id;
+    }
+    if ($id_pasien === '') {
+      $resp = json_encode(['error' => 'Data tidak lengkap untuk Clinical Impression', 'missing' => ['patient_id' => 'missing']], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+      if ($render) {
+        echo $this->draw('clinical.impression.html', ['pesan' => 'Gagal mengirim clinical impression platform Satu Sehat!!', 'response' => $resp]);
+      } else {
+        echo $resp;
+      }
+      exit();
+    }    
+
     $id_encounter = $mlite_satu_sehat_response['id_encounter'];
 
     $data = '{
@@ -3089,14 +3283,14 @@ class Admin extends AdminModule
       CURLOPT_TIMEOUT => 0,
       CURLOPT_FOLLOWLOCATION => true,
       CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
-      CURLOPT_HTTPHEADER => array('Content-Type: application/json', 'Authorization: Bearer ' . json_decode($this->getToken())->access_token),
+      CURLOPT_HTTPHEADER => array('Content-Type: application/json', 'Authorization: Bearer ' . $this->getAccessToken()),
       CURLOPT_CUSTOMREQUEST => 'POST',
       CURLOPT_POSTFIELDS => $data,
     ));
 
     $response = curl_exec($curl);
 
-    $id_clinical_impression = json_decode($response)->id;
+    $id_clinical_impression = isset(json_decode($response)->id) ? json_decode($response)->id : null;
     $pesan = 'Gagal mengirim clinical impression platform Satu Sehat!!';
     if ($id_clinical_impression) {
       $mlite_satu_sehat_response = $this->db('mlite_satu_sehat_response')->where('no_rawat', $no_rawat)->oneArray();
@@ -3120,11 +3314,15 @@ class Admin extends AdminModule
     curl_close($curl);
     // echo '<pre>' . $data . '</pre>';
 
-    echo $this->draw('clinical.impression.html', ['pesan' => $pesan, 'response' => $response]);
+    if ($render) {
+      echo $this->draw('clinical.impression.html', ['pesan' => $pesan, 'response' => $response]);
+    } else {
+      echo $response;
+    }
     exit();
   }
 
-  public function getMedication(string $tipe = 'request', string $no_rawat = '')
+  public function getMedication(string $no_rawat = '', string $tipe = 'request', $render = true)
   {
     // Zona waktu
     $zonawaktu = match ($this->settings->get('satu_sehat.zonawaktu')) {
@@ -3142,9 +3340,14 @@ class Admin extends AdminModule
       $row['medications'] = $this->db('resep_obat')
         ->join('resep_dokter', 'resep_dokter.no_resep = resep_obat.no_resep')
         ->join('mlite_satu_sehat_mapping_obat', 'mlite_satu_sehat_mapping_obat.kode_brng = resep_dokter.kode_brng')
-        ->where('mlite_satu_sehat_mapping_obat.tipe', 'obat')
+        ->where('mlite_satu_sehat_mapping_obat.type', 'obat')
         ->where('no_rawat', $no_rawat)
         ->toArray();
+
+      if (count($row['medications']) === 0) {
+        echo json_encode(['error' => 'Data tidak lengkap untuk Medication Request', 'missing' => ['noresep' => 'missing']], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+        exit();
+      }
 
       // Data pasien dan dokter
       $no_rkm_medis  = $this->core->getRegPeriksaInfo('no_rkm_medis', $no_rawat);
@@ -3156,8 +3359,16 @@ class Admin extends AdminModule
         ->select('practitioner_id')
         ->where('kd_dokter', $kd_dokter)
         ->oneArray();
-      $id_pasien     = json_decode($this->getPatient($no_ktp_pasien))
-        ->entry[0]->resource->id;
+      $__patientResp = $this->getPatient($no_ktp_pasien);
+      $__patientJson = json_decode($__patientResp);
+      $id_pasien = '';
+      if (is_object($__patientJson) && isset($__patientJson->entry) && is_array($__patientJson->entry) && isset($__patientJson->entry[0]) && isset($__patientJson->entry[0]->resource) && isset($__patientJson->entry[0]->resource->id)) {
+        $id_pasien = $__patientJson->entry[0]->resource->id;
+      }
+      if ($id_pasien === '') {
+        echo json_encode(['error' => 'Data tidak lengkap untuk Medication', 'missing' => ['patient_id' => 'missing']], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+        exit();
+      }
 
       $mlite_satu_sehat_response = $this->db('mlite_satu_sehat_response')->where('no_rawat', $no_rawat)->oneArray();
 
@@ -3284,7 +3495,7 @@ class Admin extends AdminModule
           CURLOPT_TIMEOUT => 0,
           CURLOPT_FOLLOWLOCATION => true,
           CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
-          CURLOPT_HTTPHEADER => array('Content-Type: application/json', 'Authorization: Bearer ' . json_decode($this->getToken())->access_token),
+          CURLOPT_HTTPHEADER => array('Content-Type: application/json', 'Authorization: Bearer ' . $this->getAccessToken()),
           CURLOPT_CUSTOMREQUEST => 'POST',
           CURLOPT_POSTFIELDS => $data,
         ));
@@ -3312,9 +3523,14 @@ class Admin extends AdminModule
       $row['medications'] = $this->db('resep_obat')
         ->join('resep_dokter', 'resep_dokter.no_resep = resep_obat.no_resep')
         ->join('mlite_satu_sehat_mapping_obat', 'mlite_satu_sehat_mapping_obat.kode_brng = resep_dokter.kode_brng')
-        ->where('mlite_satu_sehat_mapping_obat.tipe', 'obat')
+        ->where('mlite_satu_sehat_mapping_obat.type', 'obat')
         ->where('no_rawat', $no_rawat)
         ->toArray();
+
+      if (count($row['medications']) === 0) {
+        echo json_encode(['error' => 'Data tidak lengkap untuk Medication Dispense', 'missing' => ['noresep' => 'missing']], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+        exit();
+      }
 
       // Data pasien dan dokter
       $no_rkm_medis  = $this->core->getRegPeriksaInfo('no_rkm_medis', $no_rawat);
@@ -3326,8 +3542,16 @@ class Admin extends AdminModule
         ->select('practitioner_id')
         ->where('kd_dokter', $kd_dokter)
         ->oneArray();
-      $id_pasien     = json_decode($this->getPatient($no_ktp_pasien))
-        ->entry[0]->resource->id;
+      $__patientResp = $this->getPatient($no_ktp_pasien);
+      $__patientJson = json_decode($__patientResp);
+      $id_pasien = '';
+      if (is_object($__patientJson) && isset($__patientJson->entry) && is_array($__patientJson->entry) && isset($__patientJson->entry[0]) && isset($__patientJson->entry[0]->resource) && isset($__patientJson->entry[0]->resource->id)) {
+        $id_pasien = $__patientJson->entry[0]->resource->id;
+      }
+      if ($id_pasien === '') {
+        echo json_encode(['error' => 'Data tidak lengkap untuk Medication', 'missing' => ['patient_id' => 'missing']], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+        exit();
+      }
 
       $mlite_satu_sehat_response = $this->db('mlite_satu_sehat_response')->where('no_rawat', $no_rawat)->oneArray();
       $mlite_satu_sehat_lokasi = $this->db('mlite_satu_sehat_lokasi')->where('kode', $this->core->getSettings('satu_sehat', 'farmasi'))->oneArray();
@@ -3544,7 +3768,7 @@ class Admin extends AdminModule
         CURLOPT_TIMEOUT => 0,
         CURLOPT_FOLLOWLOCATION => true,
         CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
-        CURLOPT_HTTPHEADER => array('Content-Type: application/json', 'Authorization: Bearer ' . json_decode($this->getToken())->access_token),
+        CURLOPT_HTTPHEADER => array('Content-Type: application/json', 'Authorization: Bearer ' . $this->getAccessToken()),
         CURLOPT_CUSTOMREQUEST => 'POST',
         CURLOPT_POSTFIELDS => $data,
       ));
@@ -3565,14 +3789,18 @@ class Admin extends AdminModule
       curl_close($curl);
     }
 
-    echo $this->draw('medication.html', [
-      'pesan' => $pesan,
-      'response' => $response
-    ]);
+    if($render) {
+      echo $this->draw('medication.html', [
+        'pesan' => isset_or($pesan, ''),
+        'response' => isset_or($response, '')
+      ]);
+    } else {
+      echo isset($response) ? $response : '';
+    }
     exit();
   }
 
-  public function getMedication_($tipe = '', $no_rawat = '')
+  public function getLaboratory(string $no_rawat = '', string $tipe = 'request', $render = true)
   {
 
     $zonawaktu = '+07:00';
@@ -3583,1230 +3811,553 @@ class Admin extends AdminModule
       $zonawaktu = '+09:00';
     }
 
-    $no_rawat = revertNoRawat($no_rawat);
-    $row['medications'] = $this->db('resep_obat')
-      ->join('resep_dokter', 'resep_dokter.no_resep=resep_obat.no_resep')
-      ->join('mlite_satu_sehat_mapping_obat', 'mlite_satu_sehat_mapping_obat.kode_brng=resep_dokter.kode_brng')
-      ->where('mlite_satu_sehat_mapping_obat.tipe', 'obat')
-      ->where('no_rawat', $no_rawat)->toArray();
-
-    $pesan = '';
-    $response = '';
-
-    $no_rkm_medis = $this->core->getRegPeriksaInfo('no_rkm_medis', $no_rawat);
-    $no_ktp_pasien = $this->core->getPasienInfo('no_ktp', $no_rkm_medis);
-    $kd_dokter = $this->core->getRegPeriksaInfo('kd_dokter', $no_rawat);
-    $id_dokter = $this->db('mlite_satu_sehat_mapping_praktisi')->select('practitioner_id')->where('kd_dokter', $kd_dokter)->oneArray();
-    $id_pasien = json_decode($this->getPatient($no_ktp_pasien))->entry[0]->resource->id;
-
-    // Variabel statis (atau ambil dari fungsi lain)
-    $patientId      = "Patient/$id_pasien";
-    $practitionerId = "Practitioner/$id_dokter[practitioner_id]";
-
-    $data = [];
-
-    if ($tipe == 'request') {
-
-      foreach ($row['medications'] as $idx => $med) {
-
-        // --- 1. Medication  -----------------------------------------------------
-        // $medId = 'med' . ($idx + 1);  // med1, med2, dst.
-        $medId = $this->gen_uuid();
-
-        $medicationResource = [
-          'resourceType' => 'Medication',
-          'id'           => $medId,
-          'code'         => [
-            'coding' => [[
-              'system'  => 'http://www.whocc.no/atc',
-              'code'    => $med['kode_kfa'],          // kolom mapping
-              'display' => $med['nama_kfa']  // kolom mapping
-            ]],
-            'text' => $med['nama_kfa']             // mis. "Amoxicillin 500 mg Tablet"
-          ],
-          'form' => [
-            'coding' => [[
-              'system'  => 'http://terminology.hl7.org/CodeSystem/medication-form-codes',
-              'code'    => $med['satuan_den'],                      // contoh: Tablet
-              'display' => $med['nama_satuan_den']
-            ]]
-          ]
-        ];
-
-        // --- 2. MedicationRequest  ---------------------------------------------
-        // $mrId = 'medrequest-' . str_pad($idx + 1, 3, '0', STR_PAD_LEFT);   // medrequest-001 ...
-        $mrId = $this->gen_uuid();
-
-        if (preg_match_all('/\d+/', $med['aturan_pakai'], $matches)) {
-          $frequency = (int)$matches[0][0];
-          $dose_value = (int)$matches[0][1];
-        } else {
-          $frequency = (int)0;
-          $dose_value = (int)1;
-        }
-
-        $duration = $med['jml'] / $frequency;
-        $start_date = $med['tgl_peresepan'];
-        $end_date = date('Y-m-d', strtotime($start_date . ' + ' . (int)round($duration) . ' days'));
-
-        $medicationRequestResource = [
-          'resourceType' => 'MedicationRequest',
-          'id'           => $mrId,
-          'status'       => 'active',
-          'intent'       => 'order',
-          'authoredOn'   => date('c'),            // waktu sekarang ISO-8601
-          'subject'      => ['reference' => $patientId],
-          'requester'    => ['reference' => $practitionerId],
-          'medicationReference' => ['reference' => "#$medId"],
-          'dosageInstruction' => [[
-            'text'   => $med['aturan_pakai'],    // mis. "1 tablet 3× sehari selama 5 hari"
-            'timing' => [
-              'repeat' => [
-                'frequency'  => (int)$frequency, // 3
-                'period'     => 1,
-                'periodUnit' => 'd'
-              ]
-            ],
-            'route' => [
-              'coding' => [[
-                'system'  => 'http://terminology.hl7.org/CodeSystem/route-codes',
-                'code'    => $med['kode_route'],
-                'display' => $med['nama_route']
-              ]]
-            ],
-            'doseAndRate' => [[
-              'doseQuantity' => [
-                'value' => (float)$dose_value,   // 1
-                'unit'  => strtolower($med['nama_satuan_den'])
-              ]
-            ]]
-          ]],
-          'dispenseRequest' => [
-            'validityPeriod' => [
-              'start' => $start_date,             // "2025-06-05"
-              'end'   => $end_date                // "2025-06-10"
-            ],
-            'numberOfRepeatsAllowed' => 0,
-            'quantity' => [
-              'value' => (int)$med['jml'],               // 15
-              'unit'  => strtolower($med['nama_satuan_den'])
-            ],
-            'expectedSupplyDuration' => [
-              'value' => (int)$duration,          // 5
-              'unit'  => 'days'
-            ]
-          ]
-        ];
-
-        // --- 3. Bundling keduanya ----------------------------------------------
-        $data[] = [
-          'resourceType' => 'Bundle',
-          'type'         => 'collection',
-          'entry'        => [
-            ['resource' => $medicationResource],
-            ['resource' => $medicationRequestResource]
-          ]
-        ];
-      }
-    } else if ($tipe == 'dispense') {
-      $medication = '{ 
-        "resourceType": "MedicationDispense",
-        "identifier": [
-          {
-            "system": "http://sys-ids.kemkes.go.id/medication-dispense/",
-            "value": "123456789"
-          }
-        ],
-        "status": "completed",
-        "category": {
-          "coding": [
-            {
-              "system": "http://terminology.hl7.org/CodeSystem/medicationdispense-category",
-              "code": "outpatient",
-              "display": "Outpatient"
-            }
-          ]
-        },
-        "medicationReference": {
-          "reference": "Medication/93021992",
-          "display": "Ekstrak Phyllanthus niruri Herba 50 mg Kapsul (STIMUNO FORTE)"
-        },
-        "subject": {
-          "reference": "Patient/P02028901234",
-          "display": "BUDI SANTOSO"
-        },
-        "context": {
-          "reference": "Encounter/123456"
-        },
-        "performer": [
-          {
-            "actor": {
-              "reference": "Practitioner/N10000001",
-              "display": "Apt. SUSI SUSANTI, S.Farm"
-            }
-          }
-        ],
-        "location": {
-          "reference": "Location/123456",
-          "display": "Apotek RS Sehat"
-        },
-        "authorizingPrescription": [
-          {
-            "reference": "MedicationRequest/789012"
-          }
-        ],
-        "quantity": {
-          "value": 21,
-          "unit": "Kapsul",
-          "system": "http://terminology.kemkes.go.id/CodeSystem/medication-form",
-          "code": "BS019"
-        },
-        "daysSupply": {
-          "value": 7,
-          "unit": "days",
-          "system": "http://unitsofmeasure.org",
-          "code": "d"
-        },
-        "whenPrepared": "2024-01-20T09:45:00+07:00",
-        "whenHandedOver": "2024-01-20T10:00:00+07:00",
-        "dosageInstruction": [
-          {
-            "sequence": 1,
-            "text": "3 x 1 kapsul sehari setelah makan",
-            "timing": {
-              "repeat": {
-                "frequency": 3,
-                "period": 1,
-                "periodUnit": "d"
-              }
-            },
-            "route": {
-              "coding": [
-                {
-                  "system": "http://terminology.hl7.org/CodeSystem/v3-RouteOfAdministration",
-                  "code": "PO",
-                  "display": "Oral"
-                }
-              ]
-            },
-            "doseAndRate": [
-              {
-                "type": {
-                  "coding": [
-                    {
-                      "system": "http://terminology.hl7.org/CodeSystem/dose-rate-type",
-                      "code": "ordered",
-                      "display": "Ordered"
-                    }
-                  ]
-                },
-                "doseQuantity": {
-                  "value": 1,
-                  "unit": "Kapsul",
-                  "system": "http://terminology.kemkes.go.id/CodeSystem/medication-form",
-                  "code": "BS019"
-                }
-              }
-            ]
-          }
-        ]        
-      }';
-    }
-
-    $curl = curl_init();
-
-    curl_setopt_array($curl, array(
-      CURLOPT_URL => $this->fhirurl . '/MedicationRequest',
-      CURLOPT_RETURNTRANSFER => true,
-      CURLOPT_ENCODING => '',
-      CURLOPT_MAXREDIRS => 10,
-      CURLOPT_TIMEOUT => 0,
-      CURLOPT_FOLLOWLOCATION => true,
-      CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
-      CURLOPT_HTTPHEADER => array('Content-Type: application/json', 'Authorization: Bearer ' . json_decode($this->getToken())->access_token),
-      CURLOPT_CUSTOMREQUEST => 'POST',
-      CURLOPT_POSTFIELDS => json_encode($data)
-    ));
-
-    $response = curl_exec($curl);
-
-    $id_medication_request = json_decode($response)->id;
-    $pesan = 'Gagal mengirim medication request platform Satu Sehat!!';
-    if ($id_medication_request) {
-      $mlite_satu_sehat_response = $this->db('mlite_satu_sehat_response')->where('no_rawat', $no_rawat)->oneArray();
-      if ($mlite_satu_sehat_response) {
-        $this->db('mlite_satu_sehat_response')
-          ->where('no_rawat', $no_rawat)
-          ->save([
-            'no_rawat' => $no_rawat,
-            'id_medication_request' => $id_medication_request
-          ]);
-      } else {
-        $this->db('mlite_satu_sehat_response')
-          ->save([
-            'no_rawat' => $no_rawat,
-            'id_medication_request' => $id_medication_request
-          ]);
-      }
-      $pesan = 'Sukses mengirim medication request platform Satu Sehat!!';
-    }
-
-    curl_close($curl);
-
-    // header('Content-Type: application/json');
-    // echo json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);    
-
-    echo $this->draw('medication.html', ['pesan' => $pesan, 'response' => $response]);
-    exit();
-  }
-
-  public function getLaboratory($no_rawat = '', $no_order = '', $cat = '', $tipe = '')
-  {
-
-    $zonawaktu = '+07:00';
-    if ($this->settings->get('satu_sehat.zonawaktu') == 'WITA') {
-      $zonawaktu = '+08:00';
-    }
-    if ($this->settings->get('satu_sehat.zonawaktu') == 'WIT') {
-      $zonawaktu = '+09:00';
-    }
-
+    $permintaan_lab = $this->db('permintaan_lab')
+      ->where('no_rawat', $no_rawat)
+      ->oneArray();
 
     $no_rawat = revertNoRawat($no_rawat);
     $pesan = '';
     $response = '';
     $laboratory = '';
 
-    if ($cat == 'pk') {
-      if ($tipe == 'request') {
-        $laboratory = '
-          {
-            "resourceType": "ServiceRequest",
-            "identifier": [
-              {
-                "system": "http://sys-ids.kemkes.go.id/servicerequest/8529d474-30e0-4fee-81a4-7a5234003a1b",
-                "value": "LAB-PKL-20231214-001"
-              }
-            ],
-            "status": "active",
-            "intent": "original-order",
-            "priority": "routine",
-            "category": [
-              {
-                "coding": [
-                  {
-                    "system": "http://snomed.info/sct",
-                    "code": "108252007",
-                    "display": "Laboratory procedure"
-                  }
-                ]
-              }
-            ],
-            "code": {
-              "coding": [
-                {
-                  "system": "http://loinc.org",
-                  "code": "24323-8",
-                  "display": "Comprehensive metabolic 2000 panel - Serum or Plasma"
-                }
-              ],
-              "text": "Panel Metabolik Komprehensif"
-            },
-            "subject": {
-              "reference": "Patient/P02029555482",
-              "display": "Budi Santoso"
-            },
-            "encounter": {
-              "reference": "Encounter/E20231214001"
-            },
-            "occurrenceDateTime": "2023-12-14T08:30:00+07:00",
-            "requester": {
-              "reference": "Practitioner/D001",
-              "display": "dr. Ahmad Rahman, Sp.PD"
-            },
-            "performer": [
-              {
-                "reference": "Organization/LAB-001",
-                "display": "Laboratorium Patologi Klinik RSUD H. Damanhuri"
-              }
-            ],
-            "reasonCode": [
-              {
-                "coding": [
-                  {
-                    "system": "http://snomed.info/sct",
-                    "code": "73211009",
-                    "display": "Diabetes mellitus"
-                  }
-                ],
-                "text": "Kontrol Diabetes Mellitus"
-              }
-            ],
-            "specimen": [
-              {
-                "reference": "Specimen/SPEC-20231214-001",
-                "display": "Serum darah vena"
-              }
-            ]
-          }
-        ';
+    if ($tipe == 'request') {
+
+      $row['permintaan_lab'] = $this->db('permintaan_lab')
+        ->where('no_rawat', $no_rawat)
+        ->oneArray();
+      if (!is_array($row['permintaan_lab']) || !isset($row['permintaan_lab']['noorder'])) {
+        echo json_encode(['error' => 'Data tidak lengkap untuk Laboratory request', 'missing' => ['permintaan_lab.noorder' => 'missing']], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+        exit();
       }
-      if ($tipe == 'specimen') {
-        $laboratory = '
-          {
-            "resourceType": "Specimen",
-            "identifier": [
-              {
-                "system": "http://sys-ids.kemkes.go.id/specimen/8529d474-30e0-4fee-81a4-7a5234003a1b",
-                "value": "SPEC-20231214-001"
-              }
-            ],
-            "status": "available",
-            "type": {
-              "coding": [
-                {
-                  "system": "http://snomed.info/sct",
-                  "code": "119364003",
-                  "display": "Serum specimen"
-                }
-              ]
-            },
-            "subject": {
-              "reference": "Patient/P02029555482"
-            },
-            "receivedTime": "2023-12-14T08:45:00+07:00",
-            "collection": {
-              "collectedDateTime": "2023-12-14T08:30:00+07:00",
-              "method": {
-                "coding": [
-                  {
-                    "system": "http://snomed.info/sct",
-                    "code": "28520004",
-                    "display": "Venipuncture"
-                  }
-                ]
-              },
-              "bodySite": {
-                "coding": [
-                  {
-                    "system": "http://snomed.info/sct",
-                    "code": "368208006",
-                    "display": "Left upper arm"
-                  }
-                ]
-              }
+      $row['permintaan_pemeriksaan_lab'] = $this->db('permintaan_pemeriksaan_lab')
+        ->join('jns_perawatan_lab', 'jns_perawatan_lab.kd_jenis_prw = permintaan_pemeriksaan_lab.kd_jenis_prw')
+        ->where('noorder', $row['permintaan_lab']['noorder'])
+        ->oneArray();
+      if (!is_array($row['permintaan_pemeriksaan_lab']) || !isset($row['permintaan_pemeriksaan_lab']['kd_jenis_prw'])) {
+        echo json_encode(['error' => 'Data tidak lengkap untuk Laboratory request', 'missing' => ['permintaan_pemeriksaan_lab.kd_jenis_prw' => 'missing']], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+        exit();
+      }
+      $mapping_lab = $this->db('mlite_satu_sehat_mapping_lab')->where('kd_jenis_prw', $row['permintaan_pemeriksaan_lab']['kd_jenis_prw'])->oneArray();
+
+      // Data pasien dan dokter
+      $no_rkm_medis  = $this->core->getRegPeriksaInfo('no_rkm_medis', $no_rawat);
+      $nm_pasien = $this->core->getPasienInfo('nm_pasien', $no_rkm_medis);
+      $no_ktp_pasien = $this->core->getPasienInfo('no_ktp', $no_rkm_medis);
+      $kd_dokter     = $this->core->getRegPeriksaInfo('kd_dokter', $no_rawat);
+      $nm_dokter     = $this->core->getPegawaiInfo('nama', $kd_dokter);
+      $id_dokter     = $this->db('mlite_satu_sehat_mapping_praktisi')
+        ->select('practitioner_id')
+        ->where('kd_dokter', $kd_dokter)
+        ->oneArray();
+
+      $__patientResp = $this->getPatient($no_ktp_pasien);
+      $__patientJson = json_decode($__patientResp);
+      $id_pasien = '';
+      if (is_object($__patientJson) && isset($__patientJson->entry) && is_array($__patientJson->entry) && isset($__patientJson->entry[0]) && isset($__patientJson->entry[0]->resource) && isset($__patientJson->entry[0]->resource->id)) {
+        $id_pasien = $__patientJson->entry[0]->resource->id;
+      }
+      if ($id_pasien === '') {
+        echo json_encode(['error' => 'Data tidak lengkap untuk Laboratory request', 'missing' => ['patient_id' => 'missing']], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+        exit();
+      }
+
+      $mlite_satu_sehat_response = $this->db('mlite_satu_sehat_response')->where('no_rawat', $no_rawat)->oneArray();
+      $mlite_satu_sehat_lokasi = $this->db('mlite_satu_sehat_lokasi')->where('kode', $this->core->getSettings('satu_sehat', 'laboratorium'))->oneArray();
+
+      $laboratory = '
+        {
+          "resourceType": "ServiceRequest",
+          "identifier": [
+            {
+              "system": "http://sys-ids.kemkes.go.id/servicerequest/' . $this->organizationid . '",
+              "value": "' . $row['permintaan_pemeriksaan_lab']['noorder'] . '"
             }
-          }
-        ';
-      }
-      if ($tipe == 'observation') {
-        $laboratory = '
-          {
-            "resourceType": "Observation",
-            "identifier": [
-              {
-                "system": "http://sys-ids.kemkes.go.id/observation/8529d474-30e0-4fee-81a4-7a5234003a1b",
-                "value": "OBS-LAB-20231214-001"
-              }
-            ],
-            "status": "final",
-            "category": [
-              {
-                "coding": [
-                  {
-                    "system": "http://terminology.hl7.org/CodeSystem/observation-category",
-                    "code": "laboratory",
-                    "display": "Laboratory"
-                  }
-                ]
-              }
-            ],
-            "code": {
+          ],
+          "status": "active",
+          "intent": "order",
+          "priority": "routine",
+          "category": [
+            {
               "coding": [
                 {
-                  "system": "http://loinc.org",
-                  "code": "2345-7",
-                  "display": "Glucose [Mass/volume] in Serum or Plasma"
+                  "system": "http://snomed.info/sct",
+                  "code": "108252007",
+                  "display": "Laboratory procedure"
                 }
-              ],
-              "text": "Glukosa Darah"
-            },
-            "subject": {
-              "reference": "Patient/P02029555482"
-            },
-            "encounter": {
-              "reference": "Encounter/E20231214001"
-            },
-            "effectiveDateTime": "2023-12-14T08:30:00+07:00",
-            "issued": "2023-12-14T10:30:00+07:00",
-            "performer": [
-              {
-                "reference": "Practitioner/LAB001",
-                "display": "dr. Siti Nurhaliza, Sp.PK"
-              }
-            ],
-            "valueQuantity": {
-              "value": 180,
-              "unit": "mg/dL",
-              "system": "http://unitsofmeasure.org",
-              "code": "mg/dL"
-            },
-            "interpretation": [
-              {
-                "coding": [
-                  {
-                    "system": "http://terminology.hl7.org/CodeSystem/v3-ObservationInterpretation",
-                    "code": "H",
-                    "display": "High"
-                  }
-                ]
-              }
-            ],
-            "referenceRange": [
-              {
-                "low": {
-                  "value": 70,
-                  "unit": "mg/dL"
-                },
-                "high": {
-                  "value": 140,
-                  "unit": "mg/dL"
-                },
-                "text": "70-140 mg/dL"
-              }
-            ],
-            "specimen": {
-              "reference": "Specimen/SPEC-20231214-001"
+              ]
             }
-          }
-        ';
+          ],
+          "code": {
+            "coding": [
+              {
+                "system": "'.isset_or($mapping_lab['system'], 'http://loinc.org').'",
+                "code": "'.$mapping_lab['code'].'",
+                "display": "'.$mapping_lab['display'].'"
+              }
+            ],
+            "text": "'.$row['permintaan_pemeriksaan_lab']['nm_perawatan'].'"
+          },
+          "subject": {
+            "reference": "Patient/' . $id_pasien . '",
+            "display": "' . $nm_pasien . '"
+          },
+          "encounter": {
+            "reference": "Encounter/' . $mlite_satu_sehat_response['id_encounter'] . '"
+          },
+          "occurrenceDateTime": "' . $row['permintaan_lab']['tgl_permintaan'] . 'T' . $row['permintaan_lab']['jam_permintaan'] . $zonawaktu . '",
+          "requester": {
+            "reference": "Practitioner/' . $id_dokter['practitioner_id'] . '",
+            "display": "' . $nm_dokter . '"  
+          },
+          "performer": [
+            {
+              "reference": "Organization/' . $mlite_satu_sehat_lokasi['id_organisasi_satusehat'] . '",
+              "display": "' . $mlite_satu_sehat_lokasi['lokasi'] . '"
+            }
+          ],
+          "reasonCode": [
+            {
+              "text": "'.$row['permintaan_lab']['diagnosa_klinis'].'"
+            }
+          ]
+        }
+      ';
+      
+      $url = $this->fhirurl . '/ServiceRequest';
+      $curl = curl_init();
+
+      curl_setopt_array($curl, array(
+        CURLOPT_URL => $url,
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_ENCODING => '',
+        CURLOPT_MAXREDIRS => 10,
+        CURLOPT_TIMEOUT => 0,
+        CURLOPT_FOLLOWLOCATION => true,
+        CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+        CURLOPT_HTTPHEADER => array('Content-Type: application/json', 'Authorization: Bearer ' . $this->getAccessToken()),
+        CURLOPT_CUSTOMREQUEST => 'POST',
+        CURLOPT_POSTFIELDS => $laboratory,
+      ));
+
+      $response = curl_exec($curl);
+
+      $id_laboratory_request = isset_or(json_decode($response)->id, '');
+      $pesan = 'Gagal mengirim laboratory request lab PK platform Satu Sehat!!';
+      if ($id_laboratory_request) {
+        $this->db('mlite_satu_sehat_response')
+          ->where('no_rawat', $no_rawat)
+          ->save([
+            'id_lab_pk_request' => $id_laboratory_request
+          ]);
+        $pesan = 'Sukses mengirim laboratory request lab PK platform Satu Sehat!!';
       }
-      if ($tipe == 'diagnostic') {
-        $laboratory = '
-          {
-            "resourceType": "DiagnosticReport",
-            "identifier": [
+
+      curl_close($curl);
+
+    }
+    if ($tipe == 'specimen') {
+
+      $row['permintaan_lab'] = $this->db('permintaan_lab')
+        ->where('no_rawat', $no_rawat)
+        ->oneArray();
+      if (!is_array($row['permintaan_lab']) || !isset($row['permintaan_lab']['noorder'])) {
+        echo json_encode(['error' => 'Data tidak lengkap untuk Laboratory specimen', 'missing' => ['permintaan_lab.noorder' => 'missing']], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+        exit();
+      }
+      $row['permintaan_pemeriksaan_lab'] = $this->db('permintaan_pemeriksaan_lab')
+        ->join('jns_perawatan_lab', 'jns_perawatan_lab.kd_jenis_prw = permintaan_pemeriksaan_lab.kd_jenis_prw')
+        ->where('noorder', $row['permintaan_lab']['noorder'])
+        ->oneArray();
+      if (!is_array($row['permintaan_pemeriksaan_lab']) || !isset($row['permintaan_pemeriksaan_lab']['kd_jenis_prw'])) {
+        echo json_encode(['error' => 'Data tidak lengkap untuk Laboratory specimen', 'missing' => ['permintaan_pemeriksaan_lab.kd_jenis_prw' => 'missing']], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+        exit();
+      }
+      $mapping_lab = $this->db('mlite_satu_sehat_mapping_lab')->where('kd_jenis_prw', $row['permintaan_pemeriksaan_lab']['kd_jenis_prw'])->oneArray();
+
+      // Data pasien dan dokter
+      $no_rkm_medis  = $this->core->getRegPeriksaInfo('no_rkm_medis', $no_rawat);
+      $nm_pasien = $this->core->getPasienInfo('nm_pasien', $no_rkm_medis);
+      $no_ktp_pasien = $this->core->getPasienInfo('no_ktp', $no_rkm_medis);
+      $kd_dokter     = $this->core->getRegPeriksaInfo('kd_dokter', $no_rawat);
+      $nm_dokter     = $this->core->getPegawaiInfo('nama', $kd_dokter);
+      $id_dokter     = $this->db('mlite_satu_sehat_mapping_praktisi')
+        ->select('practitioner_id')
+        ->where('kd_dokter', $kd_dokter)
+        ->oneArray();
+
+      $__patientResp = $this->getPatient($no_ktp_pasien);
+      $__patientJson = json_decode($__patientResp);
+      $id_pasien = '';
+      if (is_object($__patientJson) && isset($__patientJson->entry) && is_array($__patientJson->entry) && isset($__patientJson->entry[0]) && isset($__patientJson->entry[0]->resource) && isset($__patientJson->entry[0]->resource->id)) {
+        $id_pasien = $__patientJson->entry[0]->resource->id;
+      }
+      if ($id_pasien === '') {
+        echo json_encode(['error' => 'Data tidak lengkap untuk Laboratory specimen', 'missing' => ['patient_id' => 'missing']], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+        exit();
+      }
+
+        
+      $mlite_satu_sehat_response = $this->db('mlite_satu_sehat_response')->where('no_rawat', $no_rawat)->oneArray();
+      $mlite_satu_sehat_lokasi = $this->db('mlite_satu_sehat_lokasi')->where('kode', $this->core->getSettings('satu_sehat', 'laboratorium'))->oneArray();
+
+      $laboratory = '
+        {
+          "resourceType": "Specimen",
+          "identifier": [
+            {
+              "system": "http://sys-ids.kemkes.go.id/specimen/' . $this->organizationid . '",
+              "value": "' . $row['permintaan_pemeriksaan_lab']['noorder'] . '"
+            }
+          ],
+          "status": "available",
+          "type": {
+            "coding": [
               {
-                "system": "http://sys-ids.kemkes.go.id/diagnosticreport/8529d474-30e0-4fee-81a4-7a5234003a1b",
-                "value": "DR-LAB-20231214-001"
+                "system": "' . isset_or($mapping_lab['sampel_system'], 'http://snomed.info/sct') . '",
+                "code": "' . isset_or($mapping_lab['sampel_code'], '119364003') . '",
+                "display": "' . isset_or($mapping_lab['sampel_display'], 'Serum specimen') . '"
               }
-            ],
-            "status": "final",
-            "category": [
-              {
-                "coding": [
-                  {
-                    "system": "http://terminology.hl7.org/CodeSystem/v2-0074",
-                    "code": "LAB",
-                    "display": "Laboratory"
-                  }
-                ]
-              }
-            ],
-            "code": {
+            ]
+          },
+          "subject": {
+            "reference": "Patient/' . $id_pasien . '", 
+            "display": "' . $nm_pasien . '"
+          },
+          "receivedTime": "' . $row['permintaan_lab']['tgl_permintaan'] . 'T' . $row['permintaan_lab']['jam_permintaan'] . $zonawaktu . '",
+          "request": [
+            {
+              "reference": "ServiceRequest/' . $mlite_satu_sehat_response['id_lab_pk_request'] . '"
+            }
+          ]
+        }
+      ';
+
+      // echo json_decode(json_encode($laboratory));
+
+      $url = $this->fhirurl . '/Specimen';
+      $curl = curl_init();
+
+      curl_setopt_array($curl, array(
+        CURLOPT_URL => $url,
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_ENCODING => '',
+        CURLOPT_MAXREDIRS => 10,
+        CURLOPT_TIMEOUT => 0,
+        CURLOPT_FOLLOWLOCATION => true,
+        CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+        CURLOPT_HTTPHEADER => array('Content-Type: application/json', 'Authorization: Bearer ' . json_decode($this->getToken())->access_token),
+        CURLOPT_CUSTOMREQUEST => 'POST',
+        CURLOPT_POSTFIELDS => $laboratory,
+      ));
+
+      $response = curl_exec($curl);
+
+      $id_laboratory_specimen = isset_or(json_decode($response)->id, '');
+      $pesan = 'Gagal mengirim laboratory specimen lab PK platform Satu Sehat!!';
+      if ($id_laboratory_specimen) {
+        $this->db('mlite_satu_sehat_response')
+          ->where('no_rawat', $no_rawat)
+          ->save([
+            'id_lab_pk_specimen' => $id_laboratory_specimen 
+          ]);
+        $pesan = 'Sukses mengirim laboratory specimen lab PK platform Satu Sehat!!';
+      }
+
+      curl_close($curl);
+
+    }
+    if ($tipe == 'observation') { 
+
+      $row['permintaan_lab'] = $this->db('permintaan_lab')
+        ->where('no_rawat', $no_rawat)
+        ->oneArray();
+      if (!is_array($row['permintaan_lab']) || !isset($row['permintaan_lab']['noorder'])) {
+        echo json_encode(['error' => 'Data tidak lengkap untuk Laboratory observation', 'missing' => ['permintaan_lab.noorder' => 'missing']], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+        exit();
+      }
+      $row['permintaan_pemeriksaan_lab'] = $this->db('permintaan_pemeriksaan_lab')
+        ->join('jns_perawatan_lab', 'jns_perawatan_lab.kd_jenis_prw = permintaan_pemeriksaan_lab.kd_jenis_prw')
+        ->where('noorder', $row['permintaan_lab']['noorder'])
+        ->oneArray();
+      $mapping_lab = $this->db('mlite_satu_sehat_mapping_lab')->where('kd_jenis_prw', $row['permintaan_pemeriksaan_lab']['kd_jenis_prw'])->oneArray();
+
+      // Data pasien dan dokter
+      $no_rkm_medis  = $this->core->getRegPeriksaInfo('no_rkm_medis', $no_rawat);
+      $nm_pasien = $this->core->getPasienInfo('nm_pasien', $no_rkm_medis);
+      $no_ktp_pasien = $this->core->getPasienInfo('no_ktp', $no_rkm_medis);
+      $kd_dokter     = $this->core->getRegPeriksaInfo('kd_dokter', $no_rawat);
+      $nm_dokter     = $this->core->getPegawaiInfo('nama', $kd_dokter);
+      $id_dokter     = $this->db('mlite_satu_sehat_mapping_praktisi')
+        ->select('practitioner_id')
+        ->where('kd_dokter', $kd_dokter)
+        ->oneArray();
+
+      $__patientResp = $this->getPatient($no_ktp_pasien);
+      $__patientJson = json_decode($__patientResp);
+      $id_pasien = '';
+      if (is_object($__patientJson) && isset($__patientJson->entry) && is_array($__patientJson->entry) && isset($__patientJson->entry[0]) && isset($__patientJson->entry[0]->resource) && isset($__patientJson->entry[0]->resource->id)) {
+        $id_pasien = $__patientJson->entry[0]->resource->id;
+      }
+      if ($id_pasien === '') {
+        echo json_encode(['error' => 'Data tidak lengkap untuk Laboratory observation', 'missing' => ['patient_id' => 'missing']], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+        exit();
+      }
+
+
+      $mlite_satu_sehat_response = $this->db('mlite_satu_sehat_response')->where('no_rawat', $no_rawat)->oneArray();
+      $mlite_satu_sehat_lokasi = $this->db('mlite_satu_sehat_lokasi')->where('kode', $this->core->getSettings('satu_sehat', 'laboratorium'))->oneArray();
+
+      $detail_periksa_lab = $this->db('detail_periksa_lab')
+        ->where('no_rawat', $no_rawat)
+        ->where('kd_jenis_prw', $row['permintaan_pemeriksaan_lab']['kd_jenis_prw'])
+        ->where('tgl_periksa', $row['permintaan_lab']['tgl_hasil'])
+        ->where('jam', $row['permintaan_lab']['jam_hasil'])
+        ->oneArray();
+
+      $laboratory = '
+        {
+          "resourceType": "Observation",
+          "identifier": [
+            {
+              "system": "http://sys-ids.kemkes.go.id/observation/' . $this->organizationid . '",
+              "value": "' . $row['permintaan_pemeriksaan_lab']['noorder'] . '"
+            }
+          ],
+          "status": "final",
+          "category": [
+            {
               "coding": [
                 {
-                  "system": "http://loinc.org",
-                  "code": "24323-8",
-                  "display": "Comprehensive metabolic 2000 panel - Serum or Plasma"
+                  "system": "http://terminology.hl7.org/CodeSystem/observation-category",
+                  "code": "laboratory",
+                  "display": "Laboratory"
                 }
               ]
-            },
-            "subject": {
-              "reference": "Patient/P02029555482"
-            },
-            "encounter": {
-              "reference": "Encounter/E20231214001"
-            },
-            "effectiveDateTime": "2023-12-14T08:30:00+07:00",
-            "issued": "2023-12-14T10:30:00+07:00",
-            "performer": [
+            }
+          ],
+          "code": {
+            "coding": [
               {
-                "reference": "Organization/LAB-001"
+                "system": "'.isset_or($mapping_lab['system'], 'http://loinc.org').'",
+                "code": "'.$mapping_lab['code'].'",
+                "display": "'.$mapping_lab['display'].'"
               }
-            ],
-            "result": [
-              {
-                "reference": "Observation/OBS-LAB-20231214-001"
-              },
-              {
-                "reference": "Observation/OBS-LAB-20231214-002"
-              }
-            ],
-            "specimen": [
-              {
-                "reference": "Specimen/SPEC-20231214-001"
-              }
-            ],
-            "conclusion": "Hasil pemeriksaan menunjukkan kadar glukosa darah tinggi, konsisten dengan diagnosis diabetes mellitus."
-          }
-        ';
-      };
-    }
+            ]
+          },
+          "subject": {
+            "reference": "Patient/' . $id_pasien . '",
+            "display": "' . $nm_pasien . '"
+          },
+          "performer": [
+            {
+              "reference": "Practitioner/' . $id_dokter['practitioner_id'] . '",
+              "display": "' . $nm_dokter . '"  
+            }
+          ],
+          "encounter": {
+            "reference": "Encounter/' . $mlite_satu_sehat_response['id_encounter'] . '", 
+            "display": "Hasil Pemeriksaan Lab ' . $row['permintaan_pemeriksaan_lab']['nm_perawatan'] . ' dengan No.Rawat ' . $no_rawat . ', Atas Nama Pasien ' . $nm_pasien . ', Nomor RM ' . $no_rkm_medis . ', Pada Tanggal ' . $row['permintaan_lab']['tgl_hasil'] . ' jam ' . $row['permintaan_lab']['jam_hasil'] . '"
+          },
+          "specimen": {
+            "reference": "Specimen/' . $mlite_satu_sehat_response['id_lab_pk_specimen'] . '"
+          }, 
+          "effectiveDateTime": "' . $row['permintaan_lab']['tgl_hasil'] . 'T' . $row['permintaan_lab']['jam_hasil'] . $zonawaktu . '",
+          "valueString": "Hasil Lab ' . $row['permintaan_pemeriksaan_lab']['nm_perawatan'] . ' dengan Nilai ' . isset_or($detail_periksa_lab['nilai'], '') . ' pada Tanggal ' . $row['permintaan_lab']['tgl_hasil'] . ' jam ' . $row['permintaan_lab']['jam_hasil'] . '"
+        }
+      ';
 
-    if ($cat == 'pa') {
-      if ($tipe == 'request') {
-        $laboratory = '
-          {
-            "resourceType": "ServiceRequest",
-            "identifier": [
-              {
-                "system": "http://sys-ids.kemkes.go.id/servicerequest/8529d474-30e0-4fee-81a4-7a5234003a1b",
-                "value": "PA-20231214-001"
-              }
-            ],
-            "status": "active",
-            "intent": "original-order",
-            "priority": "routine",
-            "category": [
-              {
-                "coding": [
-                  {
-                    "system": "http://snomed.info/sct",
-                    "code": "394595002",
-                    "display": "Pathology"
-                  }
-                ]
-              }
-            ],
-            "code": {
-              "coding": [
-                {
-                  "system": "http://loinc.org",
-                  "code": "33717-0",
-                  "display": "Cytology report of Cervical or vaginal smear or scraping Cyto stain"
-                },
-                {
-                  "system": "http://snomed.info/sct",
-                  "code": "168731009",
-                  "display": "Cervical cytology"
-                }
-              ],
-              "text": "Sitologi Serviks (Pap Smear)"
-            },
-            "subject": {
-              "reference": "Patient/P02029555482",
-              "display": "Siti Aisyah"
-            },
-            "encounter": {
-              "reference": "Encounter/E20231214001"
-            },
-            "occurrenceDateTime": "2023-12-14T09:00:00+07:00",
-            "requester": {
-              "reference": "Practitioner/D002",
-              "display": "dr. Maya Sari, Sp.OG"
-            },
-            "performer": [
-              {
-                "reference": "Organization/PA-001",
-                "display": "Laboratorium Patologi Anatomi RSUD H. Damanhuri"
-              }
-            ],
-            "reasonCode": [
-              {
-                "coding": [
-                  {
-                    "system": "http://snomed.info/sct",
-                    "code": "268547008",
-                    "display": "Screening for malignant neoplasm of cervix"
-                  }
-                ],
-                "text": "Skrining Kanker Serviks"
-              }
-            ],
-            "specimen": [
-              {
-                "reference": "Specimen/SPEC-PA-20231214-001",
-                "display": "Apusan serviks"
-              }
-            ],
-            "bodySite": [
-              {
-                "coding": [
-                  {
-                    "system": "http://snomed.info/sct",
-                    "code": "71252005",
-                    "display": "Cervix uteri"
-                  }
-                ],
-                "text": "Serviks uteri"
-              }
-            ]
-          }
-        ';
+      // echo json_decode(json_encode($laboratory));
+
+      $url = $this->fhirurl . '/Observation';
+      $curl = curl_init();
+
+      curl_setopt_array($curl, array(
+        CURLOPT_URL => $url,
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_ENCODING => '',
+        CURLOPT_MAXREDIRS => 10,
+        CURLOPT_TIMEOUT => 0,
+        CURLOPT_FOLLOWLOCATION => true,
+        CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+        CURLOPT_HTTPHEADER => array('Content-Type: application/json', 'Authorization: Bearer ' . json_decode($this->getToken())->access_token),
+        CURLOPT_CUSTOMREQUEST => 'POST',
+        CURLOPT_POSTFIELDS => $laboratory,
+      ));
+
+      $response = curl_exec($curl);
+
+      $id_laboratory_observation = isset_or(json_decode($response)->id, '');
+      $pesan = 'Gagal mengirim laboratory observation lab PK platform Satu Sehat!!';
+      if ($id_laboratory_observation) {
+        $this->db('mlite_satu_sehat_response')
+          ->where('no_rawat', $no_rawat)
+          ->save([
+            'id_lab_pk_observation' => $id_laboratory_observation 
+          ]);
+        $pesan = 'Sukses mengirim laboratory observation lab PK platform Satu Sehat!!';
       }
-      if ($tipe == 'specimen') {
-        $laboratory = '
-          {
-            "resourceType": "Specimen",
-            "identifier": [
-              {
-                "system": "http://sys-ids.kemkes.go.id/specimen/8529d474-30e0-4fee-81a4-7a5234003a1b",
-                "value": "SPEC-PA-20231214-001"
-              }
-            ],
-            "status": "available",
-            "type": {
-              "coding": [
-                {
-                  "system": "http://snomed.info/sct",
-                  "code": "309502007",
-                  "display": "Cervical smear sample"
-                }
-              ],
-              "text": "Apusan serviks"
-            },
-            "subject": {
-              "reference": "Patient/P02029555482"
-            },
-            "receivedTime": "2023-12-14T09:30:00+07:00",
-            "collection": {
-              "collectedDateTime": "2023-12-14T09:00:00+07:00",
-              "collector": {
-                "reference": "Practitioner/D002"
-              },
-              "method": {
-                "coding": [
-                  {
-                    "system": "http://snomed.info/sct",
-                    "code": "129314006",
-                    "display": "Biopsy - action"
-                  }
-                ]
-              },
-              "bodySite": {
-                "coding": [
-                  {
-                    "system": "http://snomed.info/sct",
-                    "code": "71252005",
-                    "display": "Cervix uteri"
-                  }
-                ]
-              }
-            },
-            "processing": [
-              {
-                "description": "Fiksasi dalam formalin 10%",
-                "procedure": {
-                  "coding": [
-                    {
-                      "system": "http://snomed.info/sct",
-                      "code": "434684005",
-                      "display": "Tissue fixation"
-                    }
-                  ]
-                },
-                "additive": [
-                  {
-                    "display": "Formalin 10%"
-                  }
-                ],
-                "timeDateTime": "2023-12-14T09:30:00+07:00"
-              }
-            ]
-          }
-        ';
+
+      curl_close($curl);
+
+    }
+    if ($tipe == 'diagnostic') { 
+
+      $row['permintaan_lab'] = $this->db('permintaan_lab')
+        ->where('no_rawat', $no_rawat)
+        ->oneArray();
+      if (!is_array($row['permintaan_lab']) || !isset($row['permintaan_lab']['noorder'])) {
+        echo json_encode(['error' => 'Data tidak lengkap untuk Laboratory diagnostic report', 'missing' => ['permintaan_lab.noorder' => 'missing']], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+        exit();
       }
-      if ($tipe == 'observation') {
-        $laboratory = '
-          {
-            "resourceType": "Observation",
-            "identifier": [
-              {
-                "system": "http://sys-ids.kemkes.go.id/observation/8529d474-30e0-4fee-81a4-7a5234003a1b",
-                "value": "OBS-PA-20231214-001"
-              }
-            ],
-            "status": "final",
-            "category": [
-              {
-                "coding": [
-                  {
-                    "system": "http://terminology.hl7.org/CodeSystem/observation-category",
-                    "code": "laboratory",
-                    "display": "Laboratory"
-                  }
-                ]
-              }
-            ],
-            "code": {
-              "coding": [
-                {
-                  "system": "http://loinc.org",
-                  "code": "33717-0",
-                  "display": "Cytology report of Cervical or vaginal smear or scraping Cyto stain"
-                }
-              ],
-              "text": "Hasil Sitologi Serviks"
-            },
-            "subject": {
-              "reference": "Patient/P02029555482"
-            },
-            "encounter": {
-              "reference": "Encounter/E20231214001"
-            },
-            "effectiveDateTime": "2023-12-14T09:00:00+07:00",
-            "issued": "2023-12-16T14:00:00+07:00",
-            "performer": [
-              {
-                "reference": "Practitioner/PA001",
-                "display": "dr. Ahmad Fauzi, Sp.PA"
-              }
-            ],
-            "valueCodeableConcept": {
-              "coding": [
-                {
-                  "system": "http://snomed.info/sct",
-                  "code": "17621005",
-                  "display": "Normal"
-                }
-              ],
-              "text": "Dalam batas normal"
-            },
-            "interpretation": [
-              {
-                "coding": [
-                  {
-                    "system": "http://terminology.hl7.org/CodeSystem/v3-ObservationInterpretation",
-                    "code": "N",
-                    "display": "Normal"
-                  }
-                ]
-              }
-            ],
-            "specimen": {
-              "reference": "Specimen/SPEC-PA-20231214-001"
-            },
-            "component": [
-              {
-                "code": {
-                  "coding": [
-                    {
-                      "system": "http://loinc.org",
-                      "code": "33743-4",
-                      "display": "Cytology report of Cervical or vaginal smear or scraping Cyto stain.microscopy"
-                    }
-                  ],
-                  "text": "Gambaran Mikroskopis"
-                },
-                "valueString": "Sel epitel skuamous superfisial dan intermediet dalam jumlah adekuat. Tidak tampak sel abnormal. Tidak tampak mikroorganisme patogen."
-              },
-              {
-                "code": {
-                  "coding": [
-                    {
-                      "system": "http://loinc.org",
-                      "code": "33747-5",
-                      "display": "Cytology report of Cervical or vaginal smear or scraping Cyto stain.impression"
-                    }
-                  ],
-                  "text": "Kesimpulan"
-                },
-                "valueString": "Sitologi serviks dalam batas normal. Tidak ada tanda-tanda keganasan."
-              }
-            ]
-          }
-        ';
+      $row['permintaan_pemeriksaan_lab'] = $this->db('permintaan_pemeriksaan_lab')
+        ->join('jns_perawatan_lab', 'jns_perawatan_lab.kd_jenis_prw = permintaan_pemeriksaan_lab.kd_jenis_prw')
+        ->where('noorder', $row['permintaan_lab']['noorder'])
+        ->oneArray();
+      $mapping_lab = $this->db('mlite_satu_sehat_mapping_lab')->where('kd_jenis_prw', $row['permintaan_pemeriksaan_lab']['kd_jenis_prw'])->oneArray();
+
+      // Data pasien dan dokter
+      $no_rkm_medis  = $this->core->getRegPeriksaInfo('no_rkm_medis', $no_rawat);
+      $nm_pasien = $this->core->getPasienInfo('nm_pasien', $no_rkm_medis);
+      $no_ktp_pasien = $this->core->getPasienInfo('no_ktp', $no_rkm_medis);
+      $kd_dokter     = $this->core->getRegPeriksaInfo('kd_dokter', $no_rawat);
+      $nm_dokter     = $this->core->getPegawaiInfo('nama', $kd_dokter);
+      $id_dokter     = $this->db('mlite_satu_sehat_mapping_praktisi')
+        ->select('practitioner_id')
+        ->where('kd_dokter', $kd_dokter)
+        ->oneArray();
+
+        
+      $__patientResp = $this->getPatient($no_ktp_pasien);
+      $__patientJson = json_decode($__patientResp);
+      $id_pasien = '';
+      if (is_object($__patientJson) && isset($__patientJson->entry) && is_array($__patientJson->entry) && isset($__patientJson->entry[0]) && isset($__patientJson->entry[0]->resource) && isset($__patientJson->entry[0]->resource->id)) {
+        $id_pasien = $__patientJson->entry[0]->resource->id;
       }
-      if ($tipe == 'diagnostic') {
-        $laboratory = '
-          {
-            "resourceType": "DiagnosticReport",
-            "identifier": [
-              {
-                "system": "http://sys-ids.kemkes.go.id/diagnosticreport/8529d474-30e0-4fee-81a4-7a5234003a1b",
-                "value": "DR-PA-20231214-001"
-              }
-            ],
-            "status": "final",
-            "category": [
-              {
-                "coding": [
-                  {
-                    "system": "http://terminology.hl7.org/CodeSystem/v2-0074",
-                    "code": "PAT",
-                    "display": "Pathology"
-                  }
-                ]
-              }
-            ],
-            "code": {
+      if ($id_pasien === '') {
+        echo json_encode(['error' => 'Data tidak lengkap untuk Laboratory diagnostic report', 'missing' => ['patient_id' => 'missing']], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+        exit();
+      }
+
+
+      $mlite_satu_sehat_response = $this->db('mlite_satu_sehat_response')->where('no_rawat', $no_rawat)->oneArray();
+      $mlite_satu_sehat_lokasi = $this->db('mlite_satu_sehat_lokasi')->where('kode', $this->core->getSettings('satu_sehat', 'laboratorium'))->oneArray();
+
+      $detail_periksa_lab = $this->db('detail_periksa_lab')
+        ->where('no_rawat', $no_rawat)
+        ->where('kd_jenis_prw', $row['permintaan_pemeriksaan_lab']['kd_jenis_prw'])
+        ->where('tgl_periksa', $row['permintaan_lab']['tgl_hasil'])
+        ->where('jam', $row['permintaan_lab']['jam_hasil'])
+        ->oneArray();
+
+      $laboratory = '
+        {
+          "resourceType": "DiagnosticReport",
+          "identifier": [
+            {
+              "system": "http://sys-ids.kemkes.go.id/diagnostic/' . $this->organizationid . '/lab",
+              "use": "official",
+              "value": "' . $row['permintaan_pemeriksaan_lab']['noorder'] . '"
+            }
+          ],
+          "status": "final",
+          "category": [
+            {
               "coding": [
                 {
-                  "system": "http://loinc.org",
-                  "code": "33717-0",
-                  "display": "Cytology report of Cervical or vaginal smear or scraping Cyto stain"
+                  "system": "http://terminology.hl7.org/CodeSystem/v2-0074",
+                  "code": "LAB",
+                  "display": "Laboratory"
                 }
               ]
-            },
-            "subject": {
-              "reference": "Patient/P02029555482"
-            },
-            "encounter": {
-              "reference": "Encounter/E20231214001"
-            },
-            "effectiveDateTime": "2023-12-14T09:00:00+07:00",
-            "issued": "2023-12-16T14:00:00+07:00",
-            "performer": [
+            }
+          ],
+          "code": {
+            "coding": [
               {
-                "reference": "Organization/PA-001"
-              },
-              {
-                "reference": "Practitioner/PA001"
-              }
-            ],
-            "result": [
-              {
-                "reference": "Observation/OBS-PA-20231214-001"
-              }
-            ],
-            "specimen": [
-              {
-                "reference": "Specimen/SPEC-PA-20231214-001"
-              }
-            ],
-            "conclusion": "Sitologi serviks dalam batas normal. Tidak ditemukan sel-sel abnormal atau tanda-tanda keganasan. Direkomendasikan pemeriksaan rutin sesuai protokol skrining.",
-            "conclusionCode": [
-              {
-                "coding": [
-                  {
-                    "system": "http://snomed.info/sct",
-                    "code": "17621005",
-                    "display": "Normal"
-                  }
-                ]
+                "system": "'.isset_or($mapping_lab['system'], 'http://loinc.org').'",
+                "code": "'.$mapping_lab['code'].'",
+                "display": "'.$mapping_lab['display'].'"
               }
             ]
-          }
-        ';
-      };
-    }
+          },
+          "subject": {
+            "reference": "Patient/' . $id_pasien . '",
+            "display": "' . $nm_pasien . '"
+          },
+          "encounter": {
+            "reference": "Encounter/' . $mlite_satu_sehat_response['id_encounter'] . '" 
+          },
+          "effectiveDateTime": "' . $row['permintaan_lab']['tgl_hasil'] . 'T' . $row['permintaan_lab']['jam_hasil'] . $zonawaktu . '",
+          "issued": "' . $row['permintaan_lab']['tgl_hasil'] . 'T' . $row['permintaan_lab']['jam_hasil'] . $zonawaktu . '",
+          "performer": [
+            {
+              "reference": "Practitioner/' . $id_dokter['practitioner_id'] . '", 
+              "display": "' . $nm_dokter . '"
+            }
+          ],
+          "specimen": [
+            {
+              "reference": "Specimen/' . $mlite_satu_sehat_response['id_lab_pk_specimen'] . '"
+            }
+          ],
+          "result": [
+            {
+              "reference": "Observation/' . $mlite_satu_sehat_response['id_lab_pk_observation'] . '"
+            }
+          ],
+          "basedOn": [
+            {
+              "reference": "ServiceRequest/' . $mlite_satu_sehat_response['id_lab_pk_request'] . '"
+            }
+          ],
+          "conclusion": "Hasil pemeriksaan menunjukkan kadar glukosa darah tinggi, konsisten dengan diagnosis diabetes mellitus."
+        }
+      ';
 
-    if ($cat == 'mb') {
-      if ($tipe == 'request') {
-        $laboratory = '
-          {
-            "resourceType": "ServiceRequest",
-            "identifier": [
-              {
-                "system": "http://sys-ids.kemkes.go.id/servicerequest/8529d474-30e0-4fee-81a4-7a5234003a1b",
-                "value": "MIKRO-20231214-001"
-              }
-            ],
-            "status": "active",
-            "intent": "original-order",
-            "priority": "routine",
-            "category": [
-              {
-                "coding": [
-                  {
-                    "system": "http://snomed.info/sct",
-                    "code": "15220000",
-                    "display": "Laboratory test"
-                  }
-                ]
-              }
-            ],
-            "code": {
-              "coding": [
-                {
-                  "system": "http://loinc.org",
-                  "code": "600-7",
-                  "display": "Bacteria identified in Urine by Culture"
-                },
-                {
-                  "system": "http://snomed.info/sct",
-                  "code": "252398009",
-                  "display": "Urine culture"
-                }
-              ],
-              "text": "Kultur Urin dan Uji Kepekaan"
-            },
-            "subject": {
-              "reference": "Patient/P02029555482",
-              "display": "Ahmad Rizki"
-            },
-            "encounter": {
-              "reference": "Encounter/E20231214001"
-            },
-            "occurrenceDateTime": "2023-12-14T08:00:00+07:00",
-            "requester": {
-              "reference": "Practitioner/D003",
-              "display": "dr. Fatimah Zahra, Sp.PD"
-            },
-            "performer": [
-              {
-                "reference": "Organization/MIKRO-001",
-                "display": "Laboratorium Mikrobiologi RSUD H. Damanhuri"
-              }
-            ],
-            "reasonCode": [
-              {
-                "coding": [
-                  {
-                    "system": "http://snomed.info/sct",
-                    "code": "68566005",
-                    "display": "Urinary tract infectious disease"
-                  }
-                ],
-                "text": "Suspek Infeksi Saluran Kemih"
-              }
-            ],
-            "specimen": [
-              {
-                "reference": "Specimen/SPEC-MIKRO-20231214-001",
-                "display": "Urin midstream"
-              }
-            ],
-            "note": [
-              {
-                "text": "Pasien mengeluh nyeri saat berkemih dan demam. Riwayat ISK berulang."
-              }
-            ]
-          }
-        ';
-      }
-      if ($tipe == 'specimen') {
-        $laboratory = '
-          {
-            "resourceType": "Specimen",
-            "identifier": [
-              {
-                "system": "http://sys-ids.kemkes.go.id/specimen/8529d474-30e0-4fee-81a4-7a5234003a1b",
-                "value": "SPEC-MIKRO-20231214-001"
-              }
-            ],
-            "status": "available",
-            "type": {
-              "coding": [
-                {
-                  "system": "http://snomed.info/sct",
-                  "code": "122575003",
-                  "display": "Urine specimen"
-                }
-              ],
-              "text": "Urin midstream"
-            },
-            "subject": {
-              "reference": "Patient/P02029555482"
-            },
-            "receivedTime": "2023-12-14T08:30:00+07:00",
-            "collection": {
-              "collectedDateTime": "2023-12-14T08:00:00+07:00",
-              "method": {
-                "coding": [
-                  {
-                    "system": "http://snomed.info/sct",
-                    "code": "258574006",
-                    "display": "Mid-stream urine sample"
-                  }
-                ]
-              },
-              "quantity": {
-                "value": 10,
-                "unit": "mL"
-              }
-            },
-            "processing": [
-              {
-                "description": "Disimpan dalam suhu ruang, segera dikirim ke laboratorium",
-                "timeDateTime": "2023-12-14T08:30:00+07:00"
-              }
-            ],
-            "container": [
-              {
-                "type": {
-                  "coding": [
-                    {
-                      "system": "http://snomed.info/sct",
-                      "code": "706041008",
-                      "display": "Urine collection container"
-                    }
-                  ]
-                },
-                "description": "Kontainer steril untuk urin"
-              }
-            ]
-          }
-        ';
-      }
-      if ($tipe == 'observation') {
-        $laboratory = '
-          {
-            "resourceType": "Observation",
-            "identifier": [
-              {
-                "system": "http://sys-ids.kemkes.go.id/observation/8529d474-30e0-4fee-81a4-7a5234003a1b",
-                "value": "OBS-MIKRO-20231214-001"
-              }
-            ],
-            "status": "final",
-            "category": [
-              {
-                "coding": [
-                  {
-                    "system": "http://terminology.hl7.org/CodeSystem/observation-category",
-                    "code": "laboratory",
-                    "display": "Laboratory"
-                  }
-                ]
-              }
-            ],
-            "code": {
-              "coding": [
-                {
-                  "system": "http://loinc.org",
-                  "code": "600-7",
-                  "display": "Bacteria identified in Urine by Culture"
-                }
-              ],
-              "text": "Identifikasi Bakteri dari Kultur Urin"
-            },
-            "subject": {
-              "reference": "Patient/P02029555482"
-            },
-            "encounter": {
-              "reference": "Encounter/E20231214001"
-            },
-            "effectiveDateTime": "2023-12-14T08:00:00+07:00",
-            "issued": "2023-12-16T10:00:00+07:00",
-            "performer": [
-              {
-                "reference": "Practitioner/MIKRO001",
-                "display": "dr. Indira Sari, Sp.MK"
-              }
-            ],
-            "valueCodeableConcept": {
-              "coding": [
-                {
-                  "system": "http://snomed.info/sct",
-                  "code": "112283007",
-                  "display": "Escherichia coli"
-                }
-              ],
-              "text": "Escherichia coli"
-            },
-            "specimen": {
-              "reference": "Specimen/SPEC-MIKRO-20231214-001"
-            },
-            "component": [
-              {
-                "code": {
-                  "coding": [
-                    {
-                      "system": "http://loinc.org",
-                      "code": "87829-8",
-                      "display": "Bacteria [#/volume] in Urine by Automated count"
-                    }
-                  ],
-                  "text": "Jumlah Koloni"
-                },
-                "valueQuantity": {
-                  "value": 100000,
-                  "unit": "CFU/mL",
-                  "system": "http://unitsofmeasure.org",
-                  "code": "CFU/mL"
-                }
-              },
-              {
-                "code": {
-                  "coding": [
-                    {
-                      "system": "http://loinc.org",
-                      "code": "33747-0",
-                      "display": "Microscopy report"
-                    }
-                  ],
-                  "text": "Morfologi"
-                },
-                "valueString": "Basil gram negatif, motil"
-              }
-            ]
-          }
-        ';
-      }
-      if ($tipe == 'diagnostic') {
-        $laboratory = '
-          {
-            "resourceType": "DiagnosticReport",
-            "identifier": [
-              {
-                "system": "http://sys-ids.kemkes.go.id/diagnosticreport/8529d474-30e0-4fee-81a4-7a5234003a1b",
-                "value": "DR-MIKRO-20231214-001"
-              }
-            ],
-            "status": "final",
-            "category": [
-              {
-                "coding": [
-                  {
-                    "system": "http://terminology.hl7.org/CodeSystem/v2-0074",
-                    "code": "MB",
-                    "display": "Microbiology"
-                  }
-                ]
-              }
-            ],
-            "code": {
-              "coding": [
-                {
-                  "system": "http://loinc.org",
-                  "code": "600-7",
-                  "display": "Bacteria identified in Urine by Culture"
-                }
-              ]
-            },
-            "subject": {
-              "reference": "Patient/P02029555482"
-            },
-            "encounter": {
-              "reference": "Encounter/E20231214001"
-            },
-            "effectiveDateTime": "2023-12-14T08:00:00+07:00",
-            "issued": "2023-12-16T10:00:00+07:00",
-            "performer": [
-              {
-                "reference": "Organization/MIKRO-001"
-              },
-              {
-                "reference": "Practitioner/MIKRO001"
-              }
-            ],
-            "result": [
-              {
-                "reference": "Observation/OBS-MIKRO-20231214-001"
-              },
-              {
-                "reference": "Observation/OBS-MIKRO-20231214-002"
-              }
-            ],
-            "specimen": [
-              {
-                "reference": "Specimen/SPEC-MIKRO-20231214-001"
-              }
-            ],
-            "conclusion": "Ditemukan pertumbuhan Escherichia coli dengan jumlah koloni >10^5 CFU/mL yang signifikan untuk infeksi saluran kemih. Uji kepekaan menunjukkan bakteri sensitif terhadap ciprofloxacin, cotrimoxazole, dan nitrofurantoin. Resisten terhadap ampicillin.",
-            "conclusionCode": [
-              {
-                "coding": [
-                  {
-                    "system": "http://snomed.info/sct",
-                    "code": "112283007",
-                    "display": "Escherichia coli"
-                  }
-                ]
-              }
-            ]
-          }
-        ';
-      };
-    }
+      //  echo json_decode(json_encode($laboratory));
 
-    echo $this->draw('laboratory.html', ['pesan' => $pesan, 'response' => $response]);
+      $url = $this->fhirurl . '/DiagnosticReport';
+      $curl = curl_init();
+
+      curl_setopt_array($curl, array(
+        CURLOPT_URL => $url,
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_ENCODING => '',
+        CURLOPT_MAXREDIRS => 10,
+        CURLOPT_TIMEOUT => 0,
+        CURLOPT_FOLLOWLOCATION => true,
+        CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+        CURLOPT_HTTPHEADER => array('Content-Type: application/json', 'Authorization: Bearer ' . json_decode($this->getToken())->access_token),
+        CURLOPT_CUSTOMREQUEST => 'POST',
+        CURLOPT_POSTFIELDS => $laboratory,
+      ));
+
+      $response = curl_exec($curl);
+
+      $id_laboratory_diagnostic = isset_or(json_decode($response)->id, '');
+      $pesan = 'Gagal mengirim laboratory diagnostic lab PK platform Satu Sehat!!';
+      if ($id_laboratory_diagnostic) {
+        $this->db('mlite_satu_sehat_response')
+          ->where('no_rawat', $no_rawat)
+          ->save([
+            'id_lab_pk_diagnostic' => $id_laboratory_diagnostic 
+          ]);
+        $pesan = 'Sukses mengirim laboratory diagnostic lab PK platform Satu Sehat!!';
+      }
+
+      curl_close($curl);
+
+    };
+
+    if($render) {
+      echo $this->draw('laboratory.html', ['pesan' => $pesan, 'response' => $response]);
+    } else {
+      echo $response;
+    }
     exit();
   }
-
-  public function getRadiology($no_rawat = '', $no_order = '', $tipe = '')
+  
+  public function getRadiology($no_rawat = '', $tipe = '', $render = true)  
   {
 
     $zonawaktu = '+07:00';
@@ -4825,16 +4376,59 @@ class Admin extends AdminModule
     $radiologi = '';
 
     if ($tipe == 'request') {
+
+      $row['permintaan_radiologi'] = $this->db('permintaan_radiologi')
+        ->where('no_rawat', $no_rawat)
+        ->oneArray();
+      if (!is_array($row['permintaan_radiologi']) || !isset($row['permintaan_radiologi']['noorder'])) {
+        echo json_encode(['error' => 'Data tidak lengkap untuk Radiology request', 'missing' => ['permintaan_radiologi.noorder' => 'missing']], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+        exit();
+      }
+      $row['permintaan_pemeriksaan_radiologi'] = $this->db('permintaan_pemeriksaan_radiologi')
+        ->join('jns_perawatan_radiologi', 'jns_perawatan_radiologi.kd_jenis_prw = permintaan_pemeriksaan_radiologi.kd_jenis_prw')
+        ->where('noorder', $row['permintaan_radiologi']['noorder'])
+        ->oneArray();
+      if (!is_array($row['permintaan_pemeriksaan_radiologi']) || !isset($row['permintaan_pemeriksaan_radiologi']['kd_jenis_prw'])) {
+        echo json_encode(['error' => 'Data tidak lengkap untuk Radiology request', 'missing' => ['permintaan_pemeriksaan_radiologi.kd_jenis_prw' => 'missing']], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+        exit();
+      }
+      $mapping_radiologi = $this->db('mlite_satu_sehat_mapping_rad')->where('kd_jenis_prw', $row['permintaan_pemeriksaan_radiologi']['kd_jenis_prw'])->oneArray();
+
+      // Data pasien dan dokter
+      $no_rkm_medis  = $this->core->getRegPeriksaInfo('no_rkm_medis', $no_rawat);
+      $nm_pasien = $this->core->getPasienInfo('nm_pasien', $no_rkm_medis);
+      $no_ktp_pasien = $this->core->getPasienInfo('no_ktp', $no_rkm_medis);
+      $kd_dokter     = $this->core->getRegPeriksaInfo('kd_dokter', $no_rawat);
+      $nm_dokter     = $this->core->getPegawaiInfo('nama', $kd_dokter);
+      $id_dokter     = $this->db('mlite_satu_sehat_mapping_praktisi')
+        ->select('practitioner_id')
+        ->where('kd_dokter', $kd_dokter)
+        ->oneArray();
+
+      $__patientResp = $this->getPatient($no_ktp_pasien);
+      $__patientJson = json_decode($__patientResp);
+      $id_pasien = '';
+      if (is_object($__patientJson) && isset($__patientJson->entry) && is_array($__patientJson->entry) && isset($__patientJson->entry[0]) && isset($__patientJson->entry[0]->resource) && isset($__patientJson->entry[0]->resource->id)) {
+        $id_pasien = $__patientJson->entry[0]->resource->id;
+      }
+      if ($id_pasien === '') {
+        echo json_encode(['error' => 'Data tidak lengkap untuk Radiology request', 'missing' => ['patient_id' => 'missing']], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+        exit();
+      }        
+
+      $mlite_satu_sehat_response = $this->db('mlite_satu_sehat_response')->where('no_rawat', $no_rawat)->oneArray();
+      $mlite_satu_sehat_lokasi = $this->db('mlite_satu_sehat_lokasi')->where('kode', $this->core->getSettings('satu_sehat', 'radiologi'))->oneArray();
+
       $radiologi = '{
         "resourceType": "ServiceRequest",
         "identifier": [
           {
-            "system": "http://sys-ids.kemkes.go.id/servicerequest/8529d474-30e0-4fee-81a4-7a5234003a1b",
-            "value": "RAD-20231214-001"
+            "system": "http://sys-ids.kemkes.go.id/acsn/' . $this->organizationid . '",
+            "value": "' . $row['permintaan_radiologi']['noorder'] . '"
           }
         ],
         "status": "active",
-        "intent": "original-order",
+        "intent": "order",
         "priority": "routine",
         "category": [
           {
@@ -4850,179 +4444,237 @@ class Admin extends AdminModule
         "code": {
           "coding": [
             {
-              "system": "http://loinc.org",
-              "code": "30746-2",
-              "display": "Chest X-ray"
+              "system": "'.isset_or($mapping_radiologi['system'], 'http://loinc.org').'",
+              "code": "'.$mapping_radiologi['code'].'",
+              "display": "'.$mapping_radiologi['display'].'"
             }
-          ]
+          ], 
+          "text": "'.$row['permintaan_pemeriksaan_radiologi']['nm_perawatan'].'"
         },
         "subject": {
-          "reference": "Patient/P02029555482",
-          "display": "Budi Santoso"
+          "reference": "Patient/' . $id_pasien . '",
+          "display": "' . $nm_pasien . '"
         },
         "encounter": {
-          "reference": "Encounter/ENC-20231214-RAD-001"
+          "reference": "Encounter/' . $mlite_satu_sehat_response['id_encounter'] . '", 
+          "display": "Permintaan ' . $row['permintaan_pemeriksaan_radiologi']['nm_perawatan'] . ' Atas nama ' . $nm_pasien . ' No.RM ' . $no_rkm_medis . ' No. Rawat ' . $no_rawat . ' pada tangga ' . $row['permintaan_radiologi']['tgl_permintaan'] . ' jam ' . $row['permintaan_radiologi']['jam_permintaan'] . '"
         },
-        "occurrenceDateTime": "2023-12-14T08:30:00+07:00",
+        "occurrenceDateTime": "' . $row['permintaan_radiologi']['tgl_permintaan'] . 'T' . $row['permintaan_radiologi']['jam_permintaan'] . $zonawaktu . '",
         "requester": {
-          "reference": "Practitioner/N10000001",
-          "display": "dr. Ahmad Fauzi, Sp.PD"
+          "reference": "Practitioner/' . $id_dokter['practitioner_id'] . '",
+          "display": "' . $nm_dokter . '"  
         },
         "performer": [
           {
-            "reference": "Practitioner/N10000002",
-            "display": "dr. Sarah Dewi, Sp.Rad"
-          }
-        ],
-        "locationReference": [
-          {
-            "reference": "Location/RAD-ROOM-01",
-            "display": "Ruang Radiologi 1"
+            "reference": "Organization/' . $mlite_satu_sehat_lokasi['id_organisasi_satusehat'] . '",
+            "display": "' . $mlite_satu_sehat_lokasi['lokasi'] . '"
           }
         ],
         "reasonCode": [
           {
-            "coding": [
-              {
-                "system": "http://hl7.org/fhir/sid/icd-10",
-                "code": "R06.02",
-                "display": "Shortness of breath"
-              }
-            ]
-          }
-        ],
-        "bodySite": [
-          {
-            "coding": [
-              {
-                "system": "http://snomed.info/sct",
-                "code": "51185008",
-                "display": "Thoracic structure"
-              }
-            ]
+            "text": "Permintaan pemeriksaan radiologi dengan Accession Number '.$row['permintaan_radiologi']['noorder'].' dan diagnosa klinis: '.$row['permintaan_radiologi']['diagnosa_klinis'].'"
           }
         ]
       }';
+
+      // echo json_decode(json_encode($radiologi));
+
+      $url = $this->fhirurl . '/ServiceRequest';
+      $curl = curl_init();
+
+      curl_setopt_array($curl, array(
+        CURLOPT_URL => $url,
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_ENCODING => '',
+        CURLOPT_MAXREDIRS => 10,
+        CURLOPT_TIMEOUT => 0,
+        CURLOPT_FOLLOWLOCATION => true,
+        CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+        CURLOPT_HTTPHEADER => array('Content-Type: application/json', 'Authorization: Bearer ' . json_decode($this->getToken())->access_token),
+        CURLOPT_CUSTOMREQUEST => 'POST',
+        CURLOPT_POSTFIELDS => $radiologi,
+      ));
+
+      $response = curl_exec($curl);
+
+      $id_radiologi_request = isset_or(json_decode($response)->id, '');
+      $pesan = 'Gagal mengirim radiologi request platform Satu Sehat!!';
+      if ($id_radiologi_request) {
+        $this->db('mlite_satu_sehat_response')
+          ->where('no_rawat', $no_rawat)
+          ->save([
+            'id_rad_request' => $id_radiologi_request
+          ]);
+        $pesan = 'Sukses mengirim radiologi request platform Satu Sehat!!';
+      }
+
+      curl_close($curl);
+
     }
-    if ($tipe == 'specimen') {
+    elseif ($tipe == 'specimen') {
+      $row['permintaan_radiologi'] = $this->db('permintaan_radiologi')
+        ->where('no_rawat', $no_rawat)
+        ->oneArray();
+      if (!is_array($row['permintaan_radiologi']) || !isset($row['permintaan_radiologi']['noorder'])) {
+        echo json_encode(['error' => 'Data tidak lengkap untuk Radiology specimen', 'missing' => ['permintaan_radiologi.noorder' => 'missing']], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+        exit();
+      }
+      $row['permintaan_pemeriksaan_radiologi'] = $this->db('permintaan_pemeriksaan_radiologi')
+        ->join('jns_perawatan_radiologi', 'jns_perawatan_radiologi.kd_jenis_prw = permintaan_pemeriksaan_radiologi.kd_jenis_prw')
+        ->where('noorder', $row['permintaan_radiologi']['noorder'])
+        ->oneArray();
+      if (!is_array($row['permintaan_pemeriksaan_radiologi']) || !isset($row['permintaan_pemeriksaan_radiologi']['kd_jenis_prw'])) {
+        echo json_encode(['error' => 'Data tidak lengkap untuk Radiology specimen', 'missing' => ['permintaan_pemeriksaan_radiologi.kd_jenis_prw' => 'missing']], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+        exit();
+      }
+      $mapping_radiologi = $this->db('mlite_satu_sehat_mapping_rad')->where('kd_jenis_prw', $row['permintaan_pemeriksaan_radiologi']['kd_jenis_prw'])->oneArray();
+
+      // Data pasien dan dokter
+      $no_rkm_medis  = $this->core->getRegPeriksaInfo('no_rkm_medis', $no_rawat);
+      $nm_pasien = $this->core->getPasienInfo('nm_pasien', $no_rkm_medis);
+      $no_ktp_pasien = $this->core->getPasienInfo('no_ktp', $no_rkm_medis);
+      $kd_dokter     = $this->core->getRegPeriksaInfo('kd_dokter', $no_rawat);
+      $nm_dokter     = $this->core->getPegawaiInfo('nama', $kd_dokter);
+      $id_dokter     = $this->db('mlite_satu_sehat_mapping_praktisi')
+        ->select('practitioner_id')
+        ->where('kd_dokter', $kd_dokter)
+        ->oneArray();
+
+      $__patientResp = $this->getPatient($no_ktp_pasien);
+      $__patientJson = json_decode($__patientResp);
+      $id_pasien = '';
+      if (is_object($__patientJson) && isset($__patientJson->entry) && is_array($__patientJson->entry) && isset($__patientJson->entry[0]) && isset($__patientJson->entry[0]->resource) && isset($__patientJson->entry[0]->resource->id)) {
+        $id_pasien = $__patientJson->entry[0]->resource->id;
+      }
+      if ($id_pasien === '') {
+        echo json_encode(['error' => 'Data tidak lengkap untuk Radiology specimen', 'missing' => ['patient_id' => 'missing']], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+        exit();
+      }        
+
+
+      $mlite_satu_sehat_response = $this->db('mlite_satu_sehat_response')->where('no_rawat', $no_rawat)->oneArray();
+      $mlite_satu_sehat_lokasi = $this->db('mlite_satu_sehat_lokasi')->where('kode', $this->core->getSettings('satu_sehat', 'radiologi'))->oneArray();
+
+
       $radiologi = '{ 
         "resourceType": "Specimen",
         "identifier": [
           {
-            "system": "http://sys-ids.kemkes.go.id/specimen/8529d474-30e0-4fee-81a4-7a5234003a1b",
-            "value": "SPEC-RAD-20231214-001"
+            "system": "http://sys-ids.kemkes.go.id/specimen/' . $this->organizationid . '",
+            "value": "' . $row['permintaan_radiologi']['noorder'] . '"
           }
         ],
         "status": "available",
         "type": {
           "coding": [
             {
-              "system": "http://snomed.info/sct",
-              "code": "122555007",
-              "display": "Venous blood specimen"
+              "system": "' . isset_or($mapping_radiologi['sampel_system'], 'http://snomed.info/sct') . '",
+              "code": "' . isset_or($mapping_radiologi['sampel_code'], '') . '",
+              "display": "' . isset_or($mapping_radiologi['sampel_display'], '') . '"
             }
           ]
         },
         "subject": {
-          "reference": "Patient/P02029555482",
-          "display": "Budi Santoso"
+          "reference": "Patient/' . $id_pasien . '",
+          "display": "' . $nm_pasien . '"
         },
-        "receivedTime": "2023-12-14T07:30:00+07:00",
+        "receivedTime": "' . $row['permintaan_radiologi']['tgl_permintaan'] . 'T' . $row['permintaan_radiologi']['jam_permintaan'] . $zonawaktu . '",
         "request": [
           {
-            "reference": "ServiceRequest/RAD-20231214-001"
-          }
-        ],
-        "collection": {
-          "collector": {
-            "reference": "Practitioner/N10000003",
-            "display": "Ns. Maria Sari"
-          },
-          "collectedDateTime": "2023-12-14T07:30:00+07:00",
-          "method": {
-            "coding": [
-              {
-                "system": "http://snomed.info/sct",
-                "code": "28520004",
-                "display": "Venipuncture"
-              }
-            ]
-          },
-          "bodySite": {
-            "coding": [
-              {
-                "system": "http://snomed.info/sct",
-                "code": "368208006",
-                "display": "Left upper arm structure"
-              }
-            ]
-          }
-        },
-        "processing": [
-          {
-            "description": "Persiapan kontras untuk CT Scan Abdomen",
-            "procedure": {
-              "coding": [
-                {
-                  "system": "http://snomed.info/sct",
-                  "code": "432102000",
-                  "display": "Administration of substance"
-                }
-              ]
-            },
-            "additive": [
-              {
-                "display": "Kontras Iodine"
-              }
-            ],
-            "timeDateTime": "2023-12-14T08:00:00+07:00"
-          }
-        ],
-        "container": [
-          {
-            "identifier": [
-              {
-                "value": "CONT-001"
-              }
-            ],
-            "description": "Syringe untuk kontras",
-            "type": {
-              "coding": [
-                {
-                  "system": "http://snomed.info/sct",
-                  "code": "706041008",
-                  "display": "Syringe"
-                }
-              ]
-            },
-            "capacity": {
-              "value": 50,
-              "unit": "mL",
-              "system": "http://unitsofmeasure.org",
-              "code": "mL"
-            },
-            "specimenQuantity": {
-              "value": 30,
-              "unit": "mL", 
-              "system": "http://unitsofmeasure.org",
-              "code": "mL"
-            }
-          }
-        ],
-        "note": [
-          {
-            "text": "Pasien telah menjalani persiapan puasa 6 jam sebelum pemeriksaan CT Scan dengan kontras"
+            "reference": "ServiceRequest/' . $mlite_satu_sehat_response['id_rad_request'] . '"
           }
         ]
       }';
+
+      // echo json_decode(json_encode($radiologi));
+
+      $url = $this->fhirurl . '/Specimen';
+      $curl = curl_init();
+
+      curl_setopt_array($curl, array(
+        CURLOPT_URL => $url,
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_ENCODING => '',
+        CURLOPT_MAXREDIRS => 10,
+        CURLOPT_TIMEOUT => 0,
+        CURLOPT_FOLLOWLOCATION => true,
+        CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+        CURLOPT_HTTPHEADER => array('Content-Type: application/json', 'Authorization: Bearer ' . json_decode($this->getToken())->access_token),
+        CURLOPT_CUSTOMREQUEST => 'POST',
+        CURLOPT_POSTFIELDS => $radiologi,
+      ));
+
+      $response = curl_exec($curl);
+
+      $id_radiologi_specimen = isset_or(json_decode($response)->id, '');
+      $pesan = 'Gagal mengirim radiologi specimen platform Satu Sehat!!';
+      if ($id_radiologi_specimen) {
+        $this->db('mlite_satu_sehat_response')
+          ->where('no_rawat', $no_rawat)
+          ->save([
+            'id_rad_specimen' => $id_radiologi_specimen
+          ]);
+        $pesan = 'Sukses mengirim radiologi specimen platform Satu Sehat!!';
+      }
+
+      curl_close($curl);
+
     }
-    if ($tipe == 'observation') {
+    elseif ($tipe == 'observation') {
+
+      $row['permintaan_radiologi'] = $this->db('permintaan_radiologi')
+        ->where('no_rawat', $no_rawat)
+        ->oneArray();
+      if (!is_array($row['permintaan_radiologi']) || !isset($row['permintaan_radiologi']['noorder'])) {
+        echo json_encode(['error' => 'Data tidak lengkap untuk Radiology result', 'missing' => ['permintaan_radiologi.noorder' => 'missing']], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+        exit();
+      }
+      $row['permintaan_pemeriksaan_radiologi'] = $this->db('permintaan_pemeriksaan_radiologi')
+        ->join('jns_perawatan_radiologi', 'jns_perawatan_radiologi.kd_jenis_prw = permintaan_pemeriksaan_radiologi.kd_jenis_prw')
+        ->where('noorder', $row['permintaan_radiologi']['noorder'])
+        ->oneArray();
+      if (!is_array($row['permintaan_pemeriksaan_radiologi']) || !isset($row['permintaan_pemeriksaan_radiologi']['kd_jenis_prw'])) {
+        echo json_encode(['error' => 'Data tidak lengkap untuk Radiology result', 'missing' => ['permintaan_pemeriksaan_radiologi.kd_jenis_prw' => 'missing']], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+        exit();
+      }
+      $mapping_radiologi = $this->db('mlite_satu_sehat_mapping_rad')->where('kd_jenis_prw', $row['permintaan_pemeriksaan_radiologi']['kd_jenis_prw'])->oneArray();
+
+      $hasil_radiologi = $this->db('hasil_radiologi')
+        ->where('no_rawat', $no_rawat)
+        ->oneArray();
+
+      // Data pasien dan dokter
+      $no_rkm_medis  = $this->core->getRegPeriksaInfo('no_rkm_medis', $no_rawat);
+      $nm_pasien = $this->core->getPasienInfo('nm_pasien', $no_rkm_medis);
+      $no_ktp_pasien = $this->core->getPasienInfo('no_ktp', $no_rkm_medis);
+      $kd_dokter     = $this->core->getRegPeriksaInfo('kd_dokter', $no_rawat);
+      $nm_dokter     = $this->core->getPegawaiInfo('nama', $kd_dokter);
+      $id_dokter     = $this->db('mlite_satu_sehat_mapping_praktisi')
+        ->select('practitioner_id')
+        ->where('kd_dokter', $kd_dokter)
+        ->oneArray();
+
+      $__patientResp = $this->getPatient($no_ktp_pasien);
+      $__patientJson = json_decode($__patientResp);
+      $id_pasien = '';
+      if (is_object($__patientJson) && isset($__patientJson->entry) && is_array($__patientJson->entry) && isset($__patientJson->entry[0]) && isset($__patientJson->entry[0]->resource) && isset($__patientJson->entry[0]->resource->id)) {
+        $id_pasien = $__patientJson->entry[0]->resource->id;
+      }
+      if ($id_pasien === '') {
+        echo json_encode(['error' => 'Data tidak lengkap untuk Radiology observation', 'missing' => ['patient_id' => 'missing']], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+        exit();
+      }        
+
+      $mlite_satu_sehat_response = $this->db('mlite_satu_sehat_response')->where('no_rawat', $no_rawat)->oneArray();
+      $mlite_satu_sehat_lokasi = $this->db('mlite_satu_sehat_lokasi')->where('kode', $this->core->getSettings('satu_sehat', 'radiologi'))->oneArray();
+
+
       $radiologi = '{ 
         "resourceType": "Observation",
         "identifier": [
           {
-            "system": "http://sys-ids.kemkes.go.id/observation/8529d474-30e0-4fee-81a4-7a5234003a1b",
-            "value": "RAD-OBS-20231214-001"
+            "system": "http://sys-ids.kemkes.go.id/observation/' . $this->organizationid . '",
+            "value": "' . $row['permintaan_radiologi']['noorder'] . '"
           }
         ],
         "status": "final",
@@ -5040,54 +4692,119 @@ class Admin extends AdminModule
         "code": {
           "coding": [
             {
-              "system": "http://loinc.org",
-              "code": "30746-2",
-              "display": "Chest X-ray"
+              "system": "'.isset_or($mapping_radiologi['system'], 'http://loinc.org').'",
+              "code": "'.$mapping_radiologi['code'].'",
+              "display": "'.$mapping_radiologi['display'].'"
             }
           ]
         },
         "subject": {
-          "reference": "Patient/P02029555482",
-          "display": "Budi Santoso"
+          "reference": "Patient/' . $id_pasien . '",
+          "display": "' . $nm_pasien . '"
         },
         "encounter": {
-          "reference": "Encounter/ENC-20231214-RAD-001"
+          "reference": "Encounter/' . $mlite_satu_sehat_response['id_encounter'] . '"
         },
-        "effectiveDateTime": "2023-12-14T08:30:00+07:00",
+        "effectiveDateTime": "' . $row['permintaan_radiologi']['tgl_hasil'] . 'T' . $row['permintaan_radiologi']['jam_hasil'] . $zonawaktu . '",
         "performer": [
           {
-            "reference": "Practitioner/N10000002",
-            "display": "dr. Sarah Dewi, Sp.Rad"
+            "reference": "Practitioner/' . $id_dokter['practitioner_id'] . '",
+            "display": "dr. ' . $nm_dokter . ', Sp.Rad"
           }
         ],
-        "valueString": "Thoraks dalam batas normal",
-        "bodySite": {
-          "coding": [
-            {
-              "system": "http://snomed.info/sct",
-              "code": "51185008",
-              "display": "Thoracic structure"
-            }
-          ]
-        },
-        "method": {
-          "coding": [
-            {
-              "system": "http://snomed.info/sct",
-              "code": "168537006",
-              "display": "Plain radiography"
-            }
-          ]
-        }
+        "valueString": "' . isset_or($hasil_radiologi['hasil'], '') . '"
       }';
+
+
+      // echo json_decode(json_encode($radiologi));
+
+      $url = $this->fhirurl . '/Observation';
+      $curl = curl_init();
+
+      curl_setopt_array($curl, array(
+        CURLOPT_URL => $url,
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_ENCODING => '',
+        CURLOPT_MAXREDIRS => 10,
+        CURLOPT_TIMEOUT => 0,
+        CURLOPT_FOLLOWLOCATION => true,
+        CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+        CURLOPT_HTTPHEADER => array('Content-Type: application/json', 'Authorization: Bearer ' . json_decode($this->getToken())->access_token),
+        CURLOPT_CUSTOMREQUEST => 'POST',
+        CURLOPT_POSTFIELDS => $radiologi,
+      ));
+
+      $response = curl_exec($curl);
+
+      $id_radiologi_observation = isset_or(json_decode($response)->id, '');
+      $pesan = 'Gagal mengirim radiologi observation platform Satu Sehat!!';
+      if ($id_radiologi_observation) {
+        $this->db('mlite_satu_sehat_response')
+          ->where('no_rawat', $no_rawat)
+          ->save([
+            'id_rad_observation' => $id_radiologi_observation
+          ]);
+        $pesan = 'Sukses mengirim radiologi observation platform Satu Sehat!!';
+      }
+
+      curl_close($curl);
+
     }
-    if ($tipe == 'diagnostic') {
+    elseif ($tipe == 'diagnostic') {
+
+      $row['permintaan_radiologi'] = $this->db('permintaan_radiologi')
+        ->where('no_rawat', $no_rawat)
+        ->oneArray();
+      if (!is_array($row['permintaan_radiologi']) || !isset($row['permintaan_radiologi']['noorder'])) {
+        echo json_encode(['error' => 'Data tidak lengkap untuk Radiology result', 'missing' => ['permintaan_radiologi.noorder' => 'missing']], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+        exit();
+      }
+      $row['permintaan_pemeriksaan_radiologi'] = $this->db('permintaan_pemeriksaan_radiologi')
+        ->join('jns_perawatan_radiologi', 'jns_perawatan_radiologi.kd_jenis_prw = permintaan_pemeriksaan_radiologi.kd_jenis_prw')
+        ->where('noorder', $row['permintaan_radiologi']['noorder'])
+        ->oneArray();
+      if (!is_array($row['permintaan_pemeriksaan_radiologi']) || !isset($row['permintaan_pemeriksaan_radiologi']['kd_jenis_prw'])) {
+        echo json_encode(['error' => 'Data tidak lengkap untuk Radiology result', 'missing' => ['permintaan_pemeriksaan_radiologi.kd_jenis_prw' => 'missing']], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+        exit();
+      }
+      $mapping_radiologi = $this->db('mlite_satu_sehat_mapping_rad')->where('kd_jenis_prw', $row['permintaan_pemeriksaan_radiologi']['kd_jenis_prw'])->oneArray();
+
+      $hasil_radiologi = $this->db('hasil_radiologi')
+        ->where('no_rawat', $no_rawat)
+        ->oneArray();
+
+      // Data pasien dan dokter
+      $no_rkm_medis  = $this->core->getRegPeriksaInfo('no_rkm_medis', $no_rawat);
+      $nm_pasien = $this->core->getPasienInfo('nm_pasien', $no_rkm_medis);
+      $no_ktp_pasien = $this->core->getPasienInfo('no_ktp', $no_rkm_medis);
+      $kd_dokter     = $this->core->getRegPeriksaInfo('kd_dokter', $no_rawat);
+      $nm_dokter     = $this->core->getPegawaiInfo('nama', $kd_dokter);
+      $id_dokter     = $this->db('mlite_satu_sehat_mapping_praktisi')
+        ->select('practitioner_id')
+        ->where('kd_dokter', $kd_dokter)
+        ->oneArray();
+
+      $__patientResp = $this->getPatient($no_ktp_pasien);
+      $__patientJson = json_decode($__patientResp);
+      $id_pasien = '';
+      if (is_object($__patientJson) && isset($__patientJson->entry) && is_array($__patientJson->entry) && isset($__patientJson->entry[0]) && isset($__patientJson->entry[0]->resource) && isset($__patientJson->entry[0]->resource->id)) {
+        $id_pasien = $__patientJson->entry[0]->resource->id;
+      }
+      if ($id_pasien === '') {
+        echo json_encode(['error' => 'Data tidak lengkap untuk Radilogy diagnostic report', 'missing' => ['patient_id' => 'missing']], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+        exit();
+      }        
+
+      $mlite_satu_sehat_response = $this->db('mlite_satu_sehat_response')->where('no_rawat', $no_rawat)->oneArray();
+      $mlite_satu_sehat_lokasi = $this->db('mlite_satu_sehat_lokasi')->where('kode', $this->core->getSettings('satu_sehat', 'radiologi'))->oneArray();
+
+
       $radiologi = '{        
         "resourceType": "DiagnosticReport",
         "identifier": [
           {
-            "system": "http://sys-ids.kemkes.go.id/diagnosticreport/8529d474-30e0-4fee-81a4-7a5234003a1b",
-            "value": "RAD-REPORT-20231214-001"
+            "system": "http://sys-ids.kemkes.go.id/diagnostic/' . $this->organizationid . '/rad",
+            "value": "' . $row['permintaan_radiologi']['noorder'] . '"
           }
         ],
         "status": "final",
@@ -5105,56 +4822,164 @@ class Admin extends AdminModule
         "code": {
           "coding": [
             {
-              "system": "http://loinc.org",
-              "code": "30746-2",
-              "display": "Chest X-ray"
+              "system": "'.isset_or($mapping_radiologi['system'], 'http://loinc.org').'",
+              "code": "'.$mapping_radiologi['code'].'",
+              "display": "'.$mapping_radiologi['display'].'"
             }
           ]
         },
         "subject": {
-          "reference": "Patient/P02029555482",
-          "display": "Budi Santoso"
+          "reference": "Patient/' . $id_pasien . '",
+          "display": "' . $nm_pasien . '"
         },
         "encounter": {
-          "reference": "Encounter/ENC-20231214-RAD-001"
+          "reference": "Encounter/' . $mlite_satu_sehat_response['id_encounter'] . '"
         },
-        "effectiveDateTime": "2023-12-14T08:30:00+07:00",
-        "issued": "2023-12-14T10:15:00+07:00",
+        "effectiveDateTime": "' . $row['permintaan_radiologi']['tgl_hasil'] . 'T' . $row['permintaan_radiologi']['jam_hasil'] . $zonawaktu . '",
+        "issued": "' . $row['permintaan_radiologi']['tgl_hasil'] . 'T' . $row['permintaan_radiologi']['jam_hasil'] . $zonawaktu . '",
         "performer": [
           {
-            "reference": "Practitioner/N10000002",
-            "display": "dr. Sarah Dewi, Sp.Rad"
-          },
+            "reference": "Practitioner/' . $id_dokter['practitioner_id'] . '",
+            "display": "dr. ' . $nm_dokter . ', Sp.Rad"
+          }
+        ],
+        "specimen": [
           {
-            "reference": "Organization/8529d474-30e0-4fee-81a4-7a5234003a1b",
-            "display": "RSUD H. Damanhuri"
+            "reference": "Specimen/' . $mlite_satu_sehat_response['id_rad_specimen'] . '"
+          }
+        ],
+        "result": [
+          {
+            "reference": "Observation/' . $mlite_satu_sehat_response['id_rad_observation'] . '"
           }
         ],
         "basedOn": [
           {
-            "reference": "ServiceRequest/RAD-20231214-001"
-          }
-        ],
-        "conclusion": "Gambaran thoraks dalam batas normal. Tidak tampak infiltrat, konsolidasi, atau efusi pleura. Corakan bronkovaskular normal.",
-        "conclusionCode": [
-          {
-            "coding": [
-              {
-                "system": "http://hl7.org/fhir/sid/icd-10",
-                "code": "Z01.6",
-                "display": "Radiological examination, not elsewhere classified"
-              }
-            ]
+            "reference": "ServiceRequest/' . $mlite_satu_sehat_response['id_rad_request'] . '"
           }
         ]
       }';
-    };
 
-    echo $this->draw('radiology.html', ['pesan' => $pesan, 'response' => $response]);
+      // echo json_decode(json_encode($radiologi));
+
+      $url = $this->fhirurl . '/DiagnosticReport';
+      $curl = curl_init();
+
+      curl_setopt_array($curl, array(
+        CURLOPT_URL => $url,
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_ENCODING => '',
+        CURLOPT_MAXREDIRS => 10,
+        CURLOPT_TIMEOUT => 0,
+        CURLOPT_FOLLOWLOCATION => true,
+        CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+        CURLOPT_HTTPHEADER => array('Content-Type: application/json', 'Authorization: Bearer ' . json_decode($this->getToken())->access_token),
+        CURLOPT_CUSTOMREQUEST => 'POST',
+        CURLOPT_POSTFIELDS => $radiologi,
+      ));
+
+      $response = curl_exec($curl);
+
+      $id_radiologi_diagnostic = isset_or(json_decode($response)->id, '');
+      $pesan = 'Gagal mengirim radiologi diagnostic platform Satu Sehat!!';
+      if ($id_radiologi_diagnostic) {
+        $this->db('mlite_satu_sehat_response')
+          ->where('no_rawat', $no_rawat)
+          ->save([
+            'id_rad_diagnostic' => $id_radiologi_diagnostic
+          ]);
+        $pesan = 'Sukses mengirim radiologi diagnostic platform Satu Sehat!!';
+      }
+
+      curl_close($curl);
+
+    }
+    elseif($tipe == 'image') {
+
+      $row['permintaan_radiologi'] = $this->db('permintaan_radiologi')
+        ->where('no_rawat', $no_rawat)
+        ->oneArray();
+      if (!is_array($row['permintaan_radiologi']) || !isset($row['permintaan_radiologi']['noorder'])) {
+        echo '<pre>' . json_encode(['error' => 'Data tidak lengkap untuk Radiology request', 'missing' => ['permintaan_radiologi.noorder' => 'missing']], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . '</pre>';
+        exit();
+      }
+      $noorder = $row['permintaan_radiologi']['noorder'];
+      
+      $accessionNumber = $this->getStudiIdByNoOrder($noorder);
+      if (!$accessionNumber) {
+        echo '<pre>' . json_encode(['error' => 'Tidak ada data image studi untuk accession number ' . $noorder, 'missing' => ['permintaan_radiologi.noorder' => 'missing']], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . '</pre>';
+        exit();
+      }
+
+      $orthanc_server = $this->settings->get('orthanc.server');
+      // $orthanc_server = 'http://172.18.0.7:8042';
+      $orthanc_user = $this->settings->get('orthanc.username');
+      $orthanc_password = $this->settings->get('orthanc.password');
+
+      $curl = curl_init();
+
+      curl_setopt_array($curl, [
+          CURLOPT_URL => $orthanc_server . '/modalities/DCMROUTER/store',
+          CURLOPT_RETURNTRANSFER => true,
+          CURLOPT_FOLLOWLOCATION => true,
+          CURLOPT_TIMEOUT => 30,
+          CURLOPT_CUSTOMREQUEST => 'POST',
+
+          // Orthanc REST API butuh BASIC AUTH
+          CURLOPT_USERPWD => $orthanc_user . ':' . $orthanc_password,
+
+          // UUID instance Orthanc (plain text, BUKAN JSON)
+          CURLOPT_POSTFIELDS => $accessionNumber,
+
+          CURLOPT_HTTPHEADER => [
+              'Content-Type: text/plain'
+          ],
+      ]);
+
+      $response = curl_exec($curl);
+
+      curl_close($curl);
+    }
+    if($render) {
+      echo $this->draw('radiology.html', ['pesan' => $pesan, 'response' => $response]);
+    } else {
+      echo $response;
+    }
     exit();
   }
 
-  public function getCarePlan($no_rawat)
+  public function getStudiIdByNoOrder($noorder)
+  {
+
+    $orthanc_server = $this->settings->get('orthanc.server');
+    // $orthanc_server = 'http://172.18.0.7:8042';
+    $orthanc_user = $this->settings->get('orthanc.username');
+    $orthanc_password = $this->settings->get('orthanc.password');
+
+    $ch = curl_init($orthanc_server . '/tools/find');
+
+    curl_setopt_array($ch, [
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_USERPWD => $orthanc_user . ':' . $orthanc_password,
+        CURLOPT_POST => true,
+        CURLOPT_HTTPHEADER => ["Content-Type: application/json"],
+        CURLOPT_POSTFIELDS => json_encode([
+            "Level" => "Study",
+            "Query" => [
+                "AccessionNumber" => $noorder
+            ]
+        ])
+    ]);
+
+    $response = curl_exec($ch);
+    curl_close($ch);
+
+    $studyIds = json_decode($response, true);
+    // print_r($studyIds);
+    return $studyIds[0] ?? '';
+  }
+
+  public function getCarePlan($no_rawat, $render = true)
   {
 
     $zonawaktu = '+07:00';
@@ -5167,10 +4992,142 @@ class Admin extends AdminModule
 
 
     $no_rawat = revertNoRawat($no_rawat);
-    $pesan = '';
-    $response = '';
+    $kd_poli = $this->core->getRegPeriksaInfo('kd_poli', $no_rawat);
+    $nm_poli = $this->core->getPoliklinikInfo('nm_poli', $kd_poli);
+    $kd_dokter = $this->core->getRegPeriksaInfo('kd_dokter', $no_rawat);
+    $no_ktp_dokter = $this->core->getPegawaiInfo('no_ktp', $kd_dokter);
+    $nama_dokter = $this->core->getPegawaiInfo('nama', $kd_dokter);
+    $no_rkm_medis = $this->core->getRegPeriksaInfo('no_rkm_medis', $no_rawat);
+    $no_ktp_pasien = $this->core->getPasienInfo('no_ktp', $no_rkm_medis);
+    $nama_pasien = $this->core->getPasienInfo('nm_pasien', $no_rkm_medis);
+    $status_lanjut = $this->core->getRegPeriksaInfo('status_lanjut', $no_rawat);
+    $tgl_registrasi = $this->core->getRegPeriksaInfo('tgl_registrasi', $no_rawat);
+    $jam_reg = $this->core->getRegPeriksaInfo('jam_reg', $no_rawat);
+    $mlite_billing = $this->db('mlite_billing')->where('no_rawat', $no_rawat)->oneArray();
+    $pemeriksaan = $this->db('pemeriksaan_ralan')->where('no_rawat', $no_rawat)->oneArray();
+    
+    $rtl = $pemeriksaan['rtl'] ?? null;
 
-    echo $this->draw('careplan.html', ['pesan' => $pesan, 'response' => $response]);
+    $mlite_satu_sehat_response = $this->db('mlite_satu_sehat_response')->where('no_rawat', $no_rawat)->oneArray();
+
+    $kunjungan = 'Kunjungan';
+    if ($status_lanjut == 'Ranap') {
+      $kunjungan = 'Perawatan';
+      $row['pemeriksaan'] = $this->db('pemeriksaan_ranap')
+        ->where('no_rawat', $no_rawat)
+        ->limit(1)
+        ->desc('tgl_perawatan')
+        ->oneArray();
+      $rtl = $pemeriksaan['rtl'] ?? null;
+    }
+
+    $__patientResp = $this->getPatient($no_ktp_pasien);
+    $__patientJson = json_decode($__patientResp);
+    $ihs_patient = '';
+    if (is_object($__patientJson) && isset($__patientJson->entry) && is_array($__patientJson->entry) && isset($__patientJson->entry[0]) && isset($__patientJson->entry[0]->resource) && isset($__patientJson->entry[0]->resource->id)) {
+      $ihs_patient = $__patientJson->entry[0]->resource->id;
+    }
+
+    $encounter_id = $mlite_satu_sehat_response['id_encounter'] ?? null;
+
+    if ($ihs_patient === '' || !$rtl || !$encounter_id) {
+      $error = [
+        'error' => 'Data tidak lengkap untuk CarePlan',
+        'missing' => [
+          'patient_id' => $ihs_patient === '' ? 'missing' : 'ok',
+          'rtl' => !$rtl ? 'missing' : 'ok',
+          'id_encounter' => !$encounter_id ? 'missing' : 'ok'
+        ]
+      ];
+      $response = json_encode($error, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+      if ($render) {
+        echo $this->draw('careplan.html', ['pesan' => 'Gagal mengirim careplan platform Satu Sehat!!', 'response' => $response]);
+      } else {
+        echo $response;
+      }
+      exit();
+    }
+
+    $curl = curl_init();
+
+    curl_setopt_array($curl, array(
+      CURLOPT_URL => $this->fhirurl . '/CarePlan',
+      CURLOPT_RETURNTRANSFER => true,
+      CURLOPT_ENCODING => '',
+      CURLOPT_MAXREDIRS => 10,
+      CURLOPT_TIMEOUT => 0,
+      CURLOPT_FOLLOWLOCATION => true,
+      CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+      CURLOPT_HTTPHEADER => array('Content-Type: application/json', 'Authorization: Bearer ' . json_decode($this->getToken())->access_token),
+      CURLOPT_CUSTOMREQUEST => 'POST',
+      CURLOPT_POSTFIELDS => '{
+        "resourceType" : "CarePlan", 
+        "identifier" : {
+            "system" : "http://sys-ids.kemkes.go.id/careplan/"' . $this->settings->get('satu_sehat.idsatu_sehat') . '", 
+            "value" : "' . $no_rawat . '"
+        }, 
+        "title" : "Instruksi Medik dan Keperawatan Pasien", 
+        "status" : "active", 
+        "category" : [
+            {
+                "coding" : [
+                    {
+                        "system" : "http://snomed.info/sct", 
+                        "code" : "736271009", 
+                        "display" : "Outpatient care plan""
+                    }
+                ]"
+            }
+        ], 
+        "intent" : "plan", 
+        "description" : "' . $rtl . '", 
+        "subject" : {
+            "reference" : "Patient/' . $ihs_patient . '", 
+            "display" : "' . $nama_pasien . '"
+        }, 
+        "encounter" : {
+            "reference": "Encounter/' . $encounter_id . '",
+            "display": "' . $kunjungan . ' ' . $nama_pasien . ' dari tanggal ' . $tgl_registrasi . '"
+        }, 
+        "created" : "' . $pemeriksaan['tgl_perawatan'] . 'T' . $pemeriksaan['jam_rawat'] . $zonawaktu . '"
+        "author" : {
+            "reference" : "Practitioner/' . $kd_dokter . '", 
+            "display" : "' . $nama_dokter . '"
+        }
+      }',
+    ));
+
+    $response = curl_exec($curl);
+
+    $decoded = json_decode($response);
+    $id_careplan = (is_object($decoded) && isset($decoded->id)) ? $decoded->id : null;
+    $pesan = 'Gagal mengirim careplan platform Satu Sehat!!';
+    if ($id_careplan) {
+      $mlite_satu_sehat_response = $this->db('mlite_satu_sehat_response')->where('no_rawat', $no_rawat)->oneArray();
+      if ($mlite_satu_sehat_response) {
+        $this->db('mlite_satu_sehat_response')
+          ->where('no_rawat', $no_rawat)
+          ->save([
+            'no_rawat' => $no_rawat,
+            'id_careplan' => $id_careplan
+          ]);
+      } else {
+        $this->db('mlite_satu_sehat_response')
+          ->save([
+            'no_rawat' => $no_rawat,
+            'id_careplan' => $id_careplan
+          ]);
+      }
+      $pesan = 'Sukses mengirim careplan platform Satu Sehat!!';
+    }
+
+    curl_close($curl);
+
+    if ($render) {
+      echo $this->draw('careplan.html', ['pesan' => $pesan, 'response' => $response]);
+    } else {
+      echo $response;
+    }
     exit();
   }
 
@@ -5405,7 +5362,7 @@ class Admin extends AdminModule
     $parsed = parse_url($url);
     $baseUrl = $parsed['scheme'] . '://' . $parsed['host'];
 
-    if (!json_decode($this->getToken())->access_token) {
+    if ($this->getAccessToken() === '') {
       return ['error' => 'Gagal mendapatkan access token'];
     }
 
@@ -5414,7 +5371,7 @@ class Admin extends AdminModule
       CURLOPT_URL => $baseUrl . '/kfa-v2/products/all?page=1&size=5&product_type=farmasi&keyword=' . urlencode($keyword),
       CURLOPT_RETURNTRANSFER => true,
       CURLOPT_HTTPHEADER => [
-        'Authorization: Bearer ' . json_decode($this->getToken())->access_token,
+        'Authorization: Bearer ' . $this->getAccessToken(),
         'Accept: application/json'
       ]
     ]);
@@ -5432,7 +5389,7 @@ class Admin extends AdminModule
     $parsed = parse_url($url);
     $baseUrl = $parsed['scheme'] . '://' . $parsed['host'];
 
-    if (!json_decode($this->getToken())->access_token) {
+    if ($this->getAccessToken() === '') {
       return ['error' => 'Gagal mendapatkan access token'];
     }
 
@@ -5441,7 +5398,7 @@ class Admin extends AdminModule
       CURLOPT_URL => $baseUrl . '/kfa-v2/products?identifier=kfa&code=' . urlencode($keyword),
       CURLOPT_RETURNTRANSFER => true,
       CURLOPT_HTTPHEADER => [
-        'Authorization: Bearer ' . json_decode($this->getToken())->access_token,
+        'Authorization: Bearer ' . $this->getAccessToken(),
         'Accept: application/json'
       ]
     ]);
@@ -5739,29 +5696,30 @@ class Admin extends AdminModule
   public function postResponseApi()
   {
     $this->_addHeaderFiles();
-    $periode = date('Y-m-d');
-    if (isset($_GET['periode']) && $_GET['periode'] != '') {
-        $periode = $_GET['periode'];
-    }
+    // Ambil rentang tanggal dari query string
+    $start_date = isset($_GET['tanggal_awal']) && $_GET['tanggal_awal'] !== '' ? $_GET['tanggal_awal'] : date('Y-m-d');
+    $end_date   = isset($_GET['tanggal_akhir']) && $_GET['tanggal_akhir'] !== '' ? $_GET['tanggal_akhir'] : $start_date;
 
-    if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $periode)) {
-        $periode = date('Y-m-d'); // fallback
+    // Validasi format YYYY-MM-DD
+    if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $start_date)) {
+      $start_date = date('Y-m-d');
+    }
+    if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $end_date)) {
+      $end_date = $start_date;
+    }
+    // Pastikan urutan start <= end
+    if ($start_date > $end_date) {
+      $tmp = $start_date; $start_date = $end_date; $end_date = $tmp;
     }
 
     $start  = intval($_POST['start'] ?? 0);
     $length = intval($_POST['length'] ?? 10);
     $draw   = intval($_POST['draw'] ?? 1); // untuk datatables tracking
 
-    // Hitung total records tanpa filter (total di DB pada tanggal itu)
-    // $totalRecords = $this->db('reg_periksa')
-    //     ->where('tgl_registrasi', $periode)
-    //     ->where('stts', '!=', 'Batal')
-    //     ->where('status_lanjut', 'Ralan')
-    //     ->count();    
-
     $data_response = [];
     $query = $this->db('reg_periksa')
-      ->where('reg_periksa.tgl_registrasi', $periode)
+      ->where('reg_periksa.tgl_registrasi', '>=', $start_date)
+      ->where('reg_periksa.tgl_registrasi', '<=', $end_date)
       ->where('stts', '!=', 'Batal')
       ->where('status_lanjut', 'Ralan')
       ->limit($length)
@@ -5769,7 +5727,8 @@ class Admin extends AdminModule
       ->toArray();
 
     $total = $this->db('reg_periksa')->select('no_rawat')
-      ->where('reg_periksa.tgl_registrasi', $periode)
+      ->where('reg_periksa.tgl_registrasi', '>=', $start_date)
+      ->where('reg_periksa.tgl_registrasi', '<=', $end_date)
       ->where('stts', '!=', 'Batal')
       ->where('status_lanjut', 'Ralan')
       ->count();
@@ -5785,23 +5744,9 @@ class Admin extends AdminModule
       $row['nm_poli'] = $this->core->getPoliklinikInfo('nm_poli', $row['kd_poli']);
 
       $praktisi_id = $this->db('mlite_satu_sehat_mapping_praktisi')->where('kd_dokter', $row['kd_dokter'])->oneArray();
-      $row['praktisi_id'] = $praktisi_id['practitioner_id'];
+      $row['praktisi_id'] = (is_array($praktisi_id) && isset($praktisi_id['practitioner_id'])) ? $praktisi_id['practitioner_id'] : '';
 
       $mlite_billing = $this->db('mlite_billing')->where('no_rawat', $row['no_rawat'])->oneArray();
-      if ($this->settings->get('satu_sehat.billing') == 'khanza') {
-        $mlite_billing = $this->db('nota_jalan')->select([
-          'tgl_billing' => 'tanggal'
-        ])
-          ->where('no_rawat', $row['no_rawat'])
-          ->oneArray();
-        if ($status_lanjut == 'Ranap') {
-          $mlite_billing = $this->db('nota_inap')->select([
-            'tgl_billing' => 'tanggal'
-          ])
-            ->where('no_rawat', $row['no_rawat'])
-            ->oneArray();
-        }
-      }
       $row['tgl_pulang'] = isset_or($mlite_billing['tgl_billing'], '');
 
       if ($row['status_lanjut'] == 'Ranap') {
@@ -5842,8 +5787,8 @@ class Admin extends AdminModule
         ->where('prioritas', '1')
         ->oneArray();
 
-      // $row['adime_gizi'] = $this->db('catatan_adime_gizi')
-      //   ->where('no_rawat', $row['no_rawat'])->oneArray();
+      $row['adime_gizi'] = $this->db('catatan_adime_gizi')
+        ->where('no_rawat', $row['no_rawat'])->oneArray();
 
       $row['immunization'] = $this->db('resep_obat')
         ->join('resep_dokter','resep_dokter.no_resep=resep_obat.no_resep')
@@ -5871,7 +5816,7 @@ class Admin extends AdminModule
 
       $row['observation_radiologi'] = isset_or($row['permintaan_radiologi']['tgl_hasil'], '');
 
-      $row['diagnostic_report_radiologi'] = $row['permintaan_radiologi'];
+      $row['diagnostic_report_radiologi'] = isset_or($row['permintaan_radiologi']['tgl_hasil'], '');
 
       $row['permintaan_lab'] = $this->db('permintaan_lab')
         ->where('no_rawat', $row['no_rawat'])
@@ -5883,25 +5828,25 @@ class Admin extends AdminModule
 
       $row['service_request_lab_mb'] = isset_or($row['permintaan_lab']['tgl_permintaan'], '');
 
-      $row['specimen_lab_pk'] = $row['permintaan_lab'];
+      $row['specimen_lab_pk'] = isset_or($row['permintaan_lab']['tgl_sampel'], '');
 
       $row['specimen_lab_pa'] = $row['permintaan_lab'];
 
       $row['specimen_lab_mb'] = $row['permintaan_lab'];
 
-      $row['observation_lab_pk'] = $row['permintaan_lab'];
+      $row['observation_lab_pk'] = isset_or($row['permintaan_lab']['tgl_hasil'], '');
 
       $row['observation_lab_pa'] = $row['permintaan_lab'];
 
       $row['observation_lab_mb'] = $row['permintaan_lab'];
 
-      $row['diagnostic_report_lab_pk'] = $row['permintaan_lab'];
+      $row['diagnostic_report_lab_pk'] = isset_or($row['permintaan_lab']['tgl_hasil'], '');
 
       $row['diagnostic_report_lab_pa'] = $row['permintaan_lab'];
 
       $row['diagnostic_report_lab_mb'] = $row['permintaan_lab'];
 
-      $row['care_plan'] = $row['pemeriksaan'];
+      $row['care_plan'] = isset_or($row['pemeriksaan']['rtl'], '');
 
       $row['id_encounter'] = isset_or($mlite_satu_sehat_response['id_encounter'], '');
       $row['id_condition'] = isset_or($mlite_satu_sehat_response['id_condition'], '');
@@ -5928,10 +5873,10 @@ class Admin extends AdminModule
       $row['id_medication_request'] = isset_or($mlite_satu_sehat_response['id_medication_request'], '');
       $row['id_medication_dispense'] = isset_or($mlite_satu_sehat_response['id_medication_dispense'], '');
       $row['id_medication_statement'] = isset_or($mlite_satu_sehat_response['id_medication_statement'], '');
-      $row['id_service_request_radiologi'] = isset_or($mlite_satu_sehat_response['id_service_request_radiologi'], '');
-      $row['id_specimen_radiologi'] = isset_or($mlite_satu_sehat_response['id_specimen_radiologi'], '');
-      $row['id_observation_radiologi'] = isset_or($mlite_satu_sehat_response['id_observation_radiologi'], '');
-      $row['id_diagnostic_report_radiologi'] = isset_or($mlite_satu_sehat_response['id_diagnostic_report_radiologi'], '');
+      $row['id_rad_request'] = isset_or($mlite_satu_sehat_response['id_rad_request'], '');
+      $row['id_rad_specimen'] = isset_or($mlite_satu_sehat_response['id_rad_specimen'], '');
+      $row['id_rad_observation'] = isset_or($mlite_satu_sehat_response['id_rad_observation'], '');
+      $row['id_rad_diagnostic'] = isset_or($mlite_satu_sehat_response['id_rad_diagnostic'], '');
       $row['id_lab_pk_request'] = isset_or($mlite_satu_sehat_response['id_lab_pk_request'], '');
       $row['id_service_request_lab_pa'] = isset_or($mlite_satu_sehat_response['id_service_request_lab_pa'], '');
       $row['id_service_request_lab_mb'] = isset_or($mlite_satu_sehat_response['id_service_request_lab_mb'], '');
@@ -6033,20 +5978,57 @@ class Admin extends AdminModule
     // auth to satusehat
     $auth_result = $this->authenticateWithOAuth2($client_id, $client_secret, $auth_url);
 
+    // Validate authentication result
+    if ($auth_result === null) {
+      error_log('Satu Sehat authentication failed: Invalid client credentials or auth URL');
+      return $this->draw('error.html', [
+        'title' => 'Authentication Error',
+        'message' => 'Failed to authenticate with Satu Sehat API. Please check your client credentials and try again.'
+      ]);
+    }
+
+    // Log successful authentication
+    error_log('Satu Sehat authentication successful');
+
     // Example usage
-    $kyc = new Kyc;
-    $json = $kyc->generateUrl($agent_name, $agent_nik, $auth_result, $api_url, $environment);
+    try {
+      $kyc = new Kyc;
+      $json = $kyc->generateUrl($agent_name, $agent_nik, $auth_result, $api_url, $environment);
 
-    $validation_web = json_decode($json, TRUE);
+      $validation_web = json_decode($json, TRUE);
+      
+      if (json_last_error() !== JSON_ERROR_NONE) {
+        error_log('Satu Sehat KYC JSON Parse Error: ' . json_last_error_msg() . ' - Response: ' . $json);
+        return $this->draw('error.html', [
+          'title' => 'KYC Response Error',
+          'message' => 'Failed to parse KYC response from Satu Sehat API. Please try again later.'
+        ]);
+      }
 
-    $url = $validation_web["data"]["url"];
+      if (!isset($validation_web["data"]["url"])) {
+        error_log('Satu Sehat KYC Error: No URL in response - ' . $json);
+        return $this->draw('error.html', [
+          'title' => 'KYC URL Error',
+          'message' => 'KYC URL not found in Satu Sehat API response. Please check your configuration.'
+        ]);
+      }
 
-    return $this->draw('kyc.html', ['url' => $url]);
+      $url = $validation_web["data"]["url"];
+      error_log('Satu Sehat KYC URL generated successfully');
+
+      return $this->draw('kyc.html', ['url' => $url]);
+      
+    } catch (\Exception $e) {
+      error_log('Satu Sehat KYC Exception: ' . $e->getMessage());
+      return $this->draw('error.html', [
+        'title' => 'KYC Generation Error',
+        'message' => 'An error occurred while generating KYC URL: ' . $e->getMessage()
+      ]);
+    }
   }
 
   public function authenticateWithOAuth2($clientId, $clientSecret, $tokenUrl)
   {
-
     $curl = curl_init();
     $params = [
       'grant_type' => 'client_credentials',
@@ -6059,7 +6041,7 @@ class Admin extends AdminModule
       CURLOPT_RETURNTRANSFER => true,
       CURLOPT_ENCODING => '',
       CURLOPT_MAXREDIRS => 10,
-      CURLOPT_TIMEOUT => 0,
+      CURLOPT_TIMEOUT => 30,
       CURLOPT_FOLLOWLOCATION => true,
       CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
       CURLOPT_CUSTOMREQUEST => 'POST',
@@ -6070,14 +6052,64 @@ class Admin extends AdminModule
     ));
 
     $response = curl_exec($curl);
-
+    $httpCode = curl_getinfo($curl, CURLINFO_HTTP_CODE);
+    $curlError = curl_error($curl);
+    
     curl_close($curl);
-    // echo $response;
+
+    // Check for cURL errors
+    if ($curlError) {
+      error_log('Satu Sehat OAuth2 cURL Error: ' . $curlError);
+      return null;
+    }
+
+    // Check HTTP status code
+    if ($httpCode !== 200) {
+      error_log('Satu Sehat OAuth2 HTTP Error: ' . $httpCode . ' - Response: ' . $response);
+      return null;
+    }
+
     // Parse the response body
     $data = json_decode($response, true);
+    
+    if (json_last_error() !== JSON_ERROR_NONE) {
+      error_log('Satu Sehat OAuth2 JSON Parse Error: ' . json_last_error_msg() . ' - Response: ' . $response);
+      return null;
+    }
 
+    // Check if access token exists in response
+    if (!isset($data['access_token'])) {
+      error_log('Satu Sehat OAuth2 Error: No access token in response - ' . json_encode($data));
+      return null;
+    }
+
+    // Log successful authentication (without exposing the token)
+    error_log('Satu Sehat OAuth2 authentication successful');
+    
     // Return the access token
     return $data['access_token'];
+  }
+
+  public function get($url) {
+      $ch = curl_init($url);
+      curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+      $res = curl_exec($ch);
+      curl_close($ch);
+      return $res;
+  }
+
+  public function postFHIR($url, $token, $data) {
+      $ch = curl_init($url);
+      curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+      curl_setopt($ch, CURLOPT_POST, true);
+      curl_setopt($ch, CURLOPT_HTTPHEADER, [
+          "Content-Type: application/fhir+json",
+          "Authorization: Bearer $token"
+      ]);
+      curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
+      $response = curl_exec($ch);
+      curl_close($ch);
+      return $response;
   }
 
   private function _addHeaderFiles()

@@ -31,29 +31,9 @@
               {if: $this->core->getUserInfo('role') == 'admin' || $this->core->getUserInfo('role') == 'medis' || $this->core->getUserInfo('role') == 'paramedis'}
               <li><a href="#soap" data-no_rawat="{$value.no_rawat}" data-no_rkm_medis="{$value.no_rkm_medis}" data-nm_pasien="{$value.nm_pasien}" data-umur="{$value.umurdaftar} {$value.sttsumur}">SOAPIE & Pemeriksaan</a></li>
               <li><a href="#layanan_obat" data-no_rawat="{$value.no_rawat}" data-no_rkm_medis="{$value.no_rkm_medis}" data-nm_pasien="{$value.nm_pasien}">Layanan & Obat</a></li>
-              <li class="dropdown-submenu">
-                <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">Penilaian Keperawatan</a>
-                <ul class="dropdown-menu">
-                  <li><a href="{?=url([ADMIN,'penilaian_keperawatan_ralan','manage'])?}&no_rawat={$value.no_rawat}">Keperawatan Umum</a></li>
-                  <li><a href="{?=url([ADMIN,'penilaian_keperawatan_gigi','manage'])?}&no_rawat={$value.no_rawat}">Keperawatan Gigi</a></li>
-                </ul>
-              </li>
               <li><a href="#set_poli_tujuan" data-no_rawat="{$value.no_rawat}">Poli Tujuan Pelayanan</a></li>
               {/if}
-              <li class="dropdown-submenu">
-                <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">Surat-Surat</a>
-                <ul class="dropdown-menu">
-                  <li><a href="#cover_rm" data-no_rkm_medis="{$value.no_rkm_medis}">Cover Rekam Medis</a></li>
-                  <li><a href="#identitas_pasien" data-no_rkm_medis="{$value.no_rkm_medis}">Identitas Pasien</a></li>
-                  <li><a href="{?=url([ADMIN,'oral_diagnostic','persetujuanumum',$value.no_rkm_medis])?}" target="_blank">Persetujuan Umum</a></li>
-                  <li><a href="{?=url([ADMIN,'oral_diagnostic','suratrujukan',convertNorawat($value.no_rawat)])?}" target="_blank">Surat Rujukan</a></li>
-                  <li><a href="{?=url([ADMIN,'oral_diagnostic','suratsehat',convertNorawat($value.no_rawat)])?}" target="_blank">Surat Keterangan Sehat</a></li>
-                  <li><a href="{?=url([ADMIN,'oral_diagnostic','suratsakit',convertNorawat($value.no_rawat)])?}" target="_blank">Surat Keterangan Sakit</a></li>
-                </ul>
-              </li>
               {if: $this->core->getUserInfo('role') == 'admin' || $this->core->getUserInfo('role') == 'medis' || $this->core->getUserInfo('role') == 'paramedis'}
-              <li><a href="{?=url([ADMIN,'peta_mukosa_rongga_mulut','manage'])?}&no_rawat={$value.no_rawat}">Peta Mukosa Oral</a></li>
-              <li><a href="{?=url([ADMIN,'penilaian_ulang_nyeri','manage'])?}&no_rawat={$value.no_rawat}">Penilaian Ulang Nyeri</a></li>
               <li><a href="#berkas_digital" data-no_rawat="{$value.no_rawat}" data-no_rkm_medis="{$value.no_rkm_medis}" data-nm_pasien="{$value.nm_pasien}">Berkas Digital</a></li>
               {/if}
             </ul>
@@ -359,12 +339,13 @@
           callback() {
             var kd_poli = $('#kd_poli').find(':selected').val();
             var kd_dokter = $('#kd_dokter').find(':selected').val();
-            //console.log(tgl_keluar);
+            console.log(url);
             $.post(url, {
               no_rawat: no_rawat,
               kd_poli: kd_poli,
               kd_dokter: kd_dokter
             } ,function(data) {
+              console.log(data);
               // sembunyikan form, tampilkan data yang sudah di perbaharui, tampilkan notif
               $("#display").load(baseURL + '/oral_diagnostic/display?t=' + mlite.token);
               $('#notif').html("<div class=\"alert alert-success alert-dismissible fade in\" role=\"alert\" style=\"border-radius:0px;margin-top:-15px;\">"+

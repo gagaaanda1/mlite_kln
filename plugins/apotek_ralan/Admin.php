@@ -5,6 +5,7 @@ use Systems\AdminModule;
 
 class Admin extends AdminModule
 {
+    protected array $assign = [];
 
     public function navigation()
     {
@@ -140,8 +141,8 @@ class Admin extends AdminModule
             'h_beli' => $_POST['biaya'],
             'biaya_obat' => $_POST['biaya'],
             'jml' => $_POST['jml'],
-            'embalase' => '0',
-            'tuslah' => '0',
+            'embalase' => $_POST['embalase'],
+            'tuslah' => $_POST['tuslah'],
             'total' => $_POST['biaya'] * $_POST['jml'],
             'status' => 'Ralan',
             'kd_bangsal' => $this->settings->get('farmasi.deporalan'),
@@ -215,13 +216,22 @@ class Admin extends AdminModule
               'h_beli' => $kapasitas['h_beli'],
               'biaya_obat' => $kapasitas['dasar'],
               'jml' => $jml,
-              'embalase' => '0',
-              'tuslah' => '0',
+              'embalase' => $_POST['embalase'],
+              'tuslah' => $_POST['tuslah'],
               'total' => $kapasitas['dasar'] * $jml,
               'status' => 'Ralan',
               'kd_bangsal' => $this->settings->get('farmasi.deporalan'),
               'no_batch' => $get_gudangbarang['no_batch'],
               'no_faktur' => $get_gudangbarang['no_faktur']
+            ]);
+
+          $this->db('detail_obat_racikan')
+            ->save([
+              'tgl_perawatan' => $_POST['tgl_perawatan'],
+              'jam' => $_POST['jam_rawat'],
+              'no_rawat' => $_POST['no_rawat'],
+              'no_racik' => $no_racik,
+              'kode_brng' => $_POST['kode_brng'][$i]['value']
             ]);          
 
         }        
@@ -246,16 +256,61 @@ class Admin extends AdminModule
           ->toArray();
         $get_resep_dokter_racikan = $this->db('resep_dokter_racikan')
           ->select([
+              'no_racik' => 'resep_dokter_racikan.no_racik',
+              'nama_racik' => 'resep_dokter_racikan.nama_racik',
+              'kd_racik' => 'resep_dokter_racikan.kd_racik',
+              'jml_dr' => 'resep_dokter_racikan.jml_dr',
+              'keterangan' => 'resep_dokter_racikan.keterangan',
               'kode_brng' => 'kode_brng',
               'jml' => 'jml',
               'aturan_pakai' => 'aturan_pakai'
             ])
-          ->join('resep_dokter_racikan_detail', 'resep_dokter_racikan_detail.no_resep=resep_dokter_racikan.no_resep')
+          ->join('resep_dokter_racikan_detail', 'resep_dokter_racikan_detail.no_resep=resep_dokter_racikan.no_resep AND resep_dokter_racikan.no_racik=resep_dokter_racikan_detail.no_racik')
           ->where('resep_dokter_racikan.no_resep', $_POST['no_resep'])
-          // ->where('resep_dokter_racikan.no_racik=resep_dokter_racikan_detail.no_racik')
           ->toArray();
         $get_resep_dokter = array_merge($get_resep_dokter_nonracikan, $get_resep_dokter_racikan);
+
+        if(!empty($get_resep_dokter_racikan)) {
+            // Group by no_racik to avoid duplicate inserts
+            $racikan_unique = [];
+            foreach ($get_resep_dokter_racikan as $row) {
+                if (!isset($racikan_unique[$row['no_racik']])) {
+                    $racikan_unique[$row['no_racik']] = $row;
+                }
+            }
+            
+            foreach ($racikan_unique as $racikan) {
+                $this->db('obat_racikan')->save(
+                    [
+                        'tgl_perawatan' => $tgl_rawat,
+                        'jam' => $jam_rawat,
+                        'no_rawat' => $_POST['no_rawat'],
+                        'no_racik' => $racikan['no_racik'],
+                        'nama_racik' => $racikan['nama_racik'],
+                        'kd_racik' => $racikan['kd_racik'],
+                        'jml_dr' => $racikan['jml_dr'],
+                        'aturan_pakai' => $racikan['aturan_pakai'],
+                        'keterangan' => $racikan['keterangan']
+                    ]
+                );
+            }
+        }
+
+        $embalaseData = isset($_POST['embalase']) ? json_decode($_POST['embalase'], true) : [];
+        $tuslahData = isset($_POST['tuslah']) ? json_decode($_POST['tuslah'], true) : [];
+        $jumlahData = isset($_POST['jumlah']) ? json_decode($_POST['jumlah'], true) : [];
+        $kandunganData = isset($_POST['kandungan']) ? json_decode($_POST['kandungan'], true) : [];
+
         foreach ($get_resep_dokter as $item) {
+
+          $jumlah = isset($jumlahData[$item['kode_brng']]) ? $jumlahData[$item['kode_brng']] : $item['jml'];
+          $kandungan = isset($kandunganData[$item['kode_brng']]) ? $kandunganData[$item['kode_brng']] : (isset($item['kandungan']) ? $item['kandungan'] : 0);
+
+          if(isset($item['no_racik'])) {
+             $kapasitas = $this->db('databarang')->where('kode_brng', $item['kode_brng'])->oneArray();
+             $jumlah_racik = $jumlah;
+             $jumlah = round(($jumlah_racik * $kandungan) / $kapasitas['kapasitas'], 0);
+          }
 
           $get_gudangbarang = $this->db('gudangbarang')->where('kode_brng', $item['kode_brng'])->where('kd_bangsal', $this->settings->get('farmasi.deporalan'))->oneArray();
           $get_databarang = $this->db('databarang')->where('kode_brng', $item['kode_brng'])->oneArray();
@@ -264,16 +319,40 @@ class Admin extends AdminModule
             ->where('kode_brng', $item['kode_brng'])
             ->where('kd_bangsal', $this->settings->get('farmasi.deporalan'))
             ->update([
-              'stok' => $get_gudangbarang['stok'] - $item['jml']
+              'stok' => $get_gudangbarang['stok'] - $jumlah
             ]);
+
+          if(isset($item['no_racik'])) {
+            $this->db('resep_dokter_racikan')
+              ->where('no_resep', $_POST['no_resep'])
+              ->where('no_racik', $item['no_racik'])
+              ->update([
+                'jml_dr' => $jumlah_racik
+              ]);
+            $this->db('resep_dokter_racikan_detail')
+              ->where('no_resep', $_POST['no_resep'])
+              ->where('no_racik', $item['no_racik'])
+              ->where('kode_brng', $item['kode_brng'])
+              ->update([
+                'jml' => $jumlah,
+                'kandungan' => $kandungan
+              ]);
+          } else {
+            $this->db('resep_dokter')
+              ->where('no_resep', $_POST['no_resep'])
+              ->where('kode_brng', $item['kode_brng'])
+              ->update([
+                'jml' => $jumlah
+              ]);
+          }
 
           $this->db('riwayat_barang_medis')
             ->save([
               'kode_brng' => $item['kode_brng'],
               'stok_awal' => $get_gudangbarang['stok'],
               'masuk' => '0',
-              'keluar' => $item['jml'],
-              'stok_akhir' => $get_gudangbarang['stok'] - $item['jml'],
+              'keluar' => $jumlah,
+              'stok_akhir' => $get_gudangbarang['stok'] - $jumlah,
               'posisi' => 'Pemberian Obat',
               'tanggal' => $tgl_rawat,
               'jam' => $jam_rawat,
@@ -285,6 +364,9 @@ class Admin extends AdminModule
               'keterangan' => $_POST['no_rawat'] . ' ' . $this->core->getRegPeriksaInfo('no_rkm_medis', $_POST['no_rawat']) . ' ' . $this->core->getPasienInfo('nm_pasien', $this->core->getRegPeriksaInfo('no_rkm_medis', $_POST['no_rawat']))
             ]);
 
+          $embalase = isset($embalaseData[$item['kode_brng']]) ? $embalaseData[$item['kode_brng']] : $this->settings->get('farmasi.embalase');
+          $tuslah = isset($tuslahData[$item['kode_brng']]) ? $tuslahData[$item['kode_brng']] : $this->settings->get('farmasi.tuslah');
+
           $this->db('detail_pemberian_obat')
             ->save([
               'tgl_perawatan' => $tgl_rawat,
@@ -293,10 +375,10 @@ class Admin extends AdminModule
               'kode_brng' => $item['kode_brng'],
               'h_beli' => $get_databarang['h_beli'],
               'biaya_obat' => $get_databarang['dasar'],
-              'jml' => $item['jml'],
-              'embalase' => '0',
-              'tuslah' => '0',
-              'total' => $get_databarang['dasar'] * $item['jml'],
+              'jml' => $jumlah,
+              'embalase' => $embalase,
+              'tuslah' => $tuslah,
+              'total' => ($get_databarang['dasar'] * $jumlah) + $embalase + $tuslah,
               'status' => 'Ralan',
               'kd_bangsal' => $this->settings->get('farmasi.deporalan'),
               'no_batch' => $get_gudangbarang['no_batch'],
@@ -312,28 +394,200 @@ class Admin extends AdminModule
               'aturan' => $item['aturan_pakai']
             ]);
 
-        }
-
-        $resep_dokter_racikan = $this->db('resep_dokter_racikan')->where('no_resep', $_POST['no_resep'])->oneArray();
-
-        if(!empty($resep_dokter_racikan)) {
-          $this->db('obat_racikan')->save(
-            [
+          if(isset($item['no_racik'])) {
+            $this->db('detail_obat_racikan')
+              ->save([
                 'tgl_perawatan' => $tgl_rawat,
                 'jam' => $jam_rawat,
                 'no_rawat' => $_POST['no_rawat'],
-                'no_racik' => $resep_dokter_racikan['no_racik'],
-                'nama_racik' => $resep_dokter_racikan['nama_racik'],
-                'kd_racik' => $resep_dokter_racikan['kd_racik'],
-                'jml_dr' => $resep_dokter_racikan['jml_dr'],
-                'aturan_pakai' => $resep_dokter_racikan['aturan_pakai'],
-                'keterangan' => $resep_dokter_racikan['keterangan']
-            ]
-          );
+                'no_racik' => $item['no_racik'],
+                'kode_brng' => $item['kode_brng']
+              ]);
+          }
+
         }
+
         $this->db('resep_obat')->where('no_resep', $_POST['no_resep'])->save(['tgl_perawatan' => $tgl_rawat, 'jam' => $jam_rawat]);
       }
       exit();
+    }
+
+    public function postTambahItemResep()
+    {
+      $no_resep = $_POST['no_resep'];
+      $no_rawat = revertNorawat($_POST['no_rawat']);
+      $tgl_peresepan = $_POST['tgl_peresepan'];
+      $jam_peresepan = $_POST['jam_peresepan'];
+      $kode_brng = $_POST['kode_brng'];
+      $tipe = isset($_POST['tipe']) ? $_POST['tipe'] : 'nonracikan';
+      
+      $tgl_rawat = date('Y-m-d');
+      $jam_rawat = date('H:i:s');
+      
+      $embalase = isset($_POST['embalase']) ? $_POST['embalase'] : $this->settings->get('farmasi.embalase');
+      $tuslah = isset($_POST['tuslah']) ? $_POST['tuslah'] : $this->settings->get('farmasi.tuslah');
+      
+      $get_gudangbarang = $this->db('gudangbarang')->where('kode_brng', $kode_brng)->where('kd_bangsal', $this->settings->get('farmasi.deporalan'))->oneArray();
+      $get_databarang = $this->db('databarang')->where('kode_brng', $kode_brng)->oneArray();
+
+      if ($tipe == 'racikan') {
+          $no_racik = $_POST['no_racik'];
+          $kandungan = $_POST['kandungan'];
+          $jml_dr = $_POST['jml_dr']; // Jumlah racikan (bungkus)
+          $kapasitas = $get_databarang['kapasitas'] > 0 ? $get_databarang['kapasitas'] : 1;
+          
+          // Hitung jumlah obat
+          $jml = round(($jml_dr * $kandungan) / $kapasitas, 1);
+          
+          // Kurangi stok
+          $this->db('gudangbarang')
+            ->where('kode_brng', $kode_brng)
+            ->where('kd_bangsal', $this->settings->get('farmasi.deporalan'))
+            ->update([
+              'stok' => $get_gudangbarang['stok'] - $jml
+            ]);
+
+          // Riwayat
+          $this->db('riwayat_barang_medis')
+            ->save([
+              'kode_brng' => $kode_brng,
+              'stok_awal' => $get_gudangbarang['stok'],
+              'masuk' => '0',
+              'keluar' => $jml,
+              'stok_akhir' => $get_gudangbarang['stok'] - $jml,
+              'posisi' => 'Pemberian Obat',
+              'tanggal' => $tgl_rawat,
+              'jam' => $jam_rawat,
+              'petugas' => $this->core->getUserInfo('fullname', null, true),
+              'kd_bangsal' => $this->settings->get('farmasi.deporalan'),
+              'status' => 'Simpan',
+              'no_batch' => $get_gudangbarang['no_batch'],
+              'no_faktur' => $get_gudangbarang['no_faktur'],
+              'keterangan' => $_POST['no_rawat'] . ' ' . $this->core->getRegPeriksaInfo('no_rkm_medis', $_POST['no_rawat']) . ' ' . $this->core->getPasienInfo('nm_pasien', $this->core->getRegPeriksaInfo('no_rkm_medis', $_POST['no_rawat']))
+            ]);
+
+          // Simpan ke detail racikan
+          // $this->db('resep_dokter_racikan_detail')
+          //   ->save([
+          //       'no_resep' => $no_resep,
+          //       'no_racik' => $no_racik,
+          //       'kode_brng' => $kode_brng,
+          //       'p1' => 1, // Default
+          //       'p2' => 1, // Default
+          //       'kandungan' => $kandungan,
+          //       'jml' => $jml
+          //   ]);
+
+          // Simpan ke detail pemberian obat (billing)
+          $this->db('detail_pemberian_obat')
+            ->save([
+              'tgl_perawatan' => $tgl_rawat,
+              'jam' => $jam_rawat,
+              'no_rawat' => $no_rawat,
+              'kode_brng' => $kode_brng,
+              'h_beli' => $get_databarang['h_beli'],
+              'biaya_obat' => $get_databarang['dasar'],
+              'jml' => $jml,
+              'embalase' => $embalase,
+              'tuslah' => $tuslah,
+              'total' => ($get_databarang['dasar'] * $jml) + $embalase + $tuslah,
+              'status' => 'Ralan',
+              'kd_bangsal' => $this->settings->get('farmasi.deporalan'),
+              'no_batch' => $get_gudangbarang['no_batch'],
+              'no_faktur' => $get_gudangbarang['no_faktur']
+            ]);
+
+          $this->db('detail_obat_racikan')
+            ->save([
+              'tgl_perawatan' => $tgl_rawat,
+              'jam' => $jam_rawat,
+              'no_rawat' => $no_rawat,
+              'no_racik' => $no_racik,
+              'kode_brng' => $kode_brng
+            ]);
+            
+          header('Content-Type: application/json');
+          echo json_encode([
+            'kode_brng' => $kode_brng,
+            'nama_brng' => $get_databarang['nama_brng'] ?? 'Nama Obat Tidak Ditemukan',
+            'jml' => $jml,
+            'kandungan' => $kandungan,
+            'kapasitas' => $kapasitas,
+            'ralan' => isset($get_databarang['dasar']) ? $get_databarang['dasar'] : 0,
+            'embalase' => $embalase,
+            'tuslah' => $tuslah
+          ]);
+          exit();
+
+      } else {
+          // Logika Non-Racikan (Existing)
+          $jml = $_POST['jml'];
+          $aturan_pakai = $_POST['aturan_pakai'];
+          
+          $this->db('gudangbarang')
+            ->where('kode_brng', $kode_brng)
+            ->where('kd_bangsal', $this->settings->get('farmasi.deporalan'))
+            ->update([
+              'stok' => $get_gudangbarang['stok'] - $jml
+            ]);
+
+          $this->db('riwayat_barang_medis')
+            ->save([
+              'kode_brng' => $kode_brng,
+              'stok_awal' => $get_gudangbarang['stok'],
+              'masuk' => '0',
+              'keluar' => $jml,
+              'stok_akhir' => $get_gudangbarang['stok'] - $jml,
+              'posisi' => 'Pemberian Obat',
+              'tanggal' => $tgl_rawat,
+              'jam' => $jam_rawat,
+              'petugas' => $this->core->getUserInfo('fullname', null, true),
+              'kd_bangsal' => $this->settings->get('farmasi.deporalan'),
+              'status' => 'Simpan',
+              'no_batch' => $get_gudangbarang['no_batch'],
+              'no_faktur' => $get_gudangbarang['no_faktur'],
+              'keterangan' => $_POST['no_rawat'] . ' ' . $this->core->getRegPeriksaInfo('no_rkm_medis', $_POST['no_rawat']) . ' ' . $this->core->getPasienInfo('nm_pasien', $this->core->getRegPeriksaInfo('no_rkm_medis', $_POST['no_rawat']))
+            ]);
+
+          $this->db('detail_pemberian_obat')
+            ->save([
+              'tgl_perawatan' => $tgl_peresepan,
+              'jam' => $jam_peresepan,
+              'no_rawat' => $no_rawat,
+              'kode_brng' => $kode_brng,
+              'h_beli' => $get_databarang['h_beli'],
+              'biaya_obat' => $get_databarang['dasar'],
+              'jml' => $jml,
+              'embalase' => $embalase,
+              'tuslah' => $tuslah,
+              'total' => ($get_databarang['dasar'] * $jml) + $embalase + $tuslah,
+              'status' => 'Ralan',
+              'kd_bangsal' => $this->settings->get('farmasi.deporalan'),
+              'no_batch' => $get_gudangbarang['no_batch'],
+              'no_faktur' => $get_gudangbarang['no_faktur']
+            ]);
+
+          $this->db('aturan_pakai')
+            ->save([
+              'tgl_perawatan' => $tgl_peresepan,
+              'jam' => $jam_peresepan,
+              'no_rawat' => $no_rawat,
+              'kode_brng' => $kode_brng,
+              'aturan' => $aturan_pakai
+            ]);
+
+          header('Content-Type: application/json');
+          echo json_encode([
+            'kode_brng' => $kode_brng,
+            'nama_brng' => $get_databarang['nama_brng'] ?? 'Nama Obat Tidak Ditemukan',
+            'jml' => $jml,
+            'aturan_pakai' => $aturan_pakai,
+            'ralan' => isset($get_databarang['dasar']) ? (($get_databarang['dasar'] * $jml) + $embalase + $tuslah) : 0,
+            'embalase' => $embalase,
+            'tuslah' => $tuslah
+          ]);
+          exit();
+      }
     }
 
     public function postHapusResep()
@@ -355,22 +609,159 @@ class Admin extends AdminModule
       exit();
     }
 
+    public function postHapusObat()
+    {
+
+      $get_gudangbarang = $this->db('gudangbarang')->where('kode_brng', $_POST['kode_brng'])->where('kd_bangsal', $this->settings->get('farmasi.deporalan'))->oneArray();
+
+      $this->db('gudangbarang')
+        ->where('kode_brng', $_POST['kode_brng'])
+        ->where('kd_bangsal', $this->settings->get('farmasi.deporalan'))
+        ->update([
+          'stok' => $get_gudangbarang['stok'] + $_POST['jml']
+        ]);
+
+      $this->db('riwayat_barang_medis')
+        ->save([
+          'kode_brng' => $_POST['kode_brng'],
+          'stok_awal' => $get_gudangbarang['stok'],
+          'masuk' => $_POST['jml'],
+          'keluar' => '0',
+          'stok_akhir' => $get_gudangbarang['stok'] + $_POST['jml'],
+          'posisi' => 'Pemberian Obat',
+          'tanggal' => $_POST['tgl_perawatan'],
+          'jam' => $_POST['jam'],
+          'petugas' => $this->core->getUserInfo('fullname', null, true),
+          'kd_bangsal' => $this->settings->get('farmasi.deporalan'),
+          'status' => 'Hapus',
+          'no_batch' => $get_gudangbarang['no_batch'],
+          'no_faktur' => $get_gudangbarang['no_faktur'],
+          'keterangan' => $_POST['no_rawat'] . ' ' . $this->core->getRegPeriksaInfo('no_rkm_medis', $_POST['no_rawat']) . ' ' . $this->core->getPasienInfo('nm_pasien', $this->core->getRegPeriksaInfo('no_rkm_medis', $_POST['no_rawat']))
+        ]);
+
+      $this->db('detail_pemberian_obat')
+      ->where('kode_brng', $_POST['kode_brng'])
+      ->where('no_rawat', $_POST['no_rawat'])
+      ->where('tgl_perawatan', $_POST['tgl_perawatan'])
+      ->where('jam', $_POST['jam'])
+      ->delete();
+
+      exit();
+    }    
+
+    public function postHapusObatRacikan()
+    {
+      $no_rawat = $_POST['no_rawat'];
+      $tgl_perawatan = $_POST['tgl_perawatan'];
+      $jam = $_POST['jam'];
+      $no_racik = $_POST['no_racik'];
+
+      // 1. Get all items belonging to this specific racikan
+      $items_in_racikan = $this->db('detail_obat_racikan')
+      ->where('no_rawat', $no_rawat)
+      ->where('tgl_perawatan', $tgl_perawatan)
+      ->where('jam', $jam)
+      ->where('no_racik', $no_racik)
+      ->toArray();
+
+      foreach($items_in_racikan as $racikan_item) {
+        
+        $kode_brng = $racikan_item['kode_brng'];
+
+        // 2. Restore Stock (Best Effort)
+        $item_billing = $this->db('detail_pemberian_obat')
+        ->where('no_rawat', $no_rawat)
+        ->where('tgl_perawatan', $tgl_perawatan)
+        ->where('jam', $jam)
+        ->where('kode_brng', $kode_brng)
+        ->oneArray();
+
+        if ($item_billing) {
+            $get_gudangbarang = $this->db('gudangbarang')->where('kode_brng', $kode_brng)->where('kd_bangsal', $this->settings->get('farmasi.deporalan'))->oneArray();
+
+            $this->db('gudangbarang')
+            ->where('kode_brng', $kode_brng)
+            ->where('kd_bangsal', $this->settings->get('farmasi.deporalan'))
+            ->update([
+              'stok' => $get_gudangbarang['stok'] + $item_billing['jml']
+            ]);
+
+            $this->db('riwayat_barang_medis')
+              ->save([
+                'kode_brng' => $kode_brng,
+                'stok_awal' => $get_gudangbarang['stok'],
+                'masuk' => $item_billing['jml'],
+                'keluar' => '0',
+                'stok_akhir' => $get_gudangbarang['stok'] + $item_billing['jml'],
+                'posisi' => 'Pemberian Obat',
+                'tanggal' => $tgl_perawatan,
+                'jam' => $jam,
+                'petugas' => $this->core->getUserInfo('fullname', null, true),
+                'kd_bangsal' => $this->settings->get('farmasi.deporalan'),
+                'status' => 'Hapus',
+                'no_batch' => $get_gudangbarang['no_batch'],
+                'no_faktur' => $get_gudangbarang['no_faktur'],
+                'keterangan' => $no_rawat . ' ' . $this->core->getRegPeriksaInfo('no_rkm_medis', $no_rawat) . ' ' . $this->core->getPasienInfo('nm_pasien', $this->core->getRegPeriksaInfo('no_rkm_medis', $no_rawat))
+              ]);
+        }
+
+        // 3. Delete from detail_pemberian_obat (Unconditional delete based on keys)
+        $this->db('detail_pemberian_obat')
+        ->where('no_rawat', $no_rawat)
+        ->where('tgl_perawatan', $tgl_perawatan)
+        ->where('jam', $jam)
+        ->where('kode_brng', $kode_brng)
+        ->delete();
+
+        // 4. Delete from detail_obat_racikan (per item)
+        $this->db('detail_obat_racikan')
+        ->where('no_rawat', $no_rawat)
+        ->where('tgl_perawatan', $tgl_perawatan)
+        ->where('jam', $jam)
+        ->where('no_racik', $no_racik)
+        ->where('kode_brng', $kode_brng)
+        ->delete();
+      }
+
+      // 5. Finally delete the parent racikan entry
+      $this->db('obat_racikan')
+        ->where('no_rawat', $no_rawat)
+        ->where('tgl_perawatan', $tgl_perawatan)
+        ->where('jam', $jam)
+        ->where('no_racik', $no_racik)
+        ->delete();
+
+      exit();
+    }    
+
     public function anyRincian()
     {
+      $racikan_nos = $this->db('resep_dokter_racikan')->select('no_resep')->toArray();
+      $racikan_nos = array_column($racikan_nos, 'no_resep');
 
       $rows = $this->db('resep_obat')
         ->join('dokter', 'dokter.kd_dokter=resep_obat.kd_dokter')
-        ->join('resep_dokter', 'resep_dokter.no_resep=resep_obat.no_resep')
         ->where('no_rawat', $_POST['no_rawat'])
         ->where('resep_obat.status', 'ralan')
-        ->group('resep_dokter.no_resep')
+        ->group('resep_obat.no_resep')
         ->toArray();
+
+      // Filter out racikan from non-racikan list
+      $rows = array_filter($rows, function($row) use ($racikan_nos) {
+          return !in_array($row['no_resep'], $racikan_nos);
+      });
+
       $resep = [];
       $jumlah_total_resep = 0;
       foreach ($rows as $row) {
-        $row['resep_dokter'] = $this->db('resep_dokter')->join('databarang', 'databarang.kode_brng=resep_dokter.kode_brng')->where('no_resep', $row['no_resep'])->toArray();
+        $bangsal = $this->settings->get('farmasi.deporalan');
+        $row['resep_dokter'] = $this->db('resep_dokter')
+          ->join('databarang', 'databarang.kode_brng=resep_dokter.kode_brng')
+          ->leftJoin('gudangbarang', 'gudangbarang.kode_brng=resep_dokter.kode_brng AND gudangbarang.kd_bangsal = "'.$bangsal.'"')
+          ->where('no_resep', $row['no_resep'])
+          ->toArray();
         foreach ($row['resep_dokter'] as $value) {
-          $value['ralan'] = $value['jml'] * $value['dasar'];
+          $value['ralan'] = ($value['jml'] * $value['dasar']) + $this->settings->get('farmasi.embalase') + $this->settings->get('farmasi.tuslah');
           $jumlah_total_resep += floatval($value['ralan']);
         }
 
@@ -385,18 +776,33 @@ class Admin extends AdminModule
       }
 
       $rows_racikan = $this->db('resep_obat')
+        ->select('resep_obat.*')
+        ->select('dokter.nm_dokter')
+        ->select('resep_dokter_racikan.no_racik')
+        ->select('resep_dokter_racikan.nama_racik')
+        ->select('resep_dokter_racikan.kd_racik')
+        ->select('resep_dokter_racikan.jml_dr')
+        ->select('resep_dokter_racikan.aturan_pakai')
+        ->select('resep_dokter_racikan.keterangan')
         ->join('dokter', 'dokter.kd_dokter=resep_obat.kd_dokter')
         ->join('resep_dokter_racikan', 'resep_dokter_racikan.no_resep=resep_obat.no_resep')
         ->where('no_rawat', $_POST['no_rawat'])
-        ->group('resep_dokter_racikan.no_resep')
         ->where('resep_obat.status', 'ralan')
+        ->group('resep_obat.no_resep')
+        ->group('resep_dokter_racikan.no_racik')
         ->toArray();
       $resep_racikan = [];
       $jumlah_total_resep_racikan = 0;
       foreach ($rows_racikan as $row) {
-        $row['resep_dokter_racikan_detail'] = $this->db('resep_dokter_racikan_detail')->join('databarang', 'databarang.kode_brng=resep_dokter_racikan_detail.kode_brng')->where('no_resep', $row['no_resep'])->toArray();
-        foreach ($row['resep_dokter_racikan_detail'] as $value) {
-          $value['ralan'] = $value['jml'] * $value['dasar'];
+        $bangsal = $this->settings->get('farmasi.deporalan');
+        $row['resep_dokter_racikan_detail'] = $this->db('resep_dokter_racikan_detail')
+          ->join('databarang', 'databarang.kode_brng=resep_dokter_racikan_detail.kode_brng')
+          ->leftJoin('gudangbarang', 'gudangbarang.kode_brng=resep_dokter_racikan_detail.kode_brng AND gudangbarang.kd_bangsal = "'.$bangsal.'"')
+          ->where('no_resep', $row['no_resep'])
+          ->where('no_racik', $row['no_racik'])
+          ->toArray();
+        foreach ($row['resep_dokter_racikan_detail'] as &$value) {
+          $value['ralan'] = ($value['jml'] * $value['dasar']) + $this->settings->get('farmasi.embalase') + $this->settings->get('farmasi.tuslah');
           $jumlah_total_resep_racikan += floatval($value['ralan']);
         }
 
@@ -410,7 +816,7 @@ class Admin extends AdminModule
         $resep_racikan[] = $row;
       }
 
-      $query = $this->db()->pdo()->prepare("SELECT * FROM detail_pemberian_obat WHERE no_rawat = '{$_POST['no_rawat']}' AND status = 'Ralan' AND jam NOT IN (SELECT obat_racikan.jam FROM obat_racikan WHERE obat_racikan.no_rawat = '{$_POST['no_rawat']}' AND obat_racikan.tgl_perawatan = tgl_perawatan UNION ALL SELECT resep_obat.jam FROM resep_obat WHERE resep_obat.no_rawat = '{$_POST['no_rawat']}' AND resep_obat.tgl_perawatan = tgl_perawatan)");
+      $query = $this->db()->pdo()->prepare("SELECT * FROM detail_pemberian_obat WHERE no_rawat = '{$_POST['no_rawat']}' AND status = 'Ralan' AND jam NOT IN (SELECT obat_racikan.jam FROM obat_racikan WHERE obat_racikan.no_rawat = '{$_POST['no_rawat']}' AND obat_racikan.tgl_perawatan = detail_pemberian_obat.tgl_perawatan UNION ALL SELECT resep_obat.jam FROM resep_obat WHERE resep_obat.no_rawat = '{$_POST['no_rawat']}' AND resep_obat.tgl_perawatan = detail_pemberian_obat.tgl_perawatan)");
       $query->execute();
       $rows_pemberian_obat = $query->fetchAll();
 
@@ -423,30 +829,47 @@ class Admin extends AdminModule
         ->where('tgl_perawatan', $row['tgl_perawatan'])
         ->where('jam', $row['jam'])
         ->oneArray();
-        $row['aturan_pakai'] = $aturan_pakai['aturan'];
+        $row['aturan_pakai'] = $aturan_pakai['aturan'] ?? '';
         $data_barang = $this->db('databarang')->where('kode_brng', $row['kode_brng'])->oneArray();
-        $row['nama_brng'] = $data_barang['nama_brng'];
-        $row['ralan'] = $data_barang['ralan'];
+        $row['nama_brng'] = $data_barang['nama_brng'] ?? '';
+        $row['ralan'] = $data_barang['ralan'] ?? 0;
         $jumlah_total_obat += floatval($row['total']);
         $detail_pemberian_obat[] = $row;
       }
 
-      $query2 = $this->db()->pdo()->prepare("SELECT * FROM obat_racikan WHERE no_rawat = '{$_POST['no_rawat']}' AND jam NOT IN (SELECT resep_obat.jam FROM resep_obat WHERE resep_obat.no_rawat = '{$_POST['no_rawat']}' AND resep_obat.tgl_perawatan = tgl_perawatan AND status = 'ralan')");
+      $query2 = $this->db()->pdo()->prepare("SELECT obat_racikan.* FROM obat_racikan WHERE obat_racikan.no_rawat = '{$_POST['no_rawat']}' AND obat_racikan.jam NOT IN (SELECT resep_obat.jam FROM resep_obat WHERE resep_obat.no_rawat = '{$_POST['no_rawat']}' AND resep_obat.tgl_perawatan = obat_racikan.tgl_perawatan)");
       $query2->execute();
       $rows_pemberian_obat2 = $query2->fetchAll();
 
       $detail_pemberian_obat2 = [];
       $jumlah_total_obat2 = 0;
       foreach ($rows_pemberian_obat2 as $row) {
-        $row['detail_pemberian_obat'] = $this->db('detail_pemberian_obat')
-          ->join('databarang', 'databarang.kode_brng=detail_pemberian_obat.kode_brng')
-          ->where('no_rawat', $_POST['no_rawat'])
-          ->where('tgl_perawatan', $row['tgl_perawatan'])
-          ->where('jam', $row['jam'])
-          ->toArray();
-        foreach ($row['detail_pemberian_obat'] as $row2) {
-          $jumlah_total_obat2 += floatval($row2['total']);
+        $ingredients_map = $this->db('detail_obat_racikan')
+            ->where('no_rawat', $row['no_rawat'])
+            ->where('tgl_perawatan', $row['tgl_perawatan'])
+            ->where('jam', $row['jam'])
+            ->where('no_racik', $row['no_racik'])
+            ->toArray();
+
+        $row['detail_pemberian_obat'] = [];
+
+        foreach($ingredients_map as $map) {
+             $detail = $this->db('detail_pemberian_obat')
+                ->join('databarang', 'databarang.kode_brng=detail_pemberian_obat.kode_brng')
+                ->where('detail_pemberian_obat.no_rawat', $map['no_rawat'])
+                ->where('detail_pemberian_obat.kode_brng', $map['kode_brng'])
+                ->where('detail_pemberian_obat.tgl_perawatan', $map['tgl_perawatan'])
+                ->where('detail_pemberian_obat.jam', $map['jam'])
+                ->where('detail_pemberian_obat.status', 'Ralan')
+                ->oneArray();
+             
+             if($detail) {
+                 $detail['kandungan'] = isset($map['kandungan']) ? $map['kandungan'] : '';
+                 $jumlah_total_obat2 += floatval($detail['total']);
+                 $row['detail_pemberian_obat'][] = $detail;
+             }
         }
+
         $detail_pemberian_obat2[] = $row;
       }
 
@@ -474,7 +897,7 @@ class Admin extends AdminModule
         switch($show){
         	default:
           break;
-          case "databarang":
+        case "databarang":
           $rows = $this->db('databarang')
             ->join('gudangbarang', 'gudangbarang.kode_brng=databarang.kode_brng')
             ->where('status', '1')
@@ -484,10 +907,13 @@ class Admin extends AdminModule
             ->limit(10)
             ->toArray();
 
+          $array = [];
           foreach ($rows as $row) {
             $array[] = array(
                 'kode_brng' => $row['kode_brng'],
-                'nama_brng'  => $row['nama_brng']
+                'nama_brng'  => $row['nama_brng'],
+                'stok'  => $row['stok'],
+                'ralan'  => $row['ralan']
             );
           }
           echo json_encode($array, true);
@@ -586,7 +1012,7 @@ class Admin extends AdminModule
           ->where('tgl_perawatan', $row['tgl_perawatan'])
           ->where('jam', $row['jam'])
           ->oneArray();
-          $row['aturan_pakai'] = $aturan_pakai['aturan'];
+          $row['aturan_pakai'] = $aturan_pakai['aturan'] ?? '';
           $row['keterangan'] = '';
           $detail_pemberian_obat[] = $row;
         }
@@ -682,7 +1108,7 @@ class Admin extends AdminModule
           ->where('tgl_perawatan', $row['tgl_perawatan'])
           ->where('jam', $row['jam'])
           ->oneArray();
-          $row['aturan_pakai'] = $aturan_pakai['aturan'];
+          $row['aturan_pakai'] = $aturan_pakai['aturan'] ?? '';
           $row['keterangan'] = '';
           $detail_pemberian_obat[] = $row;
         }
