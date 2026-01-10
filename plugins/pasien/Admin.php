@@ -20,28 +20,27 @@ class Admin extends AdminModule
         $this->core->addJS(url(MODULES.'/dashboard/js/admin/webcam.js?v={$mlite.version}'));
         $this->_addHeaderFiles();
 
-        $perpage = '10';
+        if(isset($_POST['cari'])) $_GET['s'] = $_POST['cari'];
+        if(isset($_POST['halaman'])) $_GET['page'] = $_POST['halaman'];
 
-        $totalRecords = $this->db('pasien')
-          ->select('no_rkm_medis')
-          ->toArray();
-        $jumlah_data    = count($totalRecords);
-  			$offset         = 10;
-  			$jml_halaman    = ceil($jumlah_data / $offset);
-        $halaman    = 1;
+        $result = $this->apiList();
 
-        $rows = $this->db('pasien')
-          ->desc('no_rkm_medis')
-          ->offset(0)
-          ->limit($perpage)
-          ->toArray();
-
-        $pasien = [];
-        foreach ($rows as $row) {
-          $row['cekbynokartu'] = url([ADMIN, 'pasien', 'vclaim_bynokartu', $row['no_peserta'], date('Y-m-d')]);
-          $row['cekbynik'] = url([ADMIN, 'pasien', 'vclaim_bynik', $row['no_ktp'], date('Y-m-d')]);
-          $pasien[] = $row;
+        if (isset($result['status']) && $result['status'] == 'error') {
+            $pasien = [];
+            $meta = [
+                'page' => 1,
+                'per_page' => 10,
+                'total' => 0
+            ];
+        } else {
+            $pasien = $result['data'];
+            $meta = $result['meta'];
         }
+
+        $halaman = $meta['page'];
+        $jumlah_data = $meta['total'];
+        $offset = $meta['per_page'];
+        $jml_halaman = ceil($jumlah_data / $offset);
 
         $cek_vclaim = $this->db('mlite_modules')->where('dir', 'vclaim')->oneArray();
         $cek_pcare = $this->db('mlite_modules')->where('dir', 'pcare')->oneArray();
@@ -54,137 +53,10 @@ class Admin extends AdminModule
           'cek_vclaim' => $cek_vclaim,
           'cek_pcare' => $cek_pcare,
           'offset' => $offset,
-          'admin_mode' => $this->settings->get('settings.admin_mode')
+          'admin_mode' => $this->settings->get('settings.admin_mode'),
+          'mlite_crud_permissions' => $this->core->loadCrudPermissions('pasien'),
+          'token' => $_SESSION['token']
         ]);
-    }
-
-    public function anyDisplay()
-    {
-        $this->_addHeaderFiles();
-
-        $perpage = '10';
-
-        $totalRecords = $this->db('pasien')->select('no_rkm_medis')->toArray();
-        $jumlah_data    = count($totalRecords);
-  			$offset         = 10;
-  			$jml_halaman    = ceil($jumlah_data / $offset);
-        $halaman    = 1;
-
-        if(isset($_POST['cari'])) {
-          if(isset($_POST['halaman']) && $_POST['halaman'] !='') {
-            $_offset = (($_POST['halaman'] - 1) * $perpage);
-            $totalRecords = $this->db('pasien')
-              ->select('no_rkm_medis')
-              ->like('no_rkm_medis', '%'.$_POST['cari'].'%')
-              ->orLike('nm_pasien', '%'.$_POST['cari'].'%')
-              ->orLike('alamat', '%'.$_POST['cari'].'%')
-              ->orLike('no_ktp', '%'.$_POST['cari'].'%')
-              ->orLike('no_peserta', '%'.$_POST['cari'].'%')
-              ->orLike('no_tlp', '%'.$_POST['cari'].'%')
-              ->toArray();
-            $rows = $this->db('pasien')
-              ->like('no_rkm_medis', '%'.$_POST['cari'].'%')
-              ->orLike('nm_pasien', '%'.$_POST['cari'].'%')
-              ->orLike('alamat', '%'.$_POST['cari'].'%')
-              ->orLike('no_ktp', '%'.$_POST['cari'].'%')
-              ->orLike('no_peserta', '%'.$_POST['cari'].'%')
-              ->orLike('no_tlp', '%'.$_POST['cari'].'%')
-              ->desc('no_rkm_medis')
-              ->offset($_offset)
-              ->limit($perpage)
-              ->toArray();
-            $jumlah_data = count($totalRecords);
-            $jml_halaman = ceil($jumlah_data / $offset);
-            $halaman = $_POST['halaman'];
-          } else {
-            $totalRecords = $this->db('pasien')
-              ->select('no_rkm_medis')
-              ->like('no_rkm_medis', '%'.$_POST['cari'].'%')
-              ->orLike('nm_pasien', '%'.$_POST['cari'].'%')
-              ->orLike('alamat', '%'.$_POST['cari'].'%')
-              ->orLike('no_ktp', '%'.$_POST['cari'].'%')
-              ->orLike('no_peserta', '%'.$_POST['cari'].'%')
-              ->orLike('no_tlp', '%'.$_POST['cari'].'%')
-              ->toArray();
-            $rows = $this->db('pasien')
-              ->like('no_rkm_medis', '%'.$_POST['cari'].'%')
-              ->orLike('nm_pasien', '%'.$_POST['cari'].'%')
-              ->orLike('alamat', '%'.$_POST['cari'].'%')
-              ->orLike('no_ktp', '%'.$_POST['cari'].'%')
-              ->orLike('no_peserta', '%'.$_POST['cari'].'%')
-              ->orLike('no_tlp', '%'.$_POST['cari'].'%')
-              ->desc('no_rkm_medis')
-              ->offset(0)
-              ->limit($perpage)
-              ->toArray();
-            $jumlah_data = count($totalRecords);
-      			$jml_halaman = ceil($jumlah_data / $offset);
-          }
-        }elseif(isset($_POST['halaman'])){
-          if(isset($_POST['cari']) && $_POST['cari'] !='') {
-            $_offset = (($_POST['halaman'] - 1) * $perpage);
-            $totalRecords = $this->db('pasien')
-              ->select('no_rkm_medis')
-              ->like('no_rkm_medis', '%'.$_POST['cari'].'%')
-              ->orLike('nm_pasien', '%'.$_POST['cari'].'%')
-              ->orLike('alamat', '%'.$_POST['cari'].'%')
-              ->orLike('no_ktp', '%'.$_POST['cari'].'%')
-              ->orLike('no_peserta', '%'.$_POST['cari'].'%')
-              ->orLike('no_tlp', '%'.$_POST['cari'].'%')
-              ->toArray();
-            $rows = $this->db('pasien')
-              ->like('no_rkm_medis', '%'.$_POST['cari'].'%')
-              ->orLike('nm_pasien', '%'.$_POST['cari'].'%')
-              ->orLike('alamat', '%'.$_POST['cari'].'%')
-              ->orLike('no_ktp', '%'.$_POST['cari'].'%')
-              ->orLike('no_peserta', '%'.$_POST['cari'].'%')
-              ->orLike('no_tlp', '%'.$_POST['cari'].'%')
-              ->desc('no_rkm_medis')
-              ->offset($_offset)
-              ->limit($perpage)
-              ->toArray();
-            $jumlah_data = count($totalRecords);
-            $jml_halaman = ceil($jumlah_data / $offset);
-            $halaman = $_POST['halaman'];
-          } else {
-            $_offset = (($_POST['halaman'] - 1) * $perpage);
-            $rows = $this->db('pasien')
-              ->desc('no_rkm_medis')
-              ->offset($_offset)
-              ->limit($perpage)
-              ->toArray();
-              $halaman = $_POST['halaman'];
-          }
-        }else{
-          $rows = $this->db('pasien')
-            ->desc('no_rkm_medis')
-            ->offset(0)
-            ->limit($perpage)
-            ->toArray();
-        }
-
-        $pasien = [];
-        foreach ($rows as $row) {
-          $row['cekbynokartu'] = url([ADMIN, 'pasien', 'vclaim_bynokartu', $row['no_peserta'], date('Y-m-d')]);
-          $row['cekbynik'] = url([ADMIN, 'pasien', 'vclaim_bynik', $row['no_ktp'], date('Y-m-d')]);
-          $pasien[] = $row;
-        }
-
-        $cek_vclaim = $this->db('mlite_modules')->where('dir', 'vclaim')->oneArray();
-        $cek_pcare = $this->db('mlite_modules')->where('dir', 'pcare')->oneArray();
-
-        echo $this->draw('display.html', [
-          'pasien' => $pasien,
-          'halaman' => $halaman,
-          'jumlah_data' => $jumlah_data,
-          'jml_halaman' => $jml_halaman,
-          'cek_vclaim' => $cek_vclaim,
-          'cek_pcare' => $cek_pcare, 
-          'offset' => $offset,
-          'admin_mode' => $this->settings->get('settings.admin_mode')
-        ]);
-
-        exit();
     }
 
     public function anyForm()
@@ -218,7 +90,8 @@ class Admin extends AdminModule
           'admin_mode' => $this->settings->get('settings.admin_mode'),
           'urlUploadPhoto' => url([ADMIN,'pasien','uploadphoto',$_POST['no_rkm_medis']]),
           'cek_pcare' => $cek_pcare,
-          'usernamePcare' => $usernamePcare
+          'usernamePcare' => $usernamePcare,
+          'mlite_crud_permissions' => $this->core->loadCrudPermissions('pasien')
         ]);
       } else {
         $pasien = [
@@ -276,7 +149,8 @@ class Admin extends AdminModule
           'admin_mode' => $this->settings->get('settings.admin_mode'),
           'urlUploadPhoto' => '',
           'cek_pcare' => $cek_pcare,
-          'usernamePcare' => $usernamePcare
+          'usernamePcare' => $usernamePcare,
+          'mlite_crud_permissions' => $this->core->loadCrudPermissions('pasien')
         ]);
       }
       exit();
@@ -290,6 +164,7 @@ class Admin extends AdminModule
 
     public function postSave()
     {
+      $mlite_crud_permissions = $this->core->loadCrudPermissions('pasien');
       $_POST['tgl_daftar'] = date('Y-m-d H:i', strtotime($_POST['tgl_daftar']));
       $pasien = $this->db('pasien')->where('no_rkm_medis', $_POST['no_rkm_medis'])->oneArray();
       $cek_prop = $this->db('propinsi')->where('kd_prop', $_POST['kd_prop'])->oneArray();
@@ -315,6 +190,10 @@ class Admin extends AdminModule
       unset($_POST['manual']);
 
       if (!$pasien) {
+        if ($mlite_crud_permissions['can_create'] == 'false') {
+           echo json_encode(['status' => 'error', 'msg' => 'Anda tidak memiliki hak akses untuk menambah data!']);
+           exit();
+        }
         if($manual == '0') {
           $_POST['no_rkm_medis'] = $this->core->setNoRM();
         }
@@ -350,6 +229,10 @@ class Admin extends AdminModule
         }
   
       } else {
+        if ($mlite_crud_permissions['can_update'] == 'false') {
+           echo json_encode(['status' => 'error', 'msg' => 'Anda tidak memiliki hak akses untuk mengubah data!']);
+           exit();
+        }
         unset($_POST['nm_prop']);
         unset($_POST['nm_kab']);
         unset($_POST['nm_kec']);
@@ -460,7 +343,22 @@ class Admin extends AdminModule
 
     public function postHapus()
     {
-      $this->db('pasien')->where('no_rkm_medis', $_POST['no_rkm_medis'])->delete();
+      $mlite_crud_permissions = $this->core->loadCrudPermissions('pasien');
+      if ($mlite_crud_permissions['can_delete'] == 'false') {
+         echo json_encode(['status' => 'error', 'message' => 'Anda tidak memiliki hak akses untuk menghapus data!']);
+         exit();
+      }
+
+      try {
+        $query = $this->db('pasien')->where('no_rkm_medis', $_POST['no_rkm_medis'])->delete();
+        if($query) {
+          echo json_encode(['status' => 'success', 'message' => 'Data berhasil dihapus']);
+        } else {
+          echo json_encode(['status' => 'error', 'message' => 'Gagal menghapus data']);
+        }
+      } catch (\Throwable $e) {
+        echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
+      }
       exit();
     }
 
@@ -633,15 +531,384 @@ class Admin extends AdminModule
 
     public function getRiwayatPerawatan($no_rkm_medis)
     {
+        $riwayat = $this->_getRiwayatData($no_rkm_medis);
+        $this->tpl->set('riwayat', $this->tpl->noParse_array(htmlspecialchars_array($riwayat)));
+        echo $this->draw('riwayat.perawatan.html');
+        exit();
+    }
+
+public function getPdfRiwayatPerawatan($no_rkm_medis, $no_rawat = null)
+{
+    $username = $this->core->checkAuth('GET');
+    if (!$this->core->checkPermission($username, 'can_read', 'pasien')) {
+        http_response_code(403);
+        echo 'Forbidden';
+        exit;
+    }
+
+    $data = $this->_getRiwayatData($no_rkm_medis, $no_rawat);
+    if (empty($data['pasien'])) {
+        http_response_code(404);
+        echo 'Data pasien tidak ditemukan';
+        exit;
+    }
+
+    // 📁 Direktori cache PDF
+    $baseDir = BASE_DIR . '/uploads/sertisign';
+    if (!is_dir($baseDir)) {
+        mkdir($baseDir, 0777, true);
+    }
+
+    $safeRawat = preg_replace('/[^A-Za-z0-9]/', '', (string)$no_rawat);
+    $fileName  = 'Riwayat_Perawatan_' . $data['pasien']['no_rkm_medis'] . '_' . $safeRawat . '.pdf';
+    $filePath  = $baseDir . '/' . $fileName;
+
+    $mpdf = new \Mpdf\Mpdf([
+        'mode'   => 'utf-8',
+        'format' => 'A4'
+    ]);
+
+    $mpdf->WriteHTML($this->_renderHtmlRiwayat($data));
+    $mpdf->Output($filePath, 'F'); // ✅ SIMPAN KE FILE
+
+    // 📤 Tampilkan ke browser
+    header('Content-Type: application/pdf');
+    header('Content-Disposition: inline; filename="' . $fileName . '"');
+    header('Content-Length: ' . filesize($filePath));
+
+    readfile($filePath);
+    exit;
+}
+
+private function _renderHtmlRiwayat(array $data)
+{
+    $pasien = $data['pasien'];
+    $reg    = $data['reg_periksa'];
+
+    // helper placeholder
+    $emptyRow = function ($colspan, $text = '— Tidak ada data —') {
+        return '<tr><td colspan="'.$colspan.'" align="center"><i>'.$text.'</i></td></tr>';
+    };
+
+    $html = '
+    <style>
+        body { font-family: sans-serif; font-size: 9pt; }
+        table { border-collapse: collapse; width: 100%; margin-bottom: 8px; }
+        th, td { border: 1px solid #000; padding: 3px; vertical-align: top; }
+        th { background: #f0f0f0; }
+        h2 { text-align:center; margin-bottom: 10px; }
+        h3 { margin: 8px 0 4px; background:#ddd; padding:4px; }
+        b { display:block; margin-top:6px; }
+        .sertisign { display:inline-block; padding:2px 4px; background:#f0f0f0; margin-top:60px; }
+    </style>
+
+    <h2>RIWAYAT PERAWATAN PASIEN</h2>
+
+    <h3>Identitas Pasien</h3>
+    <table>
+        <tr><td>No RM</td><td>'.$pasien['no_rkm_medis'].'</td><td>Nama</td><td>'.$pasien['nm_pasien'].'</td></tr>
+        <tr><td>NIK</td><td>'.$pasien['no_ktp'].'</td><td>JK</td><td>'.$pasien['jk'].'</td></tr>
+        <tr><td>TTL</td><td>'.$pasien['tmp_lahir'].', '.$pasien['tgl_lahir'].'</td><td>Umur</td><td>'.$pasien['umur'].'</td></tr>
+        <tr><td>Alamat</td><td colspan="3">'.$pasien['alamat'].'</td></tr>
+        <tr><td>Agama</td><td>'.$pasien['agama'].'</td><td>Status Nikah</td><td>'.$pasien['stts_nikah'].'</td></tr>
+        <tr><td>Pekerjaan</td><td>'.$pasien['pekerjaan'].'</td><td>No Telp</td><td>'.$pasien['no_tlp'].'</td></tr>
+        <tr><td>No Peserta</td><td>'.$pasien['no_peserta'].'</td><td>Penjamin</td><td>'.$pasien['kd_pj'].'</td></tr>
+    </table>
+
+    <h3>Penanggung Jawab</h3>
+    <table>
+        <tr><td>Nama</td><td>'.$pasien['namakeluarga'].'</td><td>Hubungan</td><td>'.$pasien['keluarga'].'</td></tr>
+        <tr><td>Pekerjaan</td><td>'.$pasien['pekerjaanpj'].'</td><td>Alamat</td><td>'.$pasien['alamatpj'].'</td></tr>
+        <tr><td>Kelurahan</td><td>'.$pasien['kelurahanpj'].'</td><td>Kecamatan</td><td>'.$pasien['kecamatanpj'].'</td></tr>
+        <tr><td>Kabupaten</td><td>'.$pasien['kabupatenpj'].'</td><td>Propinsi</td><td>'.$pasien['propinsipj'].'</td></tr>
+    </table>
+    ';
+
+    foreach ($reg as $r) {
+
+        $html .= '
+        <h3>Kunjungan: '.$r['no_rawat'].'</h3>
+
+        <table>
+            <tr><td>Tanggal</td><td>'.$r['tgl_registrasi'].' '.$r['jam_reg'].'</td><td>Status</td><td>'.$r['stts'].'</td></tr>
+            <tr><td>Poli</td><td>'.$r['nm_poli'].'</td><td>Status Bayar</td><td>'.$r['status_bayar'].'</td></tr>
+            <tr><td>Dokter</td><td colspan="3">'.$r['nm_dokter'].'</td></tr>
+        </table>';
+
+        /* ===== DIAGNOSA ===== */
+        $html .= '<b>Diagnosa</b><table>
+        <tr><th>Kode</th><th>Nama</th><th>Keterangan</th></tr>';
+        if (!empty($r['diagnosa_pasien'])) {
+            foreach ($r['diagnosa_pasien'] as $d) {
+                $html .= '<tr>
+                    <td>'.$d['kd_penyakit'].'</td>
+                    <td>'.$d['nm_penyakit'].'</td>
+                    <td>'.$d['keterangan'].'</td>
+                </tr>';
+            }
+        } else $html .= $emptyRow(3);
+        $html .= '</table>';
+
+        /* ===== PROSEDUR ===== */
+        $html .= '<b>Prosedur Pasien</b><table>
+        <tr><th>Kode</th><th>Deskripsi</th><th>Status</th></tr>';
+        if (!empty($r['prosedur_pasien'])) {
+            foreach ($r['prosedur_pasien'] as $p) {
+                $html .= '<tr>
+                    <td>'.$p['kode'].'</td>
+                    <td>'.$p['deskripsi_panjang'].'</td>
+                    <td>'.$p['status'].'</td>
+                </tr>';
+            }
+        } else $html .= $emptyRow(3);
+        $html .= '</table>';
+
+        /* ===== PEMERIKSAAN RALAN ===== */
+        $html .= '<b>Pemeriksaan Rawat Jalan</b><table>
+        <tr><th>Tanggal</th><th>Tensi</th><th>Nadi</th><th>Resp</th><th>GCS</th><th>Keluhan</th></tr>';
+        if (!empty($r['pemeriksaan_ralan'])) {
+            foreach ($r['pemeriksaan_ralan'] as $p) {
+                $html .= '<tr>
+                    <td>'.$p['tgl_perawatan'].' '.$p['jam_rawat'].'</td>
+                    <td>'.$p['tensi'].'</td>
+                    <td>'.$p['nadi'].'</td>
+                    <td>'.$p['respirasi'].'</td>
+                    <td>'.$p['gcs'].'</td>
+                    <td>'.$p['keluhan'].'</td>
+                </tr>';
+            }
+        } else $html .= $emptyRow(6);
+        $html .= '</table>';
+
+        /* ===== LAB ===== */
+        $html .= '<b>Laboratorium</b><table>
+        <tr><th>Pemeriksaan</th><th>Nilai</th><th>Rujukan</th></tr>';
+        if (!empty($r['periksa_lab'])) {
+            foreach ($r['periksa_lab'] as $lab) {
+                foreach ($lab['detail_periksa_lab'] as $d) {
+                    $html .= '<tr>
+                        <td>'.$d['Pemeriksaan'].'</td>
+                        <td>'.$d['nilai'].' '.$d['satuan'].'</td>
+                        <td>'.$d['nilai_rujukan'].'</td>
+                    </tr>';
+                }
+            }
+        } else $html .= $emptyRow(3);
+        $html .= '</table>';
+
+        /* ===== RADIOLOGI ===== */
+        $html .= '<b>Radiologi</b><table>
+        <tr><th>Jenis</th><th>Hasil</th><th>Keterangan</th></tr>';
+        if (!empty($r['periksa_radiologi'])) {
+            foreach ($r['periksa_radiologi'] as $rad) {
+                foreach ($rad['hasil_radiologi'] as $h) {
+                    $html .= '<tr>
+                        <td>Radiologi</td>
+                        <td>'.$h['hasil'].'</td>
+                        <td>'.$h['tgl_periksa'].' '.$h['jam'].'</td>
+                    </tr>';
+                }
+            }
+        } else $html .= $emptyRow(3);
+        $html .= '</table>';
+
+        /* ===== OBAT ===== */
+        $html .= '<b>Pemberian Obat</b><table>
+        <tr><th>Nama</th><th>Jumlah</th><th>Total</th></tr>';
+        if (!empty($r['pemberian_obat'])) {
+            foreach ($r['pemberian_obat'] as $o) {
+                foreach ($o['data_pemberian_obat'] as $ob) {
+                    $html .= '<tr>
+                        <td>'.$ob['nama_brng'].'</td>
+                        <td>'.$ob['jml'].'</td>
+                        <td>'.number_format($ob['total'],0,',','.').'</td>
+                    </tr>';
+                }
+            }
+        } else $html .= $emptyRow(3);
+        $html .= '</table>';
+
+        /* ===== CATATAN ===== */
+        $html .= '<b>Catatan Perawatan</b><table>
+        <tr><th>Tanggal</th><th>Catatan</th><th>Petugas</th></tr>';
+        if (!empty($r['catatan_perawatan'])) {
+            foreach ($r['catatan_perawatan'] as $c) {
+                $html .= '<tr>
+                    <td>'.$c['tanggal'].'</td>
+                    <td>'.$c['catatan'].'</td>
+                    <td>'.$c['petugas'].'</td>
+                </tr>';
+            }
+        } else $html .= $emptyRow(3);
+        $html .= '</table>';
+
+        /* ===== RESUME ===== */
+        if (!empty($r['resume_pasien'])) {
+            foreach ($r['resume_pasien'] as $res) {
+                $html .= '<b>Resume Medis</b><table>
+                <tr><td>Diagnosa Utama</td><td>'.$res['diagnosa_utama'].'</td></tr>
+                <tr><td>Prosedur Utama</td><td>'.$res['prosedur_utama'].'</td></tr>
+                <tr><td>Kondisi Pulang</td><td>'.$res['kondisi_pulang'].'</td></tr>
+                <tr><td>Dokter</td><td>'.$res['nm_dokter'].'</td></tr>
+                </table>';
+            }
+        }
+
+        $html .= '
+        <h3>Kunjungan: '.$r['no_rawat'].' ('.$r['tgl_registrasi'].')</h3>
+        <div class="sertisign">#1A</div>
+        ';        
+    }
+
+    return $html;
+}
+
+
+
+    private function _renderHtmlRiwayat_____($data)
+    {
+        $pasien = $data['pasien'];
+        $reg    = $data['reg_periksa'];
+
+        $html = '
+        <h2 align="center">RIWAYAT PERAWATAN PASIEN</h2>
+
+        <table>
+            <tr>
+                <td width="20%">No RM</td><td>'.$pasien['no_rkm_medis'].'</td>
+                <td width="20%">Nama</td><td>'.$pasien['nm_pasien'].'</td>
+            </tr>
+            <tr>
+                <td>Tgl Lahir</td><td>'.$pasien['tgl_lahir'].'</td>
+                <td>JK</td><td>'.$pasien['jk'].'</td>
+            </tr>
+            <tr>
+                <td>Alamat</td><td colspan="3">'.$pasien['alamat'].'</td>
+            </tr>
+        </table>
+        ';
+
+        foreach ($reg as $r) {
+            $html .= '
+            <h3>Kunjungan: '.$r['no_rawat'].' ('.$r['tgl_registrasi'].')</h3>
+
+            <table>
+                <tr>
+                    <th>Poli</th>
+                    <th>Dokter</th>
+                    <th>Status</th>
+                    <th>Status Bayar</th>
+                </tr>
+                <tr>
+                    <td>'.$r['nm_poli'].'</td>
+                    <td>'.$r['nm_dokter'].'</td>
+                    <td>'.$r['stts'].'</td>
+                    <td>'.$r['status_bayar'].'</td>
+                </tr>
+            </table>
+            ';
+
+            // Obat
+            if (!empty($r['pemberian_obat'])) {
+                $html .= '
+                <b>Pemberian Obat</b>
+                <table>
+                    <tr>
+                        <th>Nama Obat</th>
+                        <th>Jumlah</th>
+                        <th>Total</th>
+                    </tr>';
+
+                foreach ($r['pemberian_obat'] as $po) {
+                    foreach ($po['data_pemberian_obat'] as $obat) {
+                        $html .= '
+                        <tr>
+                            <td>'.$obat['nama_brng'].'</td>
+                            <td align="center">'.$obat['jml'].'</td>
+                            <td align="right">'.number_format($obat['total'],0,',','.').'</td>
+                        </tr>';
+                    }
+                }
+
+                $html .= '</table>';
+            }
+        }
+
+        $html .= '
+        <h3>Kunjungan: '.$r['no_rawat'].' ('.$r['tgl_registrasi'].')</h3>
+
+        <table>
+            <tr>
+                <th></th>
+                <th></th>
+                <th></th>
+                <th></th>
+            </tr>
+            <tr>
+             <td colspan="4">
+             </td>
+            </tr>
+            <tr>
+             <td colspan="4">
+             </td>
+            </tr>
+            <tr>
+             <td colspan="4">
+             </td>
+            </tr>
+            <tr>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td>#1A</td>
+            </tr>
+        </table>
+        ';
+
+        return $html;
+    }
+
+    public function apiRiwayatPerawatan($no_rkm_medis = null, $no_rawat = null)
+    {
+        $username = $this->core->checkAuth('GET');
+        if (!$this->core->checkPermission($username, 'can_read', 'pasien')) {
+            return ['status' => 'error', 'message' => 'Invalid User Permission Credentials'];
+        }
+
+        if (!$no_rkm_medis) {
+            return ['status' => 'error', 'message' => 'no_rkm_medis required'];
+        }
+        
+        $data = $this->_getRiwayatData($no_rkm_medis, $no_rawat);
+        if (!$data['pasien']) {
+             return ['status' => 'error', 'message' => 'Pasien not found'];
+        }
+
+        if ($no_rawat && empty($data['reg_periksa'])) {
+            return ['status' => 'error', 'message' => 'No rawat not found'];
+        }
+
+        return ['status' => 'success', 'data' => $data];
+    }
+
+    private function _getRiwayatData($no_rkm_medis, $no_rawat = null)
+    {
       $riwayat['settings'] = $this->settings('settings');
       $riwayat['pasien'] = $this->db('pasien')->where('no_rkm_medis', $no_rkm_medis)->oneArray();
-      $reg_periksa = $this->db('reg_periksa')
-        ->join('poliklinik', 'poliklinik.kd_poli=reg_periksa.kd_poli')
-        ->join('dokter', 'dokter.kd_dokter=reg_periksa.kd_dokter')
-        ->join('penjab', 'penjab.kd_pj=reg_periksa.kd_pj')
-        ->where('no_rkm_medis', $no_rkm_medis)
-        ->desc('tgl_registrasi')
-        ->toArray();
+      $regQuery = $this->db('reg_periksa')
+          ->join('poliklinik', 'poliklinik.kd_poli=reg_periksa.kd_poli')
+          ->join('dokter', 'dokter.kd_dokter=reg_periksa.kd_dokter')
+          ->join('penjab', 'penjab.kd_pj=reg_periksa.kd_pj')
+          ->where('no_rkm_medis', $no_rkm_medis);
+
+      // 🔹 FILTER JIKA no_rawat DIISI
+      if ($no_rawat) {
+          $regQuery->where('reg_periksa.no_rawat', revertNorawat($no_rawat));
+      }
+
+      $reg_periksa = $regQuery
+          ->desc('tgl_registrasi')
+          ->toArray();
 
       $riwayat['reg_periksa'] = [];
       foreach ($reg_periksa as $row) {
@@ -689,9 +956,24 @@ class Admin extends AdminModule
         $row['rawat_inap_dr'] = [];
         $row['rawat_inap_pr'] = [];
         $row['rawat_inap_drpr'] = [];
-        $check_table = $this->db()->pdo()->query("SHOW TABLES LIKE 'pemeriksaan_ranap'");
-        $check_table->execute();
-        $check_table = $check_table->fetch();
+
+        $tableName = 'pemeriksaan_ranap';
+        if (DBDRIVER === 'sqlite') {
+            $stmt = $this->db()->pdo()->prepare(
+                "SELECT name 
+                FROM sqlite_master 
+                WHERE type='table' AND name = :table"
+            );
+            $stmt->execute(['table' => $tableName]);
+            $check_table = $stmt->fetch(\PDO::FETCH_ASSOC);
+        } else { // mysql / mariadb
+            $stmt = $this->db()->pdo()->prepare(
+                "SHOW TABLES LIKE :table"
+            );
+            $stmt->execute(['table' => $tableName]);
+            $check_table = $stmt->fetch(\PDO::FETCH_NUM);
+        }
+
         if($check_table) {
           $row['pemeriksaan_ranap'] = $this->db('pemeriksaan_ranap')
             ->where('no_rawat', $row['no_rawat'])
@@ -890,9 +1172,8 @@ class Admin extends AdminModule
 
         $riwayat['reg_periksa'][] = $row;
       }
-      $this->tpl->set('riwayat', $this->tpl->noParse_array(htmlspecialchars_array($riwayat)));
-      echo $this->draw('riwayat.perawatan.html');
-      exit();
+      
+      return $riwayat;
     }
 
     public function postCetak()
@@ -1183,5 +1464,246 @@ class Admin extends AdminModule
       echo "</body></html>";
       exit();
     }
+
+    /**
+     * API Routes
+     */
+    public function apiList()
+    {
+
+        if(isset($_SERVER['HTTP_X_API_KEY'])) {
+          $username = $this->core->checkAuth('GET');
+          if (!$this->core->checkPermission($username, 'can_read', 'pasien')) {
+              return ['status' => 'error', 'message' => 'Invalid User Permission Credentials'];
+          }
+        }
+
+        $perpage = intval($_GET['per_page'] ?? 10);
+        if ($perpage <= 0) $perpage = 10;
+        $page = intval($_GET['page'] ?? 1);
+        if ($page <= 0) $page = 1;
+        $offset = ($page - 1) * $perpage;
+        $phrase = trim((string)($_GET['s'] ?? ''));
+
+        $query = $this->db('pasien')->desc('no_rkm_medis');
+        if ($phrase !== '') {
+            $query = $query
+                ->like('no_rkm_medis', '%'.$phrase.'%')
+                ->orLike('nm_pasien', '%'.$phrase.'%')
+                ->orLike('alamat', '%'.$phrase.'%')
+                ->orLike('no_ktp', '%'.$phrase.'%')
+                ->orLike('no_peserta', '%'.$phrase.'%')
+                ->orLike('no_tlp', '%'.$phrase.'%');
+        }
+
+        $total = $query->count();
+        $rows = $query->offset($offset)->limit($perpage)->toArray();
+
+        // Add extra data for display
+        $pasien = [];
+        $cek_vclaim = $this->db('mlite_modules')->where('dir', 'vclaim')->oneArray();
+        $cek_pcare = $this->db('mlite_modules')->where('dir', 'pcare')->oneArray();
+        
+        foreach ($rows as $row) {          
+          // Add extra URLs
+          if(!isset($_SERVER['HTTP_X_API_KEY'])) {
+            $row['cekbynokartu'] = url([ADMIN, 'pasien', 'vclaim_bynokartu', $row['no_peserta'], date('Y-m-d')]);
+            $row['cekbynik'] = url([ADMIN, 'pasien', 'vclaim_bynik', $row['no_ktp'], date('Y-m-d')]);
+            $row['pcare_bynokartu'] = url([ADMIN, 'pasien', 'pcare_bynokartu', $row['no_peserta']]);
+            $row['pcare_bynik'] = url([ADMIN, 'pasien', 'pcare_bynik', $row['no_ktp']]);
+            $row['oral_diagnostic'] = url([ADMIN,'oral_diagnostic','manage']).'&no_rkm_medis='.$row['no_rkm_medis'];
+            $row['igd'] = url([ADMIN,'igd','manage']).'&no_rkm_medis='.$row['no_rkm_medis'];
+            $row['rawat_jalan'] = url([ADMIN,'rawat_jalan','manage']).'&no_rkm_medis='.$row['no_rkm_medis'];
+            $row['riwayatperawatan'] = url([ADMIN, 'pasien', 'riwayatperawatan', $row['no_rkm_medis']]);
+            $row['folder'] = url([ADMIN, 'pasien', 'folder', $row['no_rkm_medis']]);
+          }
+          
+          $pasien[] = $row;
+        }
+
+        $meta = [
+            'page' => $page,
+            'per_page' => $perpage,
+            'total' => $total,
+        ];
+
+        if(!isset($_SERVER['HTTP_X_API_KEY'])) {
+            $meta['cek_vclaim'] = $cek_vclaim ? true : false;
+            $meta['cek_pcare'] = $cek_pcare ? true : false;
+            $meta['active_modules'] = [
+                'oral_diagnostic' => $this->core->ActiveModule('oral_diagnostic'),
+                'igd' => $this->core->ActiveModule('igd')
+            ];
+        }
+
+        return [
+            'status' => 'success',
+            'data' => $pasien,
+            'meta' => $meta
+        ];
+    }
+
+    public function apiShow($no_rkm_medis = null)
+    {
+        $username = $this->core->checkAuth('GET');
+        if (!$this->core->checkPermission($username, 'can_read', 'pasien')) {
+            return ['status' => 'error', 'message' => 'Invalid User Permission Credentials'];
+        }
+
+        if (!$no_rkm_medis) {
+            return ['status' => 'error', 'message' => 'no_rkm_medis required'];
+        }
+        $row = $this->db('pasien')->where('no_rkm_medis', $no_rkm_medis)->oneArray();
+        if (!$row) {
+            return ['status' => 'error', 'message' => 'Not found'];
+        }
+        return ['status' => 'success', 'data' => $row];
+    }
+
+    public function apiCreate()
+    {
+        $username = $this->core->checkAuth('POST');
+        if (!$this->core->checkPermission($username, 'can_create', 'pasien')) {
+            return ['status' => 'error', 'message' => 'Invalid User Permission Credentials'];
+        }
+
+        $input = json_decode(file_get_contents('php://input'), true);
+        if (!is_array($input)) $input = $_POST;
+
+        if (empty($input['nm_pasien'])) {
+            return ['status' => 'error', 'message' => 'nm_pasien required'];
+        }
+
+        if (empty($input['no_rkm_medis'])) {
+            $input['no_rkm_medis'] = $this->core->setNoRM();
+        } else {
+            $exists = $this->db('pasien')->where('no_rkm_medis', $input['no_rkm_medis'])->oneArray();
+            if ($exists) {
+                return ['status' => 'error', 'message' => 'no_rkm_medis exists'];
+            }
+        }
+        
+        // Set default values for required fields
+        $defaults = [
+            'nm_ibu' => '-',
+            'alamat' => '-',
+            'gol_darah' => '-',
+            'pekerjaan' => '-',
+            'stts_nikah' => 'BELUM MENIKAH',
+            'agama' => 'ISLAM',
+            'tgl_daftar' => date('Y-m-d'),
+            'no_tlp' => '-',
+            'umur' => '0 Th 0 Bl 0 Hr',
+            'pnd' => '-',
+            'keluarga' => 'AYAH',
+            'namakeluarga' => '-',
+            'kd_pj' => 'UMUM',
+            'no_peserta' => '-',
+            'kd_kel' => '1',
+            'kd_kec' => '1',
+            'kd_kab' => '1',
+            'pekerjaanpj' => '-',
+            'alamatpj' => '-',
+            'kelurahanpj' => '-',
+            'kecamatanpj' => '-',
+            'kabupatenpj' => '-',
+            'perusahaan_pasien' => '-',
+            'suku_bangsa' => '1',
+            'bahasa_pasien' => '1',
+            'cacat_fisik' => '1',
+            'email' => '-',
+            'nip' => '-',
+            'kd_prop' => '1',
+            'propinsipj' => '-',
+            'tmp_lahir' => '-',
+            'tgl_lahir' => date('Y-m-d'),
+            'jk' => 'L',
+            'no_ktp' => '-'
+        ];
+
+        foreach ($defaults as $key => $value) {
+            if (empty($input[$key])) {
+                $input[$key] = $value;
+            }
+        }
+
+        // Calculate umur if tgl_lahir provided
+        if (!empty($input['tgl_lahir'])) {
+            $input['umur'] = $this->hitungUmur($input['tgl_lahir']);
+        }
+
+        $input['tgl_daftar'] = date('Y-m-d H:i');
+
+        try {
+            $saved = $this->db('pasien')->save($input);
+            if ($saved) {
+                $this->db()->pdo()->exec("UPDATE set_no_rkm_medis SET no_rkm_medis='{$input['no_rkm_medis']}'");
+                return ['status' => 'success', 'data' => $input];
+            } else {
+                $errorInfo = $this->db()->pdo()->errorInfo();
+                return ['status' => 'error', 'message' => 'Failed to create: ' . ($errorInfo[2] ?? 'Unknown error')];
+            }
+        } catch (\PDOException $e) {
+            $message = $e->getMessage();
+            $message = preg_replace('/`[^`]+`\./', '', $message);
+            return ['status' => 'error', 'message' => $message];
+        }
+    }
+
+    public function apiUpdate($no_rkm_medis = null)
+    {
+        $username = $this->core->checkAuth('POST'); // Use POST for update if PUT not supported
+        if (!$this->core->checkPermission($username, 'can_update', 'pasien')) {
+            return ['status' => 'error', 'message' => 'Invalid User Permission Credentials'];
+        }
+
+        if (!$no_rkm_medis) {
+            return ['status' => 'error', 'message' => 'no_rkm_medis required'];
+        }
+
+        $input = json_decode(file_get_contents('php://input'), true);
+        if (!is_array($input)) $input = $_POST;
+
+        $exists = $this->db('pasien')->where('no_rkm_medis', $no_rkm_medis)->oneArray();
+        if (!$exists) {
+            return ['status' => 'error', 'message' => 'Not found'];
+        }
+
+        $input['no_rkm_medis'] = $no_rkm_medis;
+        $updated = $this->db('pasien')->where('no_rkm_medis', $no_rkm_medis)->update($input);
+        
+        if ($updated) {
+            return ['status' => 'success', 'message' => 'Updated'];
+        } else {
+            return ['status' => 'error', 'message' => 'Failed to update'];
+        }
+    }
+
+    public function apiDelete($no_rkm_medis = null)
+    {
+        $username = $this->core->checkAuth('DELETE');
+        if (!$this->core->checkPermission($username, 'can_delete', 'pasien')) {
+            return ['status' => 'error', 'message' => 'Invalid User Permission Credentials'];
+        }
+
+        if (!$no_rkm_medis) {
+            return ['status' => 'error', 'message' => 'no_rkm_medis required'];
+        }
+
+        try {
+            $deleted = $this->db('pasien')->where('no_rkm_medis', $no_rkm_medis)->delete();
+            if ($deleted) {
+                return ['status' => 'success', 'message' => 'Deleted'];
+            } else {
+                return ['status' => 'error', 'message' => 'Failed to delete'];
+            }
+        } catch (\Throwable $e) {
+            $message = $e->getMessage();
+            $message = preg_replace('/`[^`]+`\./', '', $message);
+            return ['status' => 'error', 'message' => $message];
+        }
+    }
+
+
 
 }

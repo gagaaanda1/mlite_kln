@@ -61,9 +61,17 @@ class Admin extends AdminModule
         $settings['presensi'] = $this->db('mlite_modules')->where('dir', 'presensi')->oneArray();
         $settings['themes'] = $this->_getThemes();
         $settings['timezones'] = $this->_getTimezones();
+        
+        $mysql_version = '';
+        if (DBDRIVER == 'sqlite') {
+            $mysql_version = $this->db()->pdo()->query('SELECT sqlite_version()')->fetch()[0];
+        } else {
+            $mysql_version = $this->db()->pdo()->query('SELECT VERSION() as version')->fetch()[0];
+        }
+
         $settings['system'] = [
             'php'           => PHP_VERSION,
-            'mysql'         => $this->db()->pdo()->query('SELECT VERSION() as version')->fetch()[0]
+            'mysql'         => $mysql_version
         ];
 
         $settings['license'] = [];
@@ -677,7 +685,11 @@ class Admin extends AdminModule
     public function getBackupRestore()
     {
         $database = DBNAME;
-        $get_table = $this->db()->pdo()->prepare("SELECT DISTINCT TABLE_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA='$database'");
+        if (DBDRIVER == 'sqlite') {
+            $get_table = $this->db()->pdo()->prepare("SELECT name AS TABLE_NAME FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'");
+        } else {
+            $get_table = $this->db()->pdo()->prepare("SELECT DISTINCT TABLE_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA='$database'");
+        }
 	    $get_table->execute();
 	    $result = $get_table->fetchAll();
 

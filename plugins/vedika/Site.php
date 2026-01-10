@@ -91,7 +91,6 @@ class Site extends SiteModule
           ]);
           if($simpan_status) {
             $this->db('mlite_vedika_feedback')->save([
-              'id' => NULL,
               'nosep' => $_POST['nosep'],
               'tanggal' => date('Y-m-d'),
               'catatan' => $_POST['catatan'],
@@ -199,7 +198,6 @@ class Site extends SiteModule
           ]);
           if($simpan_status) {
             $this->db('mlite_vedika_feedback')->save([
-              'id' => NULL,
               'nosep' => $_POST['nosep'],
               'tanggal' => date('Y-m-d'),
               'catatan' => $_POST['catatan'],
@@ -312,7 +310,6 @@ class Site extends SiteModule
           ]);
           if($simpan_status) {
             $this->db('mlite_vedika_feedback')->save([
-              'id' => NULL,
               'nosep' => $_POST['nosep'],
               'tanggal' => date('Y-m-d'),
               'catatan' => $_POST['catatan'],
@@ -469,7 +466,6 @@ class Site extends SiteModule
       if ($this->_loginCheck()) {
         if(isset($_POST['setuju'])) {
           $this->db('mlite_vedika')->save([
-            'id' => NULL,
             'tanggal' => date('Y-m-d'),
             'no_rkm_medis' => $_POST['no_rkm_medis'],
             'no_rawat' => $_POST['no_rawat'],
@@ -482,7 +478,6 @@ class Site extends SiteModule
 
         if(isset($_POST['perbaiki'])) {
           $this->db('mlite_vedika')->save([
-            'id' => NULL,
             'tanggal' => date('Y-m-d'),
             'no_rkm_medis' => $_POST['no_rkm_medis'],
             'no_rawat' => $_POST['no_rawat'],
@@ -513,7 +508,6 @@ class Site extends SiteModule
       if($this->_loginCheck()) {
         if(isset($_POST['setuju'])) {
           $this->db('mlite_vedika')->save([
-            'id' => NULL,
             'tanggal' => date('Y-m-d'),
             'no_rkm_medis' => $_POST['no_rkm_medis'],
             'no_rawat' => $_POST['no_rawat'],
@@ -526,7 +520,6 @@ class Site extends SiteModule
 
         if(isset($_POST['perbaiki'])) {
           $this->db('mlite_vedika')->save([
-            'id' => NULL,
             'tanggal' => date('Y-m-d'),
             'no_rkm_medis' => $_POST['no_rkm_medis'],
             'no_rawat' => $_POST['no_rawat'],
@@ -1255,13 +1248,6 @@ class Site extends SiteModule
     private function _loginCheck()
     {
         if (isset($_SESSION['vedika_user']) && isset($_SESSION['vedika_token']) && isset($_SESSION['vedika_userAgent']) && isset($_SESSION['vedika_IPaddress'])) {
-
-            if (empty(parseURL(1))) {
-                redirect(url('veda'));
-            } elseif (!isset($_GET['t']) || ($_SESSION['vedika_token'] != @$_GET['t'])) {
-                return false;
-            }
-
             return true;
         }
 
