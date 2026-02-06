@@ -140,6 +140,7 @@ $("#display").on("click",".riwayat_perawatan", function(event){
 
 // ketika baris data diklik
 $("#display").on("click", ".edit", function(event){
+  {if: $this->core->checkPermission($this->core->getUserInfo('username'), 'can_update', 'rawat_inap') == true}
   var baseURL = mlite.url + '/' + mlite.admin;
   event.preventDefault();
   var url = baseURL + '/rawat_inap/form?t=' + mlite.token;
@@ -157,6 +158,7 @@ $("#display").on("click", ".edit", function(event){
     //$.post(url, {no_rawat: no_rawat} ,function(data) {
     //  $("#stts_daftar").html(data).show();
     //});
+    {/if}
   });
 });
 
@@ -947,7 +949,8 @@ $("#form_rincian").on("click", "#simpan_rincian", function(event){
   var biaya           = $('input:text[name=biaya]').val();
   var aturan_pakai    = $('input:text[name=aturan_pakai]').val();
   var kat             = $('input:hidden[name=kat]').val();
-  var jml             = $('input:text[name=jml]').val();
+  var jml             = $('input:text[name=jml_tindakan]').val();
+  var jml_tindakan    = $('input:text[name=jml_tindakan]').val();
 
   var url = baseURL + '/rawat_inap/savedetail?t=' + mlite.token;
   $.post(url, {no_rawat : no_rawat,
@@ -960,7 +963,8 @@ $("#form_rincian").on("click", "#simpan_rincian", function(event){
   biaya          : biaya,
   aturan_pakai   : aturan_pakai,
   kat            : kat,
-  jml            : jml
+  jml            : jml,
+  jml_tindakan   : jml_tindakan
   }, function(data) {
 
     // tampilkan data
@@ -985,6 +989,7 @@ $("#form_rincian").on("click", "#simpan_rincian", function(event){
     $('input:text[name=kode_provider]').val("");
     $('input:text[name=kode_provider2]').val("");
     $('input:text[name=jam_rawat]').last().val("");
+    $('input:text[name=jml_tindakan]').last().val("");
     $('#notif').html("<div class=\"alert alert-success alert-dismissible fade in\" role=\"alert\" style=\"border-radius:0px;margin-top:-15px;\">"+
     "Data pasien telah disimpan!"+
     "<button type=\"button\" class=\"close\" data-dismiss=\"alert\" aria-label=\"Close\">&times;</button>"+

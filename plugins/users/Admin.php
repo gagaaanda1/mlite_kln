@@ -26,6 +26,109 @@ class Admin extends AdminModule
       return $this->draw('index.html', ['sub_modules' => $sub_modules]);
     }
 
+    public function apiSave()
+    {
+        $username = $this->core->checkAuth('POST');
+        if (!$this->core->checkPermission($username, 'can_write', 'users')) {
+            return ['status' => 'error', 'message' => 'Invalid User Permission Credentials'];
+        }
+        $input = json_decode(file_get_contents('php://input'), true);
+        if (!is_array($input)) $input = $_POST;
+        
+        $_POST = $input;
+
+        $id = isset($_POST['id']) ? $_POST['id'] : null;
+
+        // admin
+        if ($id == 1) {
+            $_POST['access'] = 'all';
+        }
+
+        // check if required fields are empty
+        if (empty($_POST['username']) || empty($_POST['email'])) {
+            return ['status' => 'error', 'message' => 'Username dan Email wajib diisi.'];
+        }
+
+        // check if user already exists
+        if($id == null) {
+          if ($this->_userAlreadyExists($_POST['username'])) {
+            return ['status' => 'error', 'message' => 'Pengguna sudah terdaftar.'];
+          }
+        }
+        
+        // chech if e-mail adress is correct
+        $_POST['email'] = filter_var($_POST['email'], FILTER_SANITIZE_EMAIL);
+        if (!filter_var($_POST['email'], FILTER_VALIDATE_EMAIL)) {
+            return ['status' => 'error', 'message' => 'Email salah.'];
+        }
+        // check if password is longer than 5 characters
+        if (isset($_POST['password']) && !empty($_POST['password']) && strlen($_POST['password']) < 8) {
+            return ['status' => 'error', 'message' => 'Password terlalu pendek. Minimal 8 karakter.'];
+        }
+
+        // access and cap are already strings from frontend
+        if (!isset($_POST['access'])) $_POST['access'] = 'dashboard';
+        if (!isset($_POST['cap'])) $_POST['cap'] = '';
+
+        unset($_POST['save']);
+        unset($_POST['status']); // mlite_users table does not have status column
+        unset($_POST['password_confirmation']);
+
+        if (!empty($_POST['password'])) {
+            $_POST['password'] = password_hash($_POST['password'], PASSWORD_BCRYPT);
+        } else {
+            unset($_POST['password']);
+        }
+
+        if (!$id) {    // new
+            try {
+                $query = $this->db('mlite_users')->save($_POST);
+            } catch (\Exception $e) {
+                return ['status' => 'error', 'message' => $e->getMessage()];
+            }
+        } else {        // edit
+            try {
+                $query = $this->db('mlite_users')->where('id', $id)->save($_POST);
+            } catch (\Exception $e) {
+                return ['status' => 'error', 'message' => $e->getMessage()];
+            }
+        }
+
+        if ($query) {
+            return ['status' => 'success', 'message' => 'Pengguna berhasil disimpan.'];
+        } else {
+            return ['status' => 'error', 'message' => 'Gagal menyimpan pengguna.'];
+        }
+    }
+
+    public function apiDelete($id = null)
+    {
+        $username = $this->core->checkAuth('POST');
+        if (!$this->core->checkPermission($username, 'can_write', 'users')) {
+            return ['status' => 'error', 'message' => 'Invalid User Permission Credentials'];
+        }
+        if (!$id) {
+             $input = json_decode(file_get_contents('php://input'), true);
+             $id = isset($input['id']) ? $input['id'] : null;
+        }
+
+        if (!$id) {
+            return ['status' => 'error', 'message' => 'ID tidak ditemukan.'];
+        }
+
+        if ($id != 1 && $this->core->getUserInfo('id') != $id && ($user = $this->db('mlite_users')->oneArray($id))) {
+            if ($this->db('mlite_users')->delete($id)) {
+                if (is_array($user) && !empty($user['avatar'])) {
+                    @unlink(UPLOADS."/users/".$user['avatar']);
+                }
+                return ['status' => 'success', 'message' => 'Pengguna berhasil dihapus.'];
+            } else {
+                return ['status' => 'error', 'message' => 'Tidak dapat menghapus pengguna.'];
+            }
+        }
+        return ['status' => 'error', 'message' => 'Tidak diizinkan menghapus pengguna ini.'];
+    }
+
     /**
     * users list
     */
@@ -355,7 +458,7 @@ class Admin extends AdminModule
     private function _getInfoCap($kd_poli = null)
     {
         $result = [];
-        $rows = $this->db()->pdo()->prepare("(SELECT kd_poli AS cap, nm_poli AS nm_cap FROM poliklinik) UNION (SELECT kd_bangsal AS cap, nm_bangsal AS nm_cap FROM bangsal)");
+        $rows = $this->db()->pdo()->prepare("SELECT kd_poli AS cap, nm_poli AS nm_cap FROM poliklinik UNION SELECT kd_bangsal AS cap, nm_bangsal AS nm_cap FROM bangsal");
         $rows->execute();
         $rows = $rows->fetchAll();
 

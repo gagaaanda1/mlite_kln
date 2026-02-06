@@ -1684,6 +1684,20 @@ switch ($version) {
           CONSTRAINT `detail_obat_racikan_ibfk_2` FOREIGN KEY (`kode_brng`) REFERENCES `databarang` (`kode_brng`) ON UPDATE CASCADE
         ) ENGINE=InnoDB DEFAULT CHARSET=latin1;");
               
+
+        $this->core->db()->pdo()->exec("CREATE TABLE IF NOT EXISTS `mlite_crud_permissions` (
+          `id` int NOT NULL AUTO_INCREMENT,
+          `user` varchar(100) NOT NULL,
+          `module` varchar(100) NOT NULL,
+          `can_create` varchar(10) NOT NULL DEFAULT 'true',
+          `can_read` varchar(10) NOT NULL DEFAULT 'true',
+          `can_update` varchar(10) NOT NULL DEFAULT 'true',
+          `can_delete` varchar(10) NOT NULL DEFAULT 'true',
+          PRIMARY KEY (`id`) USING BTREE,
+          UNIQUE KEY `user` (`user`,`module`) USING BTREE
+        ) ENGINE=InnoDB DEFAULT CHARSET=latin1;");
+
+
         $this->core->db()->pdo()->exec("INSERT INTO `mlite_settings` (`module`, `field`, `value`) VALUES ('settings', 'set_nomor_surat', '000')");
         $this->core->db()->pdo()->exec("INSERT INTO `mlite_settings` (`module`, `field`, `value`) VALUES ('settings', 'password_expire', 'tidak')");
         $this->core->db()->pdo()->exec("INSERT INTO `mlite_settings` (`module`, `field`, `value`) VALUES ('farmasi', 'embalase', '0')");
@@ -1694,12 +1708,16 @@ switch ($version) {
         $this->core->db()->pdo()->exec("ALTER TABLE `mlite_users` ADD COLUMN `otp_expires` DATETIME NULL AFTER `otp_code`");
         $this->core->db()->pdo()->exec("INSERT INTO `mlite_settings` (`module`, `field`, `value`) VALUES ('settings', 'log_query', 'tidak')");
 
-        $return = '5.4.0'; 
+        $return = '6.0.0'; 
+        break;
+
+    case '6.0.0':
+        $return = '6.2.0'; 
         break;
     }
 
     if (!isset($return) || !$return) {
-        $return = '5.4.0';
+        $return = '6.2.0';
     }
 
 return $return;

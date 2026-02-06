@@ -150,6 +150,7 @@ $("#display").on("click",".riwayat_perawatan", function(event){
 
 // ketika baris data diklik
 $("#display").on("click", ".edit", function(event){
+  {if: $this->core->checkPermission($this->core->getUserInfo('username'), 'can_update', 'laboratorium') == true}
   var baseURL = mlite.url + '/' + mlite.admin;
   event.preventDefault();
   var url = baseURL + '/laboratorium/form?t=' + mlite.token;
@@ -163,6 +164,7 @@ $("#display").on("click", ".edit", function(event){
       $("#stts_daftar").html(data).show();
     });
   });
+  {/if}
 });
 
 // ketika tombol hapus ditekan
@@ -473,7 +475,7 @@ $("#form_rincian").on("click", "#simpan_rincian", function(event){
   var biaya           = $('input:text[name=biaya]').val();
   var aturan_pakai    = $('input:text[name=aturan_pakai]').val();
   var kat             = $('input:hidden[name=kat]').val();
-  var jml             = $('input:text[name=jml]').val();
+  var jml_tindakan    = $('input:text[name=jml_tindakan]').val();
   var status          = $('input:text[name=status]').val();
 
   var url = baseURL + '/laboratorium/savedetail?t=' + mlite.token;
@@ -486,7 +488,7 @@ $("#form_rincian").on("click", "#simpan_rincian", function(event){
   biaya          : biaya,
   aturan_pakai   : aturan_pakai,
   kat            : kat,
-  jml            : jml,
+  jml_tindakan   : jml_tindakan,
   status         : status
   }, function(data) {
     // tampilkan data
@@ -503,6 +505,7 @@ $("#form_rincian").on("click", "#simpan_rincian", function(event){
     $('input:text[name=biaya]').val("");
     $('input:text[name=nama_provider]').val("");
     $('input:text[name=kode_provider]').val("");
+    $('input:text[name=jml_tindakan]').val("");
     $('#notif').html("<div class=\"alert alert-success alert-dismissible fade in\" role=\"alert\" style=\"border-radius:0px;margin-top:-15px;\">"+
     "Data pasien telah disimpan!"+
     "<button type=\"button\" class=\"close\" data-dismiss=\"alert\" aria-label=\"Close\">&times;</button>"+

@@ -35,12 +35,15 @@ class Admin extends AdminModule
         $tgl_awal = $_GET['tgl_awal'] ?? date('Y-m-d');
         $tgl_akhir = $_GET['tgl_akhir'] ?? date('Y-m-d');
 
-        $query = $this->db('reg_periksa')
+        $query = $this->db('mlite_billing')
+            ->join('reg_periksa', 'reg_periksa.no_rawat = mlite_billing.no_rawat')
             ->join('pasien', 'pasien.no_rkm_medis = reg_periksa.no_rkm_medis')
-            ->join('dokter', 'dokter.kd_dokter = reg_periksa.kd_dokter')
             ->join('poliklinik', 'poliklinik.kd_poli = reg_periksa.kd_poli')
-            ->where('reg_periksa.tgl_registrasi', '>=', $tgl_awal)
-            ->where('reg_periksa.tgl_registrasi', '<=', $tgl_akhir);
+            ->join('dokter', 'dokter.kd_dokter = reg_periksa.kd_dokter')
+            ->join('penjab', 'penjab.kd_pj = reg_periksa.kd_pj')
+            ->where('mlite_billing.tgl_billing', '>=', $tgl_awal)
+            ->where('mlite_billing.tgl_billing', '<=', $tgl_akhir)
+            ->like('mlite_billing.kd_billing', 'RJ%');
 
         if ($search) {
             $query->where(function($q) use ($search) {
@@ -51,21 +54,21 @@ class Admin extends AdminModule
         }
 
         $total = $query->count();
-        $data = $query->select('reg_periksa.*')
+        $data = $query->select('mlite_billing.*')
+            ->select('reg_periksa.no_rkm_medis')
+            ->select('reg_periksa.status_bayar')
             ->select('pasien.nm_pasien')
-            ->select('pasien.no_rkm_medis')
-            ->select('dokter.nm_dokter')
             ->select('poliklinik.nm_poli')
+            ->select('dokter.nm_dokter')
+            ->select('penjab.png_jawab')
             ->offset($offset)
             ->limit($per_page)
-            ->desc('reg_periksa.tgl_registrasi')
-            ->desc('reg_periksa.jam_reg')
+            ->desc('mlite_billing.tgl_billing')
+            ->desc('mlite_billing.jam_billing')
             ->toArray();
 
         foreach ($data as &$row) {
-             $billing = $this->db('mlite_billing')->where('no_rawat', $row['no_rawat'])->like('kd_billing', 'RJ%')->oneArray();
-             $row['total_tagihan'] = $billing ? $billing['jumlah_harus_bayar'] : 0;
-             $row['status_bayar'] = $row['status_bayar']; 
+             $row['total_tagihan'] = $row['jumlah_harus_bayar'];
         }
 
         echo json_encode([
@@ -125,7 +128,12 @@ class Admin extends AdminModule
                 'nama' => $t['nm_perawatan'],
                 'biaya' => $t['biaya_rawat'],
                 'jumlah' => 1,
-                'subtotal' => $t['biaya_rawat']
+                'subtotal' => $t['biaya_rawat'],
+                'kd_jenis_prw' => $t['kd_jenis_prw'],
+                'tgl_perawatan' => $t['tgl_perawatan'],
+                'jam_rawat' => $t['jam_rawat'],
+                'provider' => 'rawat_jl_dr',
+                'type' => 'tindakan'
             ];
             $total_biaya += $t['biaya_rawat'];
         }
@@ -140,7 +148,12 @@ class Admin extends AdminModule
                 'nama' => $t['nm_perawatan'],
                 'biaya' => $t['biaya_rawat'],
                 'jumlah' => 1,
-                'subtotal' => $t['biaya_rawat']
+                'subtotal' => $t['biaya_rawat'],
+                'kd_jenis_prw' => $t['kd_jenis_prw'],
+                'tgl_perawatan' => $t['tgl_perawatan'],
+                'jam_rawat' => $t['jam_rawat'],
+                'provider' => 'rawat_jl_pr',
+                'type' => 'tindakan'
             ];
             $total_biaya += $t['biaya_rawat'];
         }
@@ -155,7 +168,12 @@ class Admin extends AdminModule
                 'nama' => $t['nm_perawatan'],
                 'biaya' => $t['biaya_rawat'],
                 'jumlah' => 1,
-                'subtotal' => $t['biaya_rawat']
+                'subtotal' => $t['biaya_rawat'],
+                'kd_jenis_prw' => $t['kd_jenis_prw'],
+                'tgl_perawatan' => $t['tgl_perawatan'],
+                'jam_rawat' => $t['jam_rawat'],
+                'provider' => 'rawat_jl_drpr',
+                'type' => 'tindakan'
             ];
             $total_biaya += $t['biaya_rawat'];
         }
@@ -173,7 +191,12 @@ class Admin extends AdminModule
                 'nama' => $o['nama_brng'],
                 'biaya' => $o['biaya_obat'],
                 'jumlah' => $o['jml'],
-                'subtotal' => $o['total'] + $o['embalase'] + $o['tuslah']
+                'subtotal' => $o['total'] + $o['embalase'] + $o['tuslah'],
+                'kode_brng' => $o['kode_brng'],
+                'tgl_peresepan' => $o['tgl_perawatan'],
+                'jam_peresepan' => $o['jam'],
+                'kd_bangsal' => $o['kd_bangsal'],
+                'type' => 'obat'
             ];
             $total_biaya += ($o['total'] + $o['embalase'] + $o['tuslah']);
         }
@@ -190,7 +213,11 @@ class Admin extends AdminModule
                 'nama' => $l['nm_perawatan'],
                 'biaya' => $l['biaya'],
                 'jumlah' => 1,
-                'subtotal' => $l['biaya']
+                'subtotal' => $l['biaya'],
+                'kd_jenis_prw' => $l['kd_jenis_prw'],
+                'tgl_perawatan' => $l['tgl_periksa'],
+                'jam_rawat' => $l['jam'],
+                'type' => 'lab'
             ];
             $total_biaya += $l['biaya'];
         }
@@ -207,7 +234,11 @@ class Admin extends AdminModule
                 'nama' => $r['nm_perawatan'],
                 'biaya' => $r['biaya'],
                 'jumlah' => 1,
-                'subtotal' => $r['biaya']
+                'subtotal' => $r['biaya'],
+                'kd_jenis_prw' => $r['kd_jenis_prw'],
+                'tgl_perawatan' => $r['tgl_periksa'],
+                'jam_rawat' => $r['jam'],
+                'type' => 'rad'
             ];
             $total_biaya += $r['biaya'];
         }
@@ -225,6 +256,7 @@ class Admin extends AdminModule
             $total_biaya += $t['besar_biaya'];
         }
 
+        header('Content-Type: application/json');
         echo json_encode([
             'status' => 'success',
             'data' => [
@@ -232,6 +264,44 @@ class Admin extends AdminModule
                 'details' => $details,
                 'total' => $total_biaya
             ]
+        ], JSON_PRETTY_PRINT);
+        exit;
+    }
+
+    public function apiBilling($no_rawat)
+    {
+        $username = $this->core->checkAuth('GET');
+        if (!$this->core->checkPermission($username, 'can_read', 'kasir_rawat_jalan')) {
+             echo json_encode(['status' => 'error', 'message' => 'You do not have permission to access this resource']);
+             exit;
+        }
+        $no_rawat = revertNorawat($no_rawat);
+        $all = isset($_GET['all']) && $_GET['all'] == 'true';
+
+        $query = $this->db('mlite_billing')
+            ->where('no_rawat', $no_rawat)
+            ->like('kd_billing', 'RJ%');
+
+        if (isset($_GET['tgl_awal']) && isset($_GET['tgl_akhir'])) {
+            $query->where('tgl_billing', '>=', $_GET['tgl_awal'])
+                  ->where('tgl_billing', '<=', $_GET['tgl_akhir']);
+        }
+
+        if ($all) {
+            $billing = $query
+                ->desc('tgl_billing')
+                ->desc('jam_billing')
+                ->toArray();
+        } else {
+            $billing = $query
+                ->desc('tgl_billing')
+                ->desc('jam_billing')
+                ->oneArray();
+        }
+        header('Content-Type: application/json');
+        echo json_encode([
+            'status' => 'success',
+            'data' => $billing
         ]);
         exit;
     }
@@ -703,6 +773,8 @@ class Admin extends AdminModule
         $ingredients_map = $this->db('detail_obat_racikan')
             ->where('no_rawat', $header['no_rawat'])
             ->where('no_racik', $header['no_racik'])
+            ->where('tgl_perawatan', $header['tgl_perawatan'])
+            ->where('jam', $header['jam'])
             ->toArray();
 
         $total_racikan = 0;
@@ -1163,6 +1235,618 @@ class Admin extends AdminModule
       exit();
     }
 
+    public function apiSimpanKasir()
+    {
+        $payload = json_decode(file_get_contents('php://input'), true);
+        $username = $this->core->checkAuth('POST');
+        if (!$this->core->checkPermission($username, 'can_create', 'kasir_rawat_jalan')) {
+            echo json_encode(['status' => 'error', 'message' => 'You do not have permission to access this resource']);
+            exit;
+        }
+
+        $payload['id_user'] = $this->db('mlite_users')->where('username', $username)->oneArray()['id'];
+        $payload['kd_billing'] = 'RJ.'.date('d.m.Y.H.i.s');
+        $payload['tgl_billing'] = $payload['tgl_bayar'] ?? date('Y-m-d');
+        $payload['jam_billing'] = $payload['jam_bayar'] ?? date('H:i:s');
+        
+        unset($payload['tgl_bayar']);
+        unset($payload['jam_bayar']);
+
+        if($this->settings('keuangan', 'jurnal_kasir') == 1) {
+            // jurnal_pendaftaran //
+            if(isset($payload['jurnal_pendaftaran']) && $payload['jurnal_pendaftaran'] != '0' && $payload['jurnal_pendaftaran'] != 0) {
+                $no_jurnal_pendaftaran = $this->core->setNoJurnal();
+                $keterangan = $this->db('mlite_rekening')
+                    ->where('kd_rek', $this->settings('keuangan', 'akun_kredit_pendaftaran'))
+                    ->oneArray();
+                $jumlah = $payload['jurnal_pendaftaran'];
+                
+                $query_jurnal_pendaftaran = $this->db('mlite_jurnal')->save([
+                    'no_jurnal' => $no_jurnal_pendaftaran,
+                    'no_bukti' => $payload['no_rawat'],
+                    'tgl_jurnal' => date('Y-m-d'),
+                    'jenis' => 'U',
+                    'kegiatan' => $keterangan['nm_rek'],
+                    'keterangan' => $keterangan['nm_rek'].' '.$payload['no_rawat'].'. Diposting oleh '.$this->core->getUserInfo('fullname', null, true).'.'
+                ]);
+                
+                if($query_jurnal_pendaftaran) {
+                    // DEBET: Kas/Piutang Usaha (Aset bertambah)
+                    $this->db('mlite_detailjurnal')->save([
+                        'no_jurnal' => $no_jurnal_pendaftaran,
+                        'kd_rek' => $this->settings('keuangan', 'akun_debet_kas'), // Setting untuk akun kas
+                        'arus_kas' => '1',
+                        'debet' => $jumlah,
+                        'kredit' => '0'
+                    ]);
+                    
+                    // KREDIT: Pendapatan Pendaftaran (Pendapatan bertambah)
+                    $this->db('mlite_detailjurnal')->save([
+                        'no_jurnal' => $no_jurnal_pendaftaran,
+                        'kd_rek' => $this->settings('keuangan', 'akun_kredit_pendaftaran'),
+                        'arus_kas' => '0',
+                        'debet' => '0',
+                        'kredit' => $jumlah
+                    ]);
+                }
+            }
+            // End jurnal_pendaftaran // 
+
+            // jurnal_tindakan_ralan //
+            if(isset($payload['jurnal_tindakan_ralan']) && $payload['jurnal_tindakan_ralan'] != '0' && $payload['jurnal_tindakan_ralan'] != 0) {
+                $no_jurnal_tindakan_ralan = $this->core->setNoJurnal();
+                $keterangan = $this->db('mlite_rekening')
+                    ->where('kd_rek', $this->settings('keuangan', 'akun_kredit_tindakan'))
+                    ->oneArray();
+                $jumlah = $payload['jurnal_tindakan_ralan'];
+                
+                $query_jurnal_tindakan_ralan = $this->db('mlite_jurnal')->save([
+                    'no_jurnal' => $no_jurnal_tindakan_ralan,
+                    'no_bukti' => $payload['no_rawat'],
+                    'tgl_jurnal' => date('Y-m-d'),
+                    'jenis' => 'U',
+                    'kegiatan' => $keterangan['nm_rek'],
+                    'keterangan' => $keterangan['nm_rek'].' '.$payload['no_rawat'].'. Diposting oleh '.$this->core->getUserInfo('fullname', null, true).'.'
+                ]);
+                
+                if($query_jurnal_tindakan_ralan) {
+                    // DEBET: Kas/Piutang Usaha
+                    $this->db('mlite_detailjurnal')->save([
+                        'no_jurnal' => $no_jurnal_tindakan_ralan,
+                        'kd_rek' => $this->settings('keuangan', 'akun_debet_kas'),
+                        'arus_kas' => '1',
+                        'debet' => $jumlah,
+                        'kredit' => '0'
+                    ]);
+                    
+                    // KREDIT: Pendapatan Tindakan
+                    $this->db('mlite_detailjurnal')->save([
+                        'no_jurnal' => $no_jurnal_tindakan_ralan,
+                        'kd_rek' => $this->settings('keuangan', 'akun_kredit_tindakan'),
+                        'arus_kas' => '0',
+                        'debet' => '0',
+                        'kredit' => $jumlah
+                    ]);
+                }
+            }
+            // End jurnal_tindakan_ralan //
+
+            // jurnal_obat_bhp //
+            if(isset($payload['jurnal_obat_bhp']) && $payload['jurnal_obat_bhp'] != '0' && $payload['jurnal_obat_bhp'] != 0) {
+                $no_jurnal_obat_bhp = $this->core->setNoJurnal();
+                $keterangan = $this->db('mlite_rekening')
+                    ->where('kd_rek', $this->settings('keuangan', 'akun_kredit_obat_bhp'))
+                    ->oneArray();
+                $jumlah = $payload['jurnal_obat_bhp'];
+                
+                $query_jurnal_obat_bhp = $this->db('mlite_jurnal')->save([
+                    'no_jurnal' => $no_jurnal_obat_bhp,
+                    'no_bukti' => $payload['no_rawat'],
+                    'tgl_jurnal' => date('Y-m-d'),
+                    'jenis' => 'U',
+                    'kegiatan' => $keterangan['nm_rek'],
+                    'keterangan' => $keterangan['nm_rek'].' '.$payload['no_rawat'].'. Diposting oleh '.$this->core->getUserInfo('fullname', null, true).'.'
+                ]);
+                
+                if($query_jurnal_obat_bhp) {
+                    // DEBET: Kas/Piutang Usaha
+                    $this->db('mlite_detailjurnal')->save([
+                        'no_jurnal' => $no_jurnal_obat_bhp,
+                        'kd_rek' => $this->settings('keuangan', 'akun_debet_kas'),
+                        'arus_kas' => '1',
+                        'debet' => $jumlah,
+                        'kredit' => '0'
+                    ]);
+                    
+                    // KREDIT: Pendapatan Obat dan BHP
+                    $this->db('mlite_detailjurnal')->save([
+                        'no_jurnal' => $no_jurnal_obat_bhp,
+                        'kd_rek' => $this->settings('keuangan', 'akun_kredit_obat_bhp'),
+                        'arus_kas' => '0',
+                        'debet' => '0',
+                        'kredit' => $jumlah
+                    ]);
+                }
+            }
+            // End jurnal_obat_bhp //
+
+            // jurnal_laboratorium //
+            if(isset($payload['jurnal_laboratorium']) && $payload['jurnal_laboratorium'] != '0' && $payload['jurnal_laboratorium'] != 0) {
+                $no_jurnal_laboratorium = $this->core->setNoJurnal();
+                $keterangan = $this->db('mlite_rekening')
+                    ->where('kd_rek', $this->settings('keuangan', 'akun_kredit_laboratorium'))
+                    ->oneArray();
+                $jumlah = $payload['jurnal_laboratorium'];
+                
+                $query_jurnal_laboratorium = $this->db('mlite_jurnal')->save([
+                    'no_jurnal' => $no_jurnal_laboratorium,
+                    'no_bukti' => $payload['no_rawat'],
+                    'tgl_jurnal' => date('Y-m-d'),
+                    'jenis' => 'U',
+                    'kegiatan' => $keterangan['nm_rek'],
+                    'keterangan' => $keterangan['nm_rek'].' '.$payload['no_rawat'].'. Diposting oleh '.$this->core->getUserInfo('fullname', null, true).'.'
+                ]);
+                
+                if($query_jurnal_laboratorium) {
+                    // DEBET: Kas/Piutang Usaha
+                    $this->db('mlite_detailjurnal')->save([
+                        'no_jurnal' => $no_jurnal_laboratorium,
+                        'kd_rek' => $this->settings('keuangan', 'akun_debet_kas'),
+                        'arus_kas' => '1',
+                        'debet' => $jumlah,
+                        'kredit' => '0'
+                    ]);
+                    
+                    // KREDIT: Pendapatan Laboratorium
+                    $this->db('mlite_detailjurnal')->save([
+                        'no_jurnal' => $no_jurnal_laboratorium,
+                        'kd_rek' => $this->settings('keuangan', 'akun_kredit_laboratorium'),
+                        'arus_kas' => '0',
+                        'debet' => '0',
+                        'kredit' => $jumlah
+                    ]);
+                }
+            }
+            // End jurnal_laboratorium //
+
+            // jurnal_radiologi//
+            if(isset($payload['jurnal_radiologi']) && $payload['jurnal_radiologi'] != '0' && $payload['jurnal_radiologi'] != 0) {
+                $no_jurnal_radiologi = $this->core->setNoJurnal();
+                $keterangan = $this->db('mlite_rekening')
+                    ->where('kd_rek', $this->settings('keuangan', 'akun_kredit_radiologi'))
+                    ->oneArray();
+                $jumlah = $payload['jurnal_radiologi'];
+                
+                $query_jurnal_radiologi = $this->db('mlite_jurnal')->save([
+                    'no_jurnal' => $no_jurnal_radiologi,
+                    'no_bukti' => $payload['no_rawat'],
+                    'tgl_jurnal' => date('Y-m-d'),
+                    'jenis' => 'U',
+                    'kegiatan' => $keterangan['nm_rek'],
+                    'keterangan' => $keterangan['nm_rek'].' '.$payload['no_rawat'].'. Diposting oleh '.$this->core->getUserInfo('fullname', null, true).'.'
+                ]);
+                
+                if($query_jurnal_radiologi) {
+                    // DEBET: Kas/Piutang Usaha
+                    $this->db('mlite_detailjurnal')->save([
+                        'no_jurnal' => $no_jurnal_radiologi,
+                        'kd_rek' => $this->settings('keuangan', 'akun_debet_kas'),
+                        'arus_kas' => '1',
+                        'debet' => $jumlah,
+                        'kredit' => '0'
+                    ]);
+                    
+                    // KREDIT: Pendapatan Radiologi
+                    $this->db('mlite_detailjurnal')->save([
+                        'no_jurnal' => $no_jurnal_radiologi,
+                        'kd_rek' => $this->settings('keuangan', 'akun_kredit_radiologi'),
+                        'arus_kas' => '0',
+                        'debet' => '0',
+                        'kredit' => $jumlah
+                    ]);
+                }
+            }
+            // End jurnal_radiologi //
+        }
+
+        unset($payload['jurnal_pendaftaran']);
+        unset($payload['jurnal_tindakan_ralan']);
+        unset($payload['jurnal_obat_bhp']);
+        unset($payload['jurnal_laboratorium']);
+        unset($payload['jurnal_radiologi']);
+
+        // Pastikan tidak ada field lain yang tidak dikenali oleh tabel mlite_billing
+        // Filter payload hanya untuk kolom yang ada (jika kita tahu strukturnya, atau biarkan DB wrapper menangani)
+        // Namun, jika DB wrapper menghapus field unknown tanpa error, maka insert bisa berhasil tapi datanya kosong.
+        
+        // Cek apakah data sudah ada sebelumnya? (Mencegah duplikat jika no_rawat+kd_billing unik?)
+        // kd_billing baru digenerate, jadi harusnya unik.
+
+        // echo json_encode(['status' => 'error', 'message' => json_encode($payload)]);
+        try {
+            $query = $this->db('mlite_billing')->save([
+                'kd_billing' => $payload['kd_billing'],
+                'no_rawat' => $payload['no_rawat'],
+                'jumlah_total' => $payload['jumlah_harus_bayar'],
+                'potongan' => $payload['potongan'],
+                'jumlah_harus_bayar' => $payload['jumlah_harus_bayar'] - $payload['potongan'],
+                'jumlah_bayar' => $payload['bayar'],
+                'tgl_billing' => $payload['tgl_billing'],
+                'jam_billing' => $payload['jam_billing'], 
+                'id_user' => $payload['id_user'],
+            ]);
+            if($query) {
+                $this->db('reg_periksa')->where('no_rawat', $payload['no_rawat'])->update(['status_bayar' => 'Sudah Bayar']);
+                echo json_encode(['status' => 'success', 'message' => 'Pembayaran berhasil disimpan']);
+            } else {
+                echo json_encode(['status' => 'error', 'message' => 'Gagal menyimpan pembayaran']);
+            }
+        } catch (\PDOException $e) {
+            echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
+        }
+        exit();
+    }
+
+    public function apiHapusItem()
+    {
+        try {
+            $payload = json_decode(file_get_contents('php://input'), true);
+            $type = $payload['type'] ?? '';
+            
+            if ($type === 'tindakan') {
+                if($payload['provider'] == 'rawat_jl_dr') {
+                    $this->db('rawat_jl_dr')
+                    ->where('no_rawat', $payload['no_rawat'])
+                    ->where('kd_jenis_prw', $payload['kd_jenis_prw'])
+                    ->where('tgl_perawatan', $payload['tgl_perawatan'])
+                    ->where('jam_rawat', $payload['jam_rawat'])
+                    ->delete();
+                }
+                if($payload['provider'] == 'rawat_jl_pr') {
+                    $this->db('rawat_jl_pr')
+                    ->where('no_rawat', $payload['no_rawat'])
+                    ->where('kd_jenis_prw', $payload['kd_jenis_prw'])
+                    ->where('tgl_perawatan', $payload['tgl_perawatan'])
+                    ->where('jam_rawat', $payload['jam_rawat'])
+                    ->delete();
+                }
+                if($payload['provider'] == 'rawat_jl_drpr') {
+                    $this->db('rawat_jl_drpr')
+                    ->where('no_rawat', $payload['no_rawat'])
+                    ->where('kd_jenis_prw', $payload['kd_jenis_prw'])
+                    ->where('tgl_perawatan', $payload['tgl_perawatan'])
+                    ->where('jam_rawat', $payload['jam_rawat'])
+                    ->delete();
+                }
+            }
+            
+            if ($type === 'obat') {
+                $payload['jml'] = $payload['jml'] ?? $payload['jumlah'] ?? 0;
+                $kd_bangsal = $payload['kd_bangsal'] ?? $this->settings->get('farmasi.deporalan');
+                $get_gudangbarang = $this->db('gudangbarang')->where('kode_brng', $payload['kode_brng'])->where('kd_bangsal', $kd_bangsal)->oneArray();
+
+                $this->db('gudangbarang')
+                    ->where('kode_brng', $payload['kode_brng'])
+                    ->where('kd_bangsal', $kd_bangsal)
+                    ->update([
+                        'stok' => $get_gudangbarang['stok'] + $payload['jml']
+                    ]);
+
+                $this->db('riwayat_barang_medis')
+                    ->save([
+                        'kode_brng' => $payload['kode_brng'],
+                        'stok_awal' => $get_gudangbarang['stok'],
+                        'masuk' => $payload['jml'],
+                        'keluar' => '0',
+                        'stok_akhir' => $get_gudangbarang['stok'] + $payload['jml'],
+                        'posisi' => 'Pemberian Obat',
+                        'tanggal' => $payload['tgl_peresepan'],
+                        'jam' => $payload['jam_peresepan'],
+                        'petugas' => $this->core->getUserInfo('fullname', null, true),
+                        'kd_bangsal' => $kd_bangsal,
+                        'status' => 'Hapus',
+                        'no_batch' => $get_gudangbarang['no_batch'],
+                        'no_faktur' => $get_gudangbarang['no_faktur'],
+                        'keterangan' => $payload['no_rawat'] . ' ' . $this->core->getRegPeriksaInfo('no_rkm_medis', $payload['no_rawat']) . ' ' . $this->core->getPasienInfo('nm_pasien', $this->core->getRegPeriksaInfo('no_rkm_medis', $payload['no_rawat']))
+                    ]);
+
+                $this->db('detail_pemberian_obat')
+                    ->where('tgl_perawatan', $payload['tgl_peresepan'])
+                    ->where('jam', $payload['jam_peresepan'])
+                    ->where('no_rawat', $payload['no_rawat'])
+                    ->where('kode_brng', $payload['kode_brng'])
+                    ->where('jml', $payload['jml'])
+                    ->where('status', 'Ralan')
+                    ->where('kd_bangsal', $kd_bangsal)
+                    ->delete();
+            }
+            
+            if ($type === 'lab') {
+                $this->db('periksa_lab')
+                ->where('no_rawat', $payload['no_rawat'])
+                ->where('kd_jenis_prw', $payload['kd_jenis_prw'])
+                ->where('tgl_periksa', $payload['tgl_perawatan'])
+                ->where('jam', $payload['jam_rawat'])
+                ->where('status', 'Ralan')
+                ->delete();
+            }
+            
+            if ($type === 'rad') {
+                $this->db('periksa_radiologi')
+                ->where('no_rawat', $payload['no_rawat'])
+                ->where('kd_jenis_prw', $payload['kd_jenis_prw'])
+                ->where('tgl_periksa', $payload['tgl_perawatan'])
+                ->where('jam', $payload['jam_rawat'])
+                ->where('status', 'Ralan')
+                ->delete();
+            }
+
+            echo json_encode(['status' => 'success', 'message' => 'Item berhasil dihapus ' . json_encode($payload)]);
+
+        } catch (\Exception $e) {
+            echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
+        }
+        exit;
+    }
+
+    public function apiSimpanItem()
+    {
+        $payload = json_decode(file_get_contents('php://input'), true);
+        $kat = $payload['kat'] ?? '';
+
+        try {
+            if($kat == 'tindakan') {
+                $jns_perawatan = $this->db('jns_perawatan')->where('kd_jenis_prw', $payload['kd_jenis_prw'])->oneArray();
+                if($payload['provider'] == 'rawat_jl_dr') {
+                    for ($i = 0; $i < $payload['jml_tindakan']; $i++) {
+                        $this->db('rawat_jl_dr')->save([
+                            'no_rawat' => $payload['no_rawat'],
+                            'kd_jenis_prw' => $payload['kd_jenis_prw'],
+                            'kd_dokter' => $payload['kode_provider'],
+                            'tgl_perawatan' => $payload['tgl_perawatan'],
+                            'jam_rawat' => date('H:i:s', strtotime($payload['jam_rawat']. ' +'.$i.'0 seconds')),
+                            'material' => $jns_perawatan['material'],
+                            'bhp' => $jns_perawatan['bhp'],
+                            'tarif_tindakandr' => $jns_perawatan['tarif_tindakandr'],
+                            'kso' => $jns_perawatan['kso'],
+                            'menejemen' => $jns_perawatan['menejemen'],
+                            'biaya_rawat' => $jns_perawatan['total_byrdr'],
+                            'stts_bayar' => 'Belum'
+                        ]);
+                    }
+                }
+                if($payload['provider'] == 'rawat_jl_pr') {
+                    for ($i = 0; $i < $payload['jml_tindakan']; $i++) {
+                        $this->db('rawat_jl_pr')->save([
+                            'no_rawat' => $payload['no_rawat'],
+                            'kd_jenis_prw' => $payload['kd_jenis_prw'],
+                            'nip' => $payload['kode_provider2'],
+                            'tgl_perawatan' => $payload['tgl_perawatan'],
+                            'jam_rawat' => date('H:i:s', strtotime($payload['jam_rawat']. ' +'.$i.'0 seconds')),
+                            'material' => $jns_perawatan['material'],
+                            'bhp' => $jns_perawatan['bhp'],
+                            'tarif_tindakanpr' => $jns_perawatan['tarif_tindakanpr'],
+                            'kso' => $jns_perawatan['kso'],
+                            'menejemen' => $jns_perawatan['menejemen'],
+                            'biaya_rawat' => $jns_perawatan['total_byrpr'],
+                            'stts_bayar' => 'Belum'
+                        ]);
+                    }
+                }
+                if($payload['provider'] == 'rawat_jl_drpr') {
+                    for ($i = 0; $i < $payload['jml_tindakan']; $i++) {
+                        $this->db('rawat_jl_drpr')->save([
+                            'no_rawat' => $payload['no_rawat'],
+                            'kd_jenis_prw' => $payload['kd_jenis_prw'],
+                            'kd_dokter' => $payload['kode_provider'],
+                            'nip' => $payload['kode_provider2'],
+                            'tgl_perawatan' => $payload['tgl_perawatan'],
+                            'jam_rawat' => date('H:i:s', strtotime($payload['jam_rawat']. ' +'.$i.'0 seconds')),
+                            'material' => $jns_perawatan['material'],
+                            'bhp' => $jns_perawatan['bhp'],
+                            'tarif_tindakandr' => $jns_perawatan['tarif_tindakandr'],
+                            'tarif_tindakanpr' => $jns_perawatan['tarif_tindakanpr'],
+                            'kso' => $jns_perawatan['kso'],
+                            'menejemen' => $jns_perawatan['menejemen'],
+                            'biaya_rawat' => $jns_perawatan['total_byrdrpr'],
+                            'stts_bayar' => 'Belum'
+                        ]);
+                    }
+                }
+            }
+
+            if($kat == 'obat') {
+                $get_gudangbarang = $this->db('gudangbarang')->where('kode_brng', $payload['kd_jenis_prw'])->where('kd_bangsal', $this->settings->get('farmasi.deporalan'))->oneArray();
+                $get_databarang = $this->db('databarang')->where('kode_brng', $payload['kd_jenis_prw'])->oneArray();
+
+                $this->db('gudangbarang')
+                    ->where('kode_brng', $payload['kd_jenis_prw'])
+                    ->where('kd_bangsal', $this->settings->get('farmasi.deporalan'))
+                    ->update([
+                        'stok' => $get_gudangbarang['stok'] - $payload['jml']
+                    ]);
+
+                $this->db('riwayat_barang_medis')
+                    ->save([
+                        'kode_brng' => $payload['kd_jenis_prw'],
+                        'stok_awal' => $get_gudangbarang['stok'],
+                        'masuk' => '0',
+                        'keluar' => $payload['jml'],
+                        'stok_akhir' => $get_gudangbarang['stok'] - $payload['jml'],
+                        'posisi' => 'Pemberian Obat',
+                        'tanggal' => $payload['tgl_perawatan'],
+                        'jam' => $payload['jam_rawat'],
+                        'petugas' => $this->core->getUserInfo('fullname', null, true),
+                        'kd_bangsal' => $this->settings->get('farmasi.deporalan'),
+                        'status' => 'Simpan',
+                        'no_batch' => $get_gudangbarang['no_batch'],
+                        'no_faktur' => $get_gudangbarang['no_faktur'],
+                        'keterangan' => $payload['no_rawat'] . ' ' . $this->core->getRegPeriksaInfo('no_rkm_medis', $payload['no_rawat']) . ' ' . $this->core->getPasienInfo('nm_pasien', $this->core->getRegPeriksaInfo('no_rkm_medis', $payload['no_rawat']))
+                    ]);
+
+                $this->db('detail_pemberian_obat')
+                    ->save([
+                        'tgl_perawatan' => $payload['tgl_perawatan'],
+                        'jam' => $payload['jam_rawat'],
+                        'no_rawat' => $payload['no_rawat'],
+                        'kode_brng' => $payload['kd_jenis_prw'],
+                        'h_beli' => $get_databarang['h_beli'],
+                        'biaya_obat' => $payload['biaya'],
+                        'jml' => $payload['jml'],
+                        'embalase' => '0',
+                        'tuslah' => '0',
+                        'total' => $payload['biaya'] * $payload['jml'],
+                        'status' => 'Ralan',
+                        'kd_bangsal' => $this->settings->get('farmasi.deporalan'),
+                        'no_batch' => $get_gudangbarang['no_batch'],
+                        'no_faktur' => $get_gudangbarang['no_faktur']
+                    ]);
+
+                if (isset($payload['aturan_pakai'])) {
+                    $this->db('aturan_pakai')
+                    ->save([
+                        'tgl_perawatan' => $payload['tgl_perawatan'],
+                        'jam' => $payload['jam_rawat'],
+                        'no_rawat' => $payload['no_rawat'],
+                        'kode_brng' => $payload['kd_jenis_prw'],
+                        'aturan' => $payload['aturan_pakai']
+                    ]);
+                }
+            }
+
+            if($kat == 'racikan') {
+                $no_racik = $this->db('obat_racikan')->where('no_rawat', $payload['no_rawat'])->where('tgl_perawatan', $payload['tgl_perawatan'])->count();
+                $no_racik = $no_racik+1;
+                $this->db('obat_racikan')
+                  ->save([
+                    'tgl_perawatan' => $payload['tgl_perawatan'],
+                    'jam' => $payload['jam_rawat'],
+                    'no_rawat' => $payload['no_rawat'],
+                    'no_racik' => $no_racik,
+                    'nama_racik' => $payload['nama_racik'],
+                    'kd_racik' => $payload['kd_jenis_prw'],
+                    'jml_dr' => $payload['jml'],
+                    'aturan_pakai' => $payload['aturan_pakai'],
+                    'keterangan' => $payload['keterangan']
+                  ]);
+                
+                $items = $payload['items'] ?? [];
+                
+                foreach ($items as $item) {
+                  $get_gudangbarang = $this->db('gudangbarang')->where('kode_brng', $item['kode_brng'])->where('kd_bangsal', $this->settings->get('farmasi.deporalan'))->oneArray();
+                  $kapasitas = $this->db('databarang')->where('kode_brng', $item['kode_brng'])->oneArray();
+                  
+                  // Calculate total quantity needed: (packets * content per packet) / capacity
+                  $jml = $payload['jml'] * $item['kandungan'];
+                  $jml = round(($jml / ($kapasitas['kapasitas'] > 0 ? $kapasitas['kapasitas'] : 1)), 1);
+
+                  $this->db('gudangbarang')
+                  ->where('kode_brng', $item['kode_brng'])
+                  ->where('kd_bangsal', $this->settings->get('farmasi.deporalan'))
+                  ->update([
+                    'stok' => $get_gudangbarang['stok'] - $jml
+                  ]);
+
+                  $this->db('riwayat_barang_medis')
+                    ->save([
+                      'kode_brng' => $item['kode_brng'],
+                      'stok_awal' => $get_gudangbarang['stok'],
+                      'masuk' => '0',
+                      'keluar' => $jml,
+                      'stok_akhir' => $get_gudangbarang['stok'] - $jml,
+                      'posisi' => 'Pemberian Obat',
+                      'tanggal' => $payload['tgl_perawatan'],
+                      'jam' => $payload['jam_rawat'],
+                      'petugas' => $this->core->getUserInfo('fullname', null, true),
+                      'kd_bangsal' => $this->settings->get('farmasi.deporalan'),
+                      'status' => 'Simpan',
+                      'no_batch' => $get_gudangbarang['no_batch'],
+                      'no_faktur' => $get_gudangbarang['no_faktur'],
+                      'keterangan' => $payload['no_rawat'] . ' ' . $this->core->getRegPeriksaInfo('no_rkm_medis', $payload['no_rawat']) . ' ' . $this->core->getPasienInfo('nm_pasien', $this->core->getRegPeriksaInfo('no_rkm_medis', $payload['no_rawat']))
+                    ]);
+
+                  $this->db('detail_pemberian_obat')
+                    ->save([
+                      'tgl_perawatan' => $payload['tgl_perawatan'],
+                      'jam' => $payload['jam_rawat'],
+                      'no_rawat' => $payload['no_rawat'],
+                      'kode_brng' => $item['kode_brng'],
+                      'h_beli' => $kapasitas['h_beli'],
+                      'biaya_obat' => $kapasitas['dasar'],
+                      'jml' => $jml,
+                      'embalase' => '0',
+                      'tuslah' => '0',
+                      'total' => $kapasitas['dasar'] * $jml,
+                      'status' => 'Ralan',
+                      'kd_bangsal' => $this->settings->get('farmasi.deporalan'),
+                      'no_batch' => $get_gudangbarang['no_batch'],
+                      'no_faktur' => $get_gudangbarang['no_faktur']
+                    ]);
+
+                  $this->db('detail_obat_racikan')
+                    ->save([
+                      'tgl_perawatan' => $payload['tgl_perawatan'],
+                      'jam' => $payload['jam_rawat'],
+                      'no_rawat' => $payload['no_rawat'],
+                      'no_racik' => $no_racik,
+                      'kode_brng' => $item['kode_brng']
+                    ]);          
+                }        
+            }
+
+            if($kat == 'laboratorium') {
+                $jns_perawatan = $this->db('jns_perawatan_lab')->where('kd_jenis_prw', $payload['kd_jenis_prw'])->oneArray();
+                $this->db('periksa_lab')
+                  ->save([
+                    'no_rawat' => $payload['no_rawat'],
+                    'nip' => $payload['kode_provider2'],
+                    'kd_jenis_prw' => $payload['kd_jenis_prw'],
+                    'tgl_periksa' => $payload['tgl_perawatan'],
+                    'jam' => $payload['jam_rawat'],
+                    'dokter_perujuk' => $payload['kode_provider'],
+                    'bagian_rs' => $jns_perawatan['bagian_rs'],
+                    'bhp' => $jns_perawatan['bhp'],
+                    'tarif_perujuk' => $jns_perawatan['tarif_perujuk'],
+                    'tarif_tindakan_dokter' => $jns_perawatan['tarif_tindakan_dokter'],
+                    'tarif_tindakan_petugas' => $jns_perawatan['tarif_tindakan_petugas'],
+                    'kso' => $jns_perawatan['kso'],
+                    'menejemen' => $jns_perawatan['menejemen'],
+                    'biaya' => $jns_perawatan['total_byr'],
+                    'kd_dokter' => $this->settings->get('settings.pj_laboratorium'),
+                    'status' => 'Ralan'
+                  ]);
+            }
+
+            if($kat == 'radiologi') {
+                $jns_perawatan = $this->db('jns_perawatan_radiologi')->where('kd_jenis_prw', $payload['kd_jenis_prw'])->oneArray();
+                $this->db('periksa_radiologi')
+                  ->save([
+                    'no_rawat' => $payload['no_rawat'],
+                    'nip' => $payload['kode_provider2'],
+                    'kd_jenis_prw' => $payload['kd_jenis_prw'],
+                    'tgl_periksa' => $payload['tgl_perawatan'],
+                    'jam' => $payload['jam_rawat'],
+                    'dokter_perujuk' => $payload['kode_provider'],
+                    'bagian_rs' => $jns_perawatan['bagian_rs'],
+                    'bhp' => $jns_perawatan['bhp'],
+                    'tarif_perujuk' => $jns_perawatan['tarif_perujuk'],
+                    'tarif_tindakan_dokter' => $jns_perawatan['tarif_tindakan_dokter'],
+                    'tarif_tindakan_petugas' => $jns_perawatan['tarif_tindakan_petugas'],
+                    'kso' => $jns_perawatan['kso'],
+                    'menejemen' => $jns_perawatan['menejemen'],
+                    'biaya' => $jns_perawatan['total_byr'],
+                    'kd_dokter' => $this->settings->get('settings.pj_radiologi'),
+                    'status' => 'Ralan'
+                  ]);
+            }
+
+            echo json_encode(['status' => 'success', 'message' => 'Item berhasil ditambahkan']);
+        } catch (\PDOException $e) {
+            echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
+        }
+        exit;
+    }
+
     public function anyFaktur()
     {
       $settings = $this->settings('settings');
@@ -1346,62 +2030,66 @@ class Admin extends AdminModule
         $reg_periksa = $this->db('reg_periksa')->where('no_rawat', $_GET['no_rawat'])->oneArray();
         $pasien = $this->db('pasien')->where('no_rkm_medis', $reg_periksa['no_rkm_medis'])->oneArray();
 
-        $qr=QRCode::getMinimumQRCode($this->core->getUserInfo('fullname', null, true),QR_ERROR_CORRECT_LEVEL_L);
-        $im=$qr->createImage(4,4);
-        imagepng($im,BASE_DIR.'/'.ADMIN.'/tmp/qrcode.png');
+
+        /* ===============================
+        * QR CODE
+        * =============================== */
+        $qr = QRCode::getMinimumQRCode(
+            $this->core->getUserInfo('fullname', null, true),
+            QR_ERROR_CORRECT_LEVEL_L
+        );
+        $im = $qr->createImage(4,4);
+        imagepng($im, BASE_DIR.'/'.ADMIN.'/tmp/qrcode.png');
         imagedestroy($im);
 
-        $image = BASE_DIR."/".ADMIN."/tmp/qrcode.png";
         $qrCode = url()."/".ADMIN."/tmp/qrcode.png";
 
+        /* ===============================
+        * PREPARE TEMPLATE DATA
+        * =============================== */
+        $this->tpl->set('billing_obat', $this->settings->get('settings.billing_obat'));
+        $this->tpl->set('wagateway', $this->settings->get('wagateway'));
+        $this->tpl->set('billing', $result);
+        $this->tpl->set('total_billing_obat', $total_detail_pemberian_obat);
+        $this->tpl->set('billing_besar_detail', $result_detail);
+        $this->tpl->set('pasien', $pasien);
+        $this->tpl->set('qrCode', $qrCode);
+        $this->tpl->set('fullname', $this->core->getUserInfo('fullname', null, true));
+
+        /* ===============================
+        * RENDER HTML SEKALI
+        * =============================== */
+        $html = $this->draw('billing.besar.html');
+
+        /* ===============================
+        * GENERATE PDF
+        * =============================== */
         if (file_exists(UPLOADS.'/invoices/'.$result['kd_billing'].'.pdf')) {
-          unlink(UPLOADS.'/invoices/'.$result['kd_billing'].'.pdf');
+            unlink(UPLOADS.'/invoices/'.$result['kd_billing'].'.pdf');
         }
 
         $mpdf = new \Mpdf\Mpdf([
-          'mode' => 'utf-8',
-          'format' => 'A4', 
-          'orientation' => 'P'
+            'mode' => 'utf-8',
+            'format' => 'A4',
+            'orientation' => 'P'
         ]);
-  
-        $css = '
-        <style>
-          del { 
-            display: none;
-          }
-          table {
-            padding-top: 1cm;
-            padding-bottom: 1cm;
-          }
-          td, th {
-            border-bottom: 1px solid #dddddd;
-            padding: 5px;
-          }        
-          tr:nth-child(even) {
-            background-color: #ffffff;
-          }
-        </style>
-        ';
-        
-        $url = BASE_DIR . '/' . ADMIN . '/tmp/billing.besar.html';
 
-        if (!file_exists($url)) {
-            throw new \Exception("Template billing.besar.html tidak ditemukan: " . $url);
-        }
+        $mpdf->WriteHTML(
+            $this->core->setPrintCss(),
+            \Mpdf\HTMLParserMode::HEADER_CSS
+        );
 
-        $html = file_get_contents($url);
-        if ($html === false || trim($html) === '') {
-            throw new \Exception("Template billing.besar.html kosong atau gagal dibaca");
-        }
-
-        $mpdf->WriteHTML($this->core->setPrintCss(),\Mpdf\HTMLParserMode::HEADER_CSS);
-        $mpdf->WriteHTML($css);
         $mpdf->WriteHTML($html);
-    
-        // Output a PDF file save to server
-        $mpdf->Output(UPLOADS.'/invoices/'.$result['kd_billing'].'.pdf','F');
-                
-        echo $this->draw('billing.besar.html', ['billing_obat' => $this->settings->get('settings.billing_obat'), 'wagateway' => $this->settings->get('wagateway'), 'billing' => $result, 'total_billing_obat' => $total_detail_pemberian_obat, 'billing_besar_detail' => $result_detail, 'pasien' => $pasien, 'qrCode' => $qrCode, 'fullname' => $this->core->getUserInfo('fullname', null, true)]);
+
+        $mpdf->Output(
+            UPLOADS.'/invoices/'.$result['kd_billing'].'.pdf',
+            'F'
+        );
+
+        /* ===============================
+        * OUTPUT HTML (PREVIEW)
+        * =============================== */
+        echo $html;
         break;
         case "kecil":
         $result = $this->db('mlite_billing')->where('no_rawat', $_GET['no_rawat'])->like('kd_billing', 'RJ%')->desc('id_billing')->oneArray();

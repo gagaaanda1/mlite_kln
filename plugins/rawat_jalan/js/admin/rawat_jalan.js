@@ -178,6 +178,7 @@ $("#display").on("click",".riwayat_perawatan", function(event){
 
 // ketika baris data diklik
 $("#display").on("click", ".edit", function(event){
+  {if: $this->core->checkPermission($this->core->getUserInfo('username'), 'can_update', 'rawat_jalan') == true}
   var baseURL = mlite.url + '/' + mlite.admin;
   event.preventDefault();
   var url = baseURL + '/rawat_jalan/form?t=' + mlite.token;
@@ -193,6 +194,7 @@ $("#display").on("click", ".edit", function(event){
       $('input:hidden[name=stts_daftar]').val(get_stts_daftar);
     });
   });
+  {/if}
 });
 
 // ketika tombol hapus ditekan
@@ -847,6 +849,7 @@ $("#form_rincian").on("click", "#simpan_rincian", function(event){
   var aturan_pakai    = $('input:text[name=aturan_pakai]').val();
   var kat             = $('input:hidden[name=kat]').val();
   var jml             = $('input:text[name=jml]').val();
+  var jml_tindakan    = $('input:text[name=jml_tindakan]').val();
 
   var url = baseURL + '/rawat_jalan/savedetail?t=' + mlite.token;
   $.post(url, {no_rawat : no_rawat,
@@ -859,7 +862,8 @@ $("#form_rincian").on("click", "#simpan_rincian", function(event){
   biaya          : biaya,
   aturan_pakai   : aturan_pakai,
   kat            : kat,
-  jml            : jml
+  jml            : jml, 
+  jml_tindakan   : jml_tindakan
   }, function(data) {
 
     // tampilkan data
@@ -884,6 +888,7 @@ $("#form_rincian").on("click", "#simpan_rincian", function(event){
     $('input:text[name=kode_provider]').val("");
     $('input:text[name=kode_provider2]').val("");
     $('input:text[name=jam_rawat]').last().val("");
+    $('input:text[name=jml_tindakan]').val("");
     $('#notif').html("<div class=\"alert alert-success alert-dismissible fade in\" role=\"alert\" style=\"border-radius:0px;margin-top:-15px;\">"+
     "Data pasien telah disimpan!"+
     "<button type=\"button\" class=\"close\" data-dismiss=\"alert\" aria-label=\"Close\">&times;</button>"+
@@ -1198,58 +1203,92 @@ $(document).on('click', 'a[href="#rujuk_internal"]', function(event){
   event.preventDefault();
   var no_rawat = $(this).attr("data-no_rawat");
   var url = baseURL + '/rawat_jalan/rujukaninternal?t=' + mlite.token;
+  var url_get = baseURL + '/rawat_jalan/getrujukaninternal?t=' + mlite.token;
 
-  var rujuk_internal = ''
-      + '<div class="form-group">'
-      + '<label for="status_keluar">Pilih Poli</label>'
-      + '<select name="kd_poli" id="kd_poli" class="form-control" data-use-dimmer="false">'
-      + '{loop: $mlite.poliklinik}'
-      + '<option value="{$value.kd_poli}">{$value.nm_poli}</option>'
-      + '{/loop}'
-      + '</select>'
-      + '</div>'
-      + '<div class="form-group">'
-      + '<label for="status_keluar">Pilih Dokter</label>'
-      + '<select name="kd_dokter" id="kd_dokter" class="form-control" data-use-dimmer="false">'
-      + '{loop: $mlite.dokter}'
-      + '<option value="{$value.kd_dokter}">{$value.nm_dokter}</option>'
-      + '{/loop}'
-      + '</select>'
-      + '</div>'
-      + '<div class="form-group">'
-      + '<label for="status_keluar">Isi Rujukan</label>'
-      + '<textarea name="isi_rujukan" id="isi_rujukan" class="form-control" rows="6"></textarea>'
-      + '</div>'
-      + '';
+  $.post(url_get, {no_rawat: no_rawat}, function(data) {
+    var rujukan = JSON.parse(data);
+    var kd_poli_val = '';
+    var kd_dokter_val = '';
+    var isi_rujukan_val = '';
+    var jawab_rujukan_val = '';
+    var disabled_attr = '';
 
-  // tampilkan dialog konfirmasi
-  bootbox.dialog({
-    message: rujuk_internal,
-    title: 'Rujuk Internal',
-    buttons: {
-      main: {
-        label: 'Simpan',
-        className: 'btn-primary',
-        callback() {
-          var kd_poli = $('#kd_poli').val();
-          var kd_dokter = $('#kd_dokter').val();
-          var isi_rujukan = $('#isi_rujukan').val();
-          $.post(url, {
-            no_rawat: no_rawat,
-            kd_poli: kd_poli,
-            kd_dokter: kd_dokter,
-            isi_rujukan: isi_rujukan, 
-          } ,function(data) {
-            var data = JSON.parse(data);
-            alert(data.message);
-            // Reload display setelah simpan
-            $("#display").load(baseURL + '/rawat_jalan/display?t=' + mlite.token);
-          });
+    if(rujukan) {
+        kd_poli_val = rujukan.kd_poli;
+        kd_dokter_val = rujukan.kd_dokter;
+        isi_rujukan_val = rujukan.isi_rujukan;
+        jawab_rujukan_val = rujukan.jawab_rujukan;
+        disabled_attr = ' disabled';
+    }
+
+    var rujuk_internal = ''
+        + '<div class="form-group">'
+        + '<label for="status_keluar">Pilih Poli</label>'
+        + '<select name="kd_poli" id="kd_poli" class="form-control" data-use-dimmer="false"' + disabled_attr + '>'
+        + '{loop: $mlite.poliklinik}'
+        + '<option value="{$value.kd_poli}">{$value.nm_poli}</option>'
+        + '{/loop}'
+        + '</select>'
+        + '</div>'
+        + '<div class="form-group">'
+        + '<label for="status_keluar">Pilih Dokter</label>'
+        + '<select name="kd_dokter" id="kd_dokter" class="form-control" data-use-dimmer="false"' + disabled_attr + '>'
+        + '{loop: $mlite.dokter}'
+        + '<option value="{$value.kd_dokter}">{$value.nm_dokter}</option>'
+        + '{/loop}'
+        + '</select>'
+        + '</div>'
+        + '<div class="form-group">'
+        + '<label for="status_keluar">Isi Rujukan</label>'
+        + '<textarea name="isi_rujukan" id="isi_rujukan" class="form-control" rows="6" ' + disabled_attr + '>' + isi_rujukan_val + '</textarea>'
+        + '</div>'
+        + '<div class="form-group">'
+        + '<label for="status_keluar">Jawab Rujukan</label>'
+        + '<textarea name="jawab_rujukan" id="jawab_rujukan" class="form-control" rows="6" ' + disabled_attr + '>' + jawab_rujukan_val + '</textarea>'
+        + '</div>'
+        + '';
+
+    // tampilkan dialog konfirmasi
+    bootbox.dialog({
+      message: rujuk_internal,
+      title: 'Rujuk Internal',
+      buttons: {
+        main: {
+          label: 'Simpan',
+          className: 'btn-primary',
+          callback() {
+            var kd_poli = $('#kd_poli').val();
+            var kd_dokter = $('#kd_dokter').val();
+            var isi_rujukan = $('#isi_rujukan').val();
+            var jawab_rujukan = $('#jawab_rujukan').val();  
+            $.post(url, {
+              no_rawat: no_rawat,
+              kd_poli: kd_poli,
+              kd_dokter: kd_dokter,
+              isi_rujukan: isi_rujukan,
+              jawab_rujukan: jawab_rujukan,
+            } ,function(data) {
+              var data = JSON.parse(data);
+              alert(data.message);
+              // Reload display setelah simpan
+              $("#display").load(baseURL + '/rawat_jalan/display?t=' + mlite.token);
+            });
+          }
         }
       }
+    });
+
+    // Set values for selects if they exist
+    if(kd_poli_val) {
+        $('#kd_poli').val(kd_poli_val);
     }
+    if(kd_dokter_val) {
+        $('#kd_dokter').val(kd_dokter_val);
+    }
+
+    $('select').not(':disabled').selectator();
   });
-  $('select').selectator();
+
   event.stopPropagation();
   return false;
 });

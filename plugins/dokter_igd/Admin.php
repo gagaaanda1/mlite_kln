@@ -125,7 +125,7 @@ class Admin extends AdminModule
       if($_POST['kat'] == 'obat') {
 
           $no_resep = $this->core->setNoResep($_POST['tgl_perawatan']);
-          $cek_resep = $this->db('resep_obat')->where('no_rawat', $_POST['no_rawat'])->where('tgl_peresepan', $_POST['tgl_perawatan'])->where('tgl_perawatan', '0000-00-00')->where('status', 'ralan')->oneArray();
+          $cek_resep = $this->db('resep_obat')->join('resep_dokter', 'resep_obat.no_resep = resep_dokter.no_resep')->where('no_rawat', $_POST['no_rawat'])->where('tgl_peresepan', $_POST['tgl_perawatan'])->where('tgl_perawatan', '0000-00-00')->where('status', 'ralan')->oneArray();
 
           if(empty($cek_resep)) {
 
@@ -171,9 +171,7 @@ class Admin extends AdminModule
       if($_POST['kat'] == 'racikan') {
 
         $no_resep = $this->core->setNoResep($_POST['tgl_perawatan']);
-        $cek_resep = $this->db('resep_obat')->where('no_rawat', $_POST['no_rawat'])->where('tgl_peresepan', $_POST['tgl_perawatan'])->where('tgl_perawatan', '0000-00-00')->where('status', 'ralan')->oneArray();
-
-        $_POST['jam_rawat'] = date('H:i:s');
+        $cek_resep = $this->db('resep_obat')->join('resep_dokter_racikan', 'resep_obat.no_resep = resep_dokter_racikan.no_resep')->where('no_rawat', $_POST['no_rawat'])->where('tgl_peresepan', $_POST['tgl_perawatan'])->where('tgl_perawatan', '0000-00-00')->where('status', 'ralan')->oneArray();
 
         if(empty($cek_resep)) {
 
@@ -583,6 +581,7 @@ class Admin extends AdminModule
       $rows = $this->db('resep_obat')
         ->join('dokter', 'dokter.kd_dokter=resep_obat.kd_dokter')
         ->where('no_rawat', $_POST['no_rawat'])
+        ->where('resep_obat.status', 'ralan')
         ->group('resep_obat.no_resep')
         ->group('resep_obat.no_rawat')
         ->group('resep_obat.kd_dokter')
@@ -1361,9 +1360,17 @@ class Admin extends AdminModule
       exit();
     }
 
-    public function getLokalis()
+    public function getLokalis($no_rawat)
     {
-      echo $this->draw('lokalis.html');
+      $filename = 'lokalis_' . $no_rawat . '.png';
+      $lokalis = UPLOADS . '/lokalis/' . $filename;
+      if(!file_exists($lokalis)) {
+        $filename = '';
+      }
+      echo $this->draw('lokalis.html', [
+        'no_rawat' => revertNorawat($no_rawat),
+        'lokalis' => $filename
+      ]);
       exit();
     }
   
@@ -2018,6 +2025,35 @@ class Admin extends AdminModule
         }
         exit();
     }
+    
+    public function postSimpanLokalis()
+    {
+        $img = $_POST['image'] ?? '';
+        $no_rawat = $_POST['no_rawat'] ?? '';
+        $no_rawat = convertNoRawat($no_rawat);
+
+        if (!$img) {
+            http_response_code(400);
+            exit('Data kosong');
+        }
+
+        $img = str_replace('data:image/png;base64,', '', $img);
+        $img = base64_decode($img);
+
+        if(!is_dir(UPLOADS . '/lokalis/')) {
+            mkdir(UPLOADS . '/lokalis/', 0755, true);
+        }
+
+        $filename = 'lokalis_' . $no_rawat . '.png';
+        file_put_contents(UPLOADS . '/lokalis/' . $filename, $img);
+
+        echo json_encode([
+            'status' => 'ok',
+            'file' => $filename
+        ]);
+        exit;
+    }
+
 
     private function _addHeaderFiles()
     {

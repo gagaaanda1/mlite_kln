@@ -217,7 +217,7 @@ class Admin extends AdminModule
       if($_POST['kat'] == 'obat') {
 
         $no_resep = $this->core->setNoResep($_POST['tgl_perawatan']);
-        $cek_resep = $this->db('resep_obat')->where('no_rawat', $_POST['no_rawat'])->where('tgl_peresepan', $_POST['tgl_perawatan'])->where('tgl_perawatan', '0000-00-00')->where('status', 'ralan')->oneArray();
+        $cek_resep = $this->db('resep_obat')->join('resep_dokter', 'resep_obat.no_resep = resep_dokter.no_resep')->where('no_rawat', $_POST['no_rawat'])->where('tgl_peresepan', $_POST['tgl_perawatan'])->where('tgl_perawatan', '0000-00-00')->where('status', 'ralan')->oneArray();
 
         if(empty($cek_resep)) {
 
@@ -263,9 +263,7 @@ class Admin extends AdminModule
       if($_POST['kat'] == 'racikan') {
 
         $no_resep = $this->core->setNoResep($_POST['tgl_perawatan']);
-        $cek_resep = $this->db('resep_obat')->where('no_rawat', $_POST['no_rawat'])->where('tgl_peresepan', $_POST['tgl_perawatan'])->where('tgl_perawatan', '0000-00-00')->where('status', 'ralan')->oneArray();
-
-        $_POST['jam_rawat'] = date('H:i:s');
+        $cek_resep = $this->db('resep_obat')->join('resep_dokter_racikan', 'resep_obat.no_resep = resep_dokter_racikan.no_resep')->where('no_rawat', $_POST['no_rawat'])->where('tgl_peresepan', $_POST['tgl_perawatan'])->where('tgl_perawatan', '0000-00-00')->where('status', 'ralan')->oneArray();
 
         if(empty($cek_resep)) {
 
@@ -2287,6 +2285,13 @@ class Admin extends AdminModule
         } catch(\Exception $e) {
             echo json_encode(['status' => 'error', 'message' => 'Error: ' . $e->getMessage()]);
         }
+        exit();
+    }
+
+    public function postGetRujukanInternal()
+    {
+        $rujukan = $this->db('mlite_rujukan_internal_poli')->where('no_rawat', $_POST['no_rawat'])->oneArray();
+        echo json_encode($rujukan);
         exit();
     }
 

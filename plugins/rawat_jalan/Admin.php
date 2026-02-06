@@ -446,54 +446,60 @@ class Admin extends AdminModule
                 }
 
                 if($input['provider'] == 'rawat_jl_dr') {
-                    $this->db('rawat_jl_dr')->save([
-                        'no_rawat' => $input['no_rawat'],
-                        'kd_jenis_prw' => $input['kd_jenis_prw'],
-                        'kd_dokter' => $input['kode_provider'],
-                        'tgl_perawatan' => $input['tgl_perawatan'],
-                        'jam_rawat' => $input['jam_rawat'],
-                        'material' => $jns_perawatan['material'],
-                        'bhp' => $jns_perawatan['bhp'],
-                        'tarif_tindakandr' => $jns_perawatan['tarif_tindakandr'],
-                        'kso' => $jns_perawatan['kso'],
-                        'menejemen' => $jns_perawatan['menejemen'],
-                        'biaya_rawat' => $jns_perawatan['total_byrdr'],
-                        'stts_bayar' => 'Belum'
-                    ]);
+                    for ($i = 0; $i < $input['jml_tindakan']; $i++) {          
+                        $this->db('rawat_jl_dr')->save([
+                            'no_rawat' => $input['no_rawat'],
+                            'kd_jenis_prw' => $input['kd_jenis_prw'],
+                            'kd_dokter' => $input['kode_provider'],
+                            'tgl_perawatan' => $input['tgl_perawatan'],
+                            'jam_rawat' => date('H:i:s', strtotime($input['jam_rawat']. ' +'.$i.'0 seconds')),
+                            'material' => $jns_perawatan['material'],
+                            'bhp' => $jns_perawatan['bhp'],
+                            'tarif_tindakandr' => $jns_perawatan['tarif_tindakandr'],
+                            'kso' => $jns_perawatan['kso'],
+                            'menejemen' => $jns_perawatan['menejemen'],
+                            'biaya_rawat' => $jns_perawatan['total_byrdr'],
+                            'stts_bayar' => 'Belum'
+                        ]);
+                    }
                 }
                 if($input['provider'] == 'rawat_jl_pr') {
-                    $this->db('rawat_jl_pr')->save([
-                        'no_rawat' => $input['no_rawat'],
-                        'kd_jenis_prw' => $input['kd_jenis_prw'],
-                        'nip' => $input['kode_provider2'],
-                        'tgl_perawatan' => $input['tgl_perawatan'],
-                        'jam_rawat' => $input['jam_rawat'],
-                        'material' => $jns_perawatan['material'],
-                        'bhp' => $jns_perawatan['bhp'],
-                        'tarif_tindakanpr' => $jns_perawatan['tarif_tindakanpr'],
-                        'kso' => $jns_perawatan['kso'],
-                        'menejemen' => $jns_perawatan['menejemen'],
-                        'biaya_rawat' => $jns_perawatan['total_byrpr'],
-                        'stts_bayar' => 'Belum'
-                    ]);
+                    for ($i = 0; $i < $input['jml_tindakan']; $i++) {          
+                        $this->db('rawat_jl_pr')->save([
+                            'no_rawat' => $input['no_rawat'],
+                            'kd_jenis_prw' => $input['kd_jenis_prw'],
+                            'nip' => $input['kode_provider2'],
+                            'tgl_perawatan' => $input['tgl_perawatan'],
+                            'jam_rawat' => date('H:i:s', strtotime($input['jam_rawat']. ' +'.$i.'0 seconds')),
+                            'material' => $jns_perawatan['material'],
+                            'bhp' => $jns_perawatan['bhp'],
+                            'tarif_tindakanpr' => $jns_perawatan['tarif_tindakanpr'],
+                            'kso' => $jns_perawatan['kso'],
+                            'menejemen' => $jns_perawatan['menejemen'],
+                            'biaya_rawat' => $jns_perawatan['total_byrpr'],
+                            'stts_bayar' => 'Belum'
+                        ]);
+                    }
                 }
                 if($input['provider'] == 'rawat_jl_drpr') {
-                    $this->db('rawat_jl_drpr')->save([
-                        'no_rawat' => $input['no_rawat'],
-                        'kd_jenis_prw' => $input['kd_jenis_prw'],
-                        'kd_dokter' => $input['kode_provider'],
-                        'nip' => $input['kode_provider2'],
-                        'tgl_perawatan' => $input['tgl_perawatan'],
-                        'jam_rawat' => $input['jam_rawat'],
-                        'material' => $jns_perawatan['material'],
-                        'bhp' => $jns_perawatan['bhp'],
-                        'tarif_tindakandr' => $jns_perawatan['tarif_tindakandr'],
-                        'tarif_tindakanpr' => $jns_perawatan['tarif_tindakanpr'],
-                        'kso' => $jns_perawatan['kso'],
-                        'menejemen' => $jns_perawatan['menejemen'],
-                        'biaya_rawat' => $jns_perawatan['total_byrdrpr'],
-                        'stts_bayar' => 'Belum'
-                    ]);
+                    for ($i = 0; $i < $input['jml_tindakan']; $i++) {          
+                        $this->db('rawat_jl_drpr')->save([
+                            'no_rawat' => $input['no_rawat'],
+                            'kd_jenis_prw' => $input['kd_jenis_prw'],
+                            'kd_dokter' => $input['kode_provider'],
+                            'nip' => $input['kode_provider2'],
+                            'tgl_perawatan' => $input['tgl_perawatan'],
+                            'jam_rawat' => date('H:i:s', strtotime($input['jam_rawat']. ' +'.$i.'0 seconds')),
+                            'material' => $jns_perawatan['material'],
+                            'bhp' => $jns_perawatan['bhp'],
+                            'tarif_tindakandr' => $jns_perawatan['tarif_tindakandr'],
+                            'tarif_tindakanpr' => $jns_perawatan['tarif_tindakanpr'],
+                            'kso' => $jns_perawatan['kso'],
+                            'menejemen' => $jns_perawatan['menejemen'],
+                            'biaya_rawat' => $jns_perawatan['total_byrdrpr'],
+                            'stts_bayar' => 'Belum'
+                        ]);
+                    }
                 }
                 
                 return ['status' => 'success', 'message' => 'Detail saved'];
@@ -1797,54 +1803,60 @@ class Admin extends AdminModule
       if($_POST['kat'] == 'tindakan') {
         $jns_perawatan = $this->db('jns_perawatan')->where('kd_jenis_prw', $_POST['kd_jenis_prw'])->oneArray();
         if($_POST['provider'] == 'rawat_jl_dr') {
-          $this->db('rawat_jl_dr')->save([
-            'no_rawat' => $_POST['no_rawat'],
-            'kd_jenis_prw' => $_POST['kd_jenis_prw'],
-            'kd_dokter' => $_POST['kode_provider'],
-            'tgl_perawatan' => $_POST['tgl_perawatan'],
-            'jam_rawat' => $_POST['jam_rawat'],
-            'material' => $jns_perawatan['material'],
-            'bhp' => $jns_perawatan['bhp'],
-            'tarif_tindakandr' => $jns_perawatan['tarif_tindakandr'],
-            'kso' => $jns_perawatan['kso'],
-            'menejemen' => $jns_perawatan['menejemen'],
-            'biaya_rawat' => $jns_perawatan['total_byrdr'],
-            'stts_bayar' => 'Belum'
-          ]);
+          for ($i = 0; $i < $_POST['jml_tindakan']; $i++) {          
+            $this->db('rawat_jl_dr')->save([
+              'no_rawat' => $_POST['no_rawat'],
+              'kd_jenis_prw' => $_POST['kd_jenis_prw'],
+              'kd_dokter' => $_POST['kode_provider'],
+              'tgl_perawatan' => $_POST['tgl_perawatan'],
+              'jam_rawat' => date('H:i:s', strtotime($_POST['jam_rawat']. ' +'.$i.'0 seconds')),
+              'material' => $jns_perawatan['material'],
+              'bhp' => $jns_perawatan['bhp'],
+              'tarif_tindakandr' => $jns_perawatan['tarif_tindakandr'],
+              'kso' => $jns_perawatan['kso'],
+              'menejemen' => $jns_perawatan['menejemen'],
+              'biaya_rawat' => $jns_perawatan['total_byrdr'],
+              'stts_bayar' => 'Belum'
+            ]);
+          }
         }
         if($_POST['provider'] == 'rawat_jl_pr') {
-          $this->db('rawat_jl_pr')->save([
-            'no_rawat' => $_POST['no_rawat'],
-            'kd_jenis_prw' => $_POST['kd_jenis_prw'],
-            'nip' => $_POST['kode_provider2'],
-            'tgl_perawatan' => $_POST['tgl_perawatan'],
-            'jam_rawat' => $_POST['jam_rawat'],
-            'material' => $jns_perawatan['material'],
-            'bhp' => $jns_perawatan['bhp'],
-            'tarif_tindakanpr' => $jns_perawatan['tarif_tindakanpr'],
-            'kso' => $jns_perawatan['kso'],
-            'menejemen' => $jns_perawatan['menejemen'],
-            'biaya_rawat' => $jns_perawatan['total_byrpr'],
-            'stts_bayar' => 'Belum'
-          ]);
+          for ($i = 0; $i < $_POST['jml_tindakan']; $i++) {          
+            $this->db('rawat_jl_pr')->save([
+              'no_rawat' => $_POST['no_rawat'],
+              'kd_jenis_prw' => $_POST['kd_jenis_prw'],
+              'nip' => $_POST['kode_provider2'],
+              'tgl_perawatan' => $_POST['tgl_perawatan'],
+              'jam_rawat' => date('H:i:s', strtotime($_POST['jam_rawat']. ' +'.$i.'0 seconds')),
+              'material' => $jns_perawatan['material'],
+              'bhp' => $jns_perawatan['bhp'],
+              'tarif_tindakanpr' => $jns_perawatan['tarif_tindakanpr'],
+              'kso' => $jns_perawatan['kso'],
+              'menejemen' => $jns_perawatan['menejemen'],
+              'biaya_rawat' => $jns_perawatan['total_byrpr'],
+              'stts_bayar' => 'Belum'
+            ]);
+          }
         }
         if($_POST['provider'] == 'rawat_jl_drpr') {
-          $this->db('rawat_jl_drpr')->save([
-            'no_rawat' => $_POST['no_rawat'],
-            'kd_jenis_prw' => $_POST['kd_jenis_prw'],
-            'kd_dokter' => $_POST['kode_provider'],
-            'nip' => $_POST['kode_provider2'],
-            'tgl_perawatan' => $_POST['tgl_perawatan'],
-            'jam_rawat' => $_POST['jam_rawat'],
-            'material' => $jns_perawatan['material'],
-            'bhp' => $jns_perawatan['bhp'],
-            'tarif_tindakandr' => $jns_perawatan['tarif_tindakandr'],
-            'tarif_tindakanpr' => $jns_perawatan['tarif_tindakanpr'],
-            'kso' => $jns_perawatan['kso'],
-            'menejemen' => $jns_perawatan['menejemen'],
-            'biaya_rawat' => $jns_perawatan['total_byrdrpr'],
-            'stts_bayar' => 'Belum'
-          ]);
+          for ($i = 0; $i < $_POST['jml_tindakan']; $i++) {          
+            $this->db('rawat_jl_drpr')->save([
+              'no_rawat' => $_POST['no_rawat'],
+              'kd_jenis_prw' => $_POST['kd_jenis_prw'],
+              'kd_dokter' => $_POST['kode_provider'],
+              'nip' => $_POST['kode_provider2'],
+              'tgl_perawatan' => $_POST['tgl_perawatan'],
+              'jam_rawat' => date('H:i:s', strtotime($_POST['jam_rawat']. ' +'.$i.'0 seconds')),
+              'material' => $jns_perawatan['material'],
+              'bhp' => $jns_perawatan['bhp'],
+              'tarif_tindakandr' => $jns_perawatan['tarif_tindakandr'],
+              'tarif_tindakanpr' => $jns_perawatan['tarif_tindakanpr'],
+              'kso' => $jns_perawatan['kso'],
+              'menejemen' => $jns_perawatan['menejemen'],
+              'biaya_rawat' => $jns_perawatan['total_byrdrpr'],
+              'stts_bayar' => 'Belum'
+            ]);
+          }
         }
       }
       exit();
@@ -1965,19 +1977,14 @@ class Admin extends AdminModule
 
       $result_ranap = [];
 
-      $check_table = $this->db()->pdo()->query("SHOW TABLES LIKE 'pemeriksaan_ranap'");
-      $check_table->execute();
-      $check_table = $check_table->fetch();
-      if($check_table) {
-        $rows_ranap = $this->db('pemeriksaan_ranap')
-          ->where('no_rawat', $_POST['no_rawat'])
-          ->toArray();
-        foreach ($rows_ranap as $row) {
-          $row['nomor'] = $i++;
-          $row['nama_petugas'] = $this->core->getPegawaiInfo('nama',$row['nip']);
-          $row['departemen_petugas'] = $this->core->getDepartemenInfo($this->core->getPegawaiInfo('departemen',$row['nip']));
-          $result_ranap[] = $row;
-        }
+      $rows_ranap = $this->db('pemeriksaan_ranap')
+        ->where('no_rawat', $_POST['no_rawat'])
+        ->toArray();
+      foreach ($rows_ranap as $row) {
+        $row['nomor'] = $i++;
+        $row['nama_petugas'] = $this->core->getPegawaiInfo('nama',$row['nip']);
+        $row['departemen_petugas'] = $this->core->getDepartemenInfo($this->core->getPegawaiInfo('departemen',$row['nip']));
+        $result_ranap[] = $row;
       }
 
       echo $this->draw('soap.html', ['pemeriksaan' => $result, 'pemeriksaan_ranap' => $result_ranap, 'diagnosa' => $diagnosa, 'prosedur' => $prosedur, 'admin_mode' => $this->settings->get('settings.admin_mode')]);
@@ -2316,44 +2323,78 @@ class Admin extends AdminModule
 
     public function postCetak()
     {
-      $this->db()->pdo()->exec("DELETE FROM `mlite_temporary`");
-      $cari = $_POST['cari'];
-      $tgl_awal = $_POST['tgl_awal'];
-      $tgl_akhir = $_POST['tgl_akhir'];
-      $igd = $this->settings->get('settings.igd');
-      $this->db()->pdo()->exec("INSERT INTO `mlite_temporary` (
-        `temp1`,`temp2`,`temp3`,`temp4`,`temp5`,`temp6`,`temp7`,`temp8`,`temp9`,`temp10`,`temp11`,`temp12`,`temp13`,`temp14`,`temp15`,`temp16`,`temp17`,`temp18`,`temp19`
-      )
-      SELECT *
-      FROM `reg_periksa`
-      WHERE `kd_poli` <> '$igd'
-      AND `tgl_registrasi` BETWEEN '$tgl_awal' AND '$tgl_akhir'
-      ");
+        $this->db()->pdo()->exec("DELETE FROM mlite_temporary");
 
-      $cetak = $this->db('mlite_temporary')->toArray();
-      echo $this->draw('cetak.rawat_jalan.html', ['cetak' => $cetak]);
+        $cari      = $_POST['cari'];
+        $tgl_awal  = $_POST['tgl_awal'];
+        $tgl_akhir = $_POST['tgl_akhir'];
+        $igd       = $this->settings->get('settings.igd');
 
-      exit();
+        $this->db()->pdo()->exec("
+            INSERT INTO mlite_temporary (
+              `temp1`,
+              `temp2`,
+              `temp3`,
+              `temp4`,
+              `temp5`,
+              `temp6`,
+              `temp7`,
+              `temp8`,
+              `temp9`,
+              `temp10`,
+              `temp11`,
+              `temp12`,
+              `temp13`,
+              `temp14`,
+              `temp15`,
+              `temp16`,
+              `temp17`,
+              `temp18`,
+              `temp19`
+            )
+            SELECT *
+            FROM reg_periksa
+            WHERE kd_poli <> '$igd'
+            AND tgl_registrasi BETWEEN '$tgl_awal' AND '$tgl_akhir'
+        ");
+
+        exit;
     }
+
 
     public function getCetakPdf()
     {
-      $mpdf = new \Mpdf\Mpdf([
-        'mode' => 'utf-8',
-        'orientation' => 'L'
-      ]);
-  
-      $mpdf->SetHTMLHeader($this->core->setPrintHeader());
-      $mpdf->SetHTMLFooter($this->core->setPrintFooter());
-            
-      $url = url(ADMIN.'/tmp/cetak.rawat_jalan.html');
-      $html = file_get_contents($url);
-      $mpdf->WriteHTML($this->core->setPrintCss(),\Mpdf\HTMLParserMode::HEADER_CSS);
-      $mpdf->WriteHTML($html,\Mpdf\HTMLParserMode::HTML_BODY);
-  
-      // Output a PDF file directly to the browser
-      $mpdf->Output();
-      exit();      
+        $mpdf = new \Mpdf\Mpdf([
+            'mode' => 'utf-8',
+            'orientation' => 'L'
+        ]);
+
+        $mpdf->SetHTMLHeader($this->core->setPrintHeader());
+        $mpdf->SetHTMLFooter($this->core->setPrintFooter());
+
+        // ambil data
+        $cetak = $this->db('mlite_temporary')->toArray();
+
+        // inject ke template
+        $this->tpl->set('cetak', $cetak);
+
+        // render template (PATH BENAR)
+        $html = $this->draw('cetak.rawat_jalan.html');
+
+        // CSS
+        $mpdf->WriteHTML(
+            $this->core->setPrintCss(),
+            \Mpdf\HTMLParserMode::HEADER_CSS
+        );
+
+        // BODY
+        $mpdf->WriteHTML(
+            $html,
+            \Mpdf\HTMLParserMode::HTML_BODY
+        );
+
+        $mpdf->Output();
+        exit;
     }
 
     public function getExcel()
@@ -3126,6 +3167,13 @@ class Admin extends AdminModule
         exit();
     }
 
+    public function postGetRujukanInternal()
+    {
+        $rujukan = $this->db('mlite_rujukan_internal_poli')->where('no_rawat', $_POST['no_rawat'])->oneArray();
+        echo json_encode($rujukan);
+        exit();
+    }
+
     public function postHapusrujukaninternal()
     {
         try {
@@ -3243,29 +3291,14 @@ class Admin extends AdminModule
                 }
             }
             
-            // Check if data_tb table exists
-            $tableExists = false;
             try {
-                $tableExists = $this->db()->pdo()->query("SHOW TABLES LIKE 'data_tb'")->rowCount() > 0;
-            } catch(\Exception $e) {
-                error_log('Error checking table existence: ' . $e->getMessage());
-            }
-            
-            if(!$tableExists) {
-                error_log('Table data_tb does not exist');
-                // Create default data without database query
-                $data_tb = $this->getDefaultDataTb($no_rawat);
-            } else {
-                // Try to get existing data
-                try {
-                    $data_tb = $this->db('data_tb')->where('no_rawat', $no_rawat)->oneArray();
-                    if(!$data_tb) {
-                        $data_tb = $this->getDefaultDataTb($no_rawat);
-                    }
-                } catch(\Exception $e) {
-                    error_log('Error querying data_tb: ' . $e->getMessage());
+                $data_tb = $this->db('data_tb')->where('no_rawat', $no_rawat)->oneArray();
+                if(!$data_tb) {
                     $data_tb = $this->getDefaultDataTb($no_rawat);
                 }
+            } catch(\Exception $e) {
+                error_log('Error querying data_tb: ' . $e->getMessage());
+                $data_tb = $this->getDefaultDataTb($no_rawat);
             }
             
             // Add patient data to data_tb array for template access

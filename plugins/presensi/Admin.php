@@ -91,17 +91,12 @@ class Admin extends AdminModule
         if (count($rows)) {
             foreach ($rows as $row) {
                 $row = htmlspecialchars_array($row);
-                // $row['editURL'] = url([ADMIN, 'master', 'petugasedit', $row['nip']]);
-                // $row['delURL']  = url([ADMIN, 'master', 'petugasdelete', $row['nip']]);
-                // $row['restoreURL']  = url([ADMIN, 'master', 'petugasrestore', $row['nip']]);
-                // $row['viewURL'] = url([ADMIN, 'master', 'petugasview', $row['nip']]);
                 $this->assign['list'][] = $row;
             }
         }
 
         $this->assign['getStatus'] = isset($_GET['status']);
         $this->assign['addURL'] = url([ADMIN, 'presensi', 'jagaadd']);
-        // $this->assign['printURL'] = url([ADMIN, 'master', 'petugasprint']);
 
         return $this->draw('index.html', ['jamjaga' => $this->assign]);
     }
@@ -237,9 +232,6 @@ class Admin extends AdminModule
             foreach ($rows as $row) {
                 $row = htmlspecialchars_array($row);
                 $row['editURL'] = url([ADMIN, 'presensi', 'jadwaledit', $row['id'], $bulan, $tahun]);
-                // $row['delURL']  = url([ADMIN, 'master', 'petugasdelete', $row['nip']]);
-                // $row['restoreURL']  = url([ADMIN, 'master', 'petugasrestore', $row['nip']]);
-                // $row['viewURL'] = url([ADMIN, 'master', 'petugasview', $row['nip']]);
                 $this->assign['list'][] = $row;
             }
         }
@@ -261,9 +253,15 @@ class Admin extends AdminModule
             '12' => 'DES',
         );
         $this->assign['showBulan'] = $month[$bulan];
-        // $this->assign['printURL'] = url([ADMIN, 'master', 'petugasprint']);
         $this->assign['bulan'] = array('', '01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12');
-        $this->assign['tahun'] = array('', '2020', '2021', '2022', '2023', '2024', '2025');
+        $startYear = 2020;
+        $currentYear = date('Y');
+        $endYear = $currentYear + 2;
+        $tahun = [''];
+        for ($i = $startYear; $i <= $endYear; $i++) {
+            $tahun[] = (string)$i;
+        }
+        $this->assign['tahun'] = $tahun;
         return $this->draw('jadwal.manage.html', ['jadwal' => $this->assign]);
     }
 
@@ -327,18 +325,28 @@ class Admin extends AdminModule
         } else {
             $this->assign['h1'] = $this->db('jam_jaga')->where('dep_id', $this->core->getPegawaiInfo('departemen', $username))->toArray();
         }
-        $this->assign['tahun'] = array('', '2020', '2021', '2022', '2023', '2024', '2025');
+        $startYear = 2020;
+        $currentYear = date('Y');
+        $endYear = $currentYear + 2;
+        $tahun = [''];
+        for ($i = $startYear; $i <= $endYear; $i++) {
+            $tahun[] = (string)$i;
+        }
+        $this->assign['tahun'] = $tahun;
         //$this->assign['tahun'] = date('Y');
         $this->assign['bulan'] = array('', '01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12');
 
         return $this->draw('jadwal.form.html', ['jadwal' => $this->assign]);
     }
 
-    public function getJadwalEdit($id, $bulan, $tahun)
+    public function getJadwalEdit($id = null, $bulan = null, $tahun = null)
     {
         $this->_addHeaderFiles();
         if ($bulan == "") {
             $bulan = date('m');
+        }
+        if ($tahun == "") {
+            $tahun = date('Y');
         }
 
         $row = $this->db('jadwal_pegawai')->where('id', $id)->where('tahun', $tahun)->where('bulan', $bulan)->oneArray();
@@ -361,7 +369,14 @@ class Admin extends AdminModule
             } else {
                 $this->assign['h1'] = $this->db('jam_jaga')->where('dep_id', $this->core->getPegawaiInfo('departemen', $username))->toArray();
             }
-            $this->assign['tahun'] = array('', '2020', '2021', '2022', '2023', '2024', '2025');
+            $startYear = 2020;
+            $currentYear = date('Y');
+            $endYear = $currentYear + 2;
+            $tahun = [''];
+            for ($i = $startYear; $i <= $endYear; $i++) {
+                $tahun[] = (string)$i;
+            }
+            $this->assign['tahun'] = $tahun;
             //$this->assign['tahun'] = $tahun;
             $this->assign['bulan'] = array('', '01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12');
 
@@ -477,9 +492,6 @@ class Admin extends AdminModule
             foreach ($rows as $row) {
                 $row = htmlspecialchars_array($row);
                 $row['editURL'] = url([ADMIN, 'presensi', 'jadwaltambahedit', $row['id'] , $bulan , $tahun]);
-                // $row['delURL']  = url([ADMIN, 'master', 'petugasdelete', $row['nip']]);
-                // $row['restoreURL']  = url([ADMIN, 'master', 'petugasrestore', $row['nip']]);
-                // $row['viewURL'] = url([ADMIN, 'master', 'petugasview', $row['nip']]);
                 $this->assign['list'][] = $row;
             }
         }
@@ -501,9 +513,15 @@ class Admin extends AdminModule
             '12' => 'DES',
         );
         $this->assign['showBulan'] = $month[$bulan];
-        // $this->assign['printURL'] = url([ADMIN, 'master', 'petugasprint']);
         $this->assign['bulan'] = array('','01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12');
-        $this->assign['tahun'] = array('', '2020', '2021', '2022', '2023', '2024', '2025');
+        $startYear = 2020;
+        $currentYear = date('Y');
+        $endYear = $currentYear + 2;
+        $tahun = [''];
+        for ($i = $startYear; $i <= $endYear; $i++) {
+            $tahun[] = (string)$i;
+        }
+        $this->assign['tahun'] = $tahun;
         return $this->draw('jadwal_tambah.manage.html', ['jadwal_tambah' => $this->assign]);
     }
 
@@ -567,15 +585,28 @@ class Admin extends AdminModule
         }else{
             $this->assign['h1'] = $this->db('jam_jaga')->where('dep_id', $this->core->getPegawaiInfo('departemen',$username))->toArray();
         }
-        $this->assign['tahun'] = array('', '2020', '2021', '2022', '2023', '2024', '2025');
+        $startYear = 2020;
+        $currentYear = date('Y');
+        $endYear = $currentYear + 2;
+        $tahun = [''];
+        for ($i = $startYear; $i <= $endYear; $i++) {
+            $tahun[] = (string)$i;
+        }
+        $this->assign['tahun'] = $tahun;
         $this->assign['bulan'] = array('','01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12');
 
         return $this->draw('jadwal_tambah.form.html', ['jadwal' => $this->assign]);
     }
 
-    public function getJadwalTambahEdit($id,$bulan,$tahun)
+    public function getJadwalTambahEdit($id = null, $bulan = null, $tahun = null)
     {
         $this->_addHeaderFiles();
+        if ($bulan == "") {
+            $bulan = date('m');
+        }
+        if ($tahun == "") {
+            $tahun = date('Y');
+        }
         $row = $this->db('jadwal_tambahan')->where('id', $id)->where('tahun', $tahun)->where('bulan', $bulan)->oneArray();
         if (!empty($row)){
             $username = $this->core->getUserInfo('username', null, true);
@@ -595,7 +626,14 @@ class Admin extends AdminModule
             } else {
                 $this->assign['h1'] = $this->db('jam_jaga')->where('dep_id', $this->core->getPegawaiInfo('departemen', $username))->toArray();
             }
-            $this->assign['tahun'] = array('', '2020', '2021', '2022', '2023', '2024', '2025');
+            $startYear = 2020;
+            $currentYear = date('Y');
+            $endYear = $currentYear + 2;
+            $tahun = [''];
+            for ($i = $startYear; $i <= $endYear; $i++) {
+                $tahun[] = (string)$i;
+            }
+            $this->assign['tahun'] = $tahun;
             $this->assign['bulan'] = array('','01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12');
 
             return $this->draw('jadwal_tambah.form.html', ['jadwal' => $this->assign]);
@@ -1410,7 +1448,14 @@ class Admin extends AdminModule
         $this->assign['totalplus'] = $timesminus;
 
         $this->assign['getStatus'] = isset($_GET['status']);
-        $this->assign['tahun'] = array('', '2020', '2021', '2022', '2023', '2024', '2025');
+        $startYear = 2020;
+        $currentYear = date('Y');
+        $endYear = $currentYear + 2;
+        $tahun = [''];
+        for ($i = $startYear; $i <= $endYear; $i++) {
+            $tahun[] = (string)$i;
+        }
+        $this->assign['tahun'] = $tahun;
         $this->assign['bulan'] = array('', '01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12');
         $this->assign['tanggal'] = array('', '01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12', '13', '14', '15', '16', '17', '18', '19', '20', '21', '22', '23', '24', '25', '26', '27', '28', '29', '30', '31');
         $this->assign['bidang'] = $this->db('bidang')->toArray();

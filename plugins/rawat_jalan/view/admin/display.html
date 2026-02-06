@@ -93,6 +93,7 @@
               {if: $this->core->getUserInfo('role') == 'admin' || $this->core->getUserInfo('role') == 'medis' || $this->core->getUserInfo('role') == 'paramedis'}
               <li><a href="#soap" data-no_rawat="{$value.no_rawat}" data-no_rkm_medis="{$value.no_rkm_medis}" data-nm_pasien="{$value.nm_pasien}" data-umur="{$value.umurdaftar} {$value.sttsumur}">SOAPIE & Pemeriksaan</a></li>
               <li><a href="#layanan_obat" data-no_rawat="{$value.no_rawat}" data-no_rkm_medis="{$value.no_rkm_medis}" data-nm_pasien="{$value.nm_pasien}">Layanan & Tindakan</a></li>
+              {? \Systems\Lib\Event::call('rsgmgha.dropdown_menu', [$value]) ?}
               <li class="dropdown-submenu">
                 <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">Surat-Surat</a>
                 <ul class="dropdown-menu">
@@ -655,9 +656,8 @@
     var cari = $('input:text[name=cari]').val();
     var tgl_awal = $('input:text[name=periode_rawat_jalan]').val();
     var tgl_akhir = $('input:text[name=periode_rawat_jalan_akhir]').val();
-
+    
     $.post(url, {cari: cari, tgl_awal: tgl_awal, tgl_akhir: tgl_akhir} ,function(data) {
-      //window.open(baseURL + '/rawat_jalan/cetakpdf?t=' + mlite.token);
       $("#printModal").modal('show').html('<div style="text-align:center;margin:20px auto;width:90%;height:95%;"><iframe src="' + baseURL + '/rawat_jalan/cetakpdf?t=' + mlite.token + '" frameborder="no" width="100%" height="100%"></iframe></div>');
     });
 

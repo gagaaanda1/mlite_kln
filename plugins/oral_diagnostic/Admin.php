@@ -445,7 +445,7 @@ class Admin extends AdminModule
       if($_POST['kat'] == 'obat') {
 
         $no_resep = $this->core->setNoResep($_POST['tgl_perawatan']);
-        $cek_resep = $this->db('resep_obat')->where('no_rawat', $_POST['no_rawat'])->where('tgl_peresepan', $_POST['tgl_perawatan'])->where('tgl_perawatan', '0000-00-00')->where('status', 'ralan')->oneArray();
+        $cek_resep = $this->db('resep_obat')->join('resep_dokter', 'resep_obat.no_resep = resep_dokter.no_resep')->where('no_rawat', $_POST['no_rawat'])->where('tgl_peresepan', $_POST['tgl_perawatan'])->where('tgl_perawatan', '0000-00-00')->where('status', 'ralan')->oneArray();
 
         if(empty($cek_resep)) {
 
@@ -584,6 +584,7 @@ class Admin extends AdminModule
       $rows = $this->db('resep_obat')
         ->join('dokter', 'dokter.kd_dokter=resep_obat.kd_dokter')
         ->where('no_rawat', $_POST['no_rawat'])
+        ->where('resep_obat.status', 'ralan')
         ->toArray();
       $resep = [];
       $jumlah_total_resep = 0;
@@ -846,12 +847,17 @@ class Admin extends AdminModule
       } else {
         $tgl_registrasi = date('Y-m-d');
       }
-
       $urut = $this->db('reg_periksa')
+          ->where('tgl_registrasi', $tgl_registrasi)
           ->nextRightNumber('no_rawat', 6);
 
-      $next_no_rawat = date('Y/m/d', strtotime($tgl_registrasi)).'/'.$urut;
+      $next_no_rawat =
+          date('Y/m/d', strtotime($tgl_registrasi)) .
+          '/' .
+          sprintf('%06d', $urut);
+
       echo $next_no_rawat;
+
       exit();
     }
 
@@ -1162,44 +1168,72 @@ class Admin extends AdminModule
 
     public function postCetak()
     {
-      $this->db()->pdo()->exec("DELETE FROM `mlite_temporary`");
-      $cari = $_POST['cari'];
-      $tgl_awal = $_POST['tgl_awal'];
-      $tgl_akhir = $_POST['tgl_akhir'];
-      $this->db()->pdo()->exec("INSERT INTO `mlite_temporary` (
-        `temp1`,`temp2`,`temp3`,`temp4`,`temp5`,`temp6`,`temp7`,`temp8`,`temp9`,`temp10`,`temp11`,`temp12`,`temp13`,`temp14`,`temp15`,`temp16`,`temp17`,`temp18`,`temp19`
-      )
-      SELECT *
-      FROM `mlite_pendaftaran_oral_diagnostic`
-      WHERE `kd_poli` = '$this->oral_diagnostic'
-      AND `tgl_registrasi` BETWEEN '$tgl_awal' AND '$tgl_akhir'
-      ");
+        $this->db()->pdo()->exec("DELETE FROM `mlite_temporary`");
 
-      $cetak = $this->db('mlite_temporary')->toArray();
-      echo $this->draw('cetak.oral_diagnostic.html', ['cetak' => $cetak]);
+        $tgl_awal  = $_POST['tgl_awal'];
+        $tgl_akhir = $_POST['tgl_akhir'];
 
-      exit();
+        $this->db()->pdo()->exec("
+            INSERT INTO `mlite_temporary` (
+                `temp1`,`temp2`,`temp3`,`temp4`,`temp5`,`temp6`,`temp7`,
+                `temp8`,`temp9`,`temp10`,`temp11`,`temp12`,`temp13`,
+                `temp14`,`temp15`,`temp16`,`temp17`,`temp18`,`temp19`
+            )
+            SELECT *
+            FROM `mlite_pendaftaran_oral_diagnostic`
+            WHERE `kd_poli` = '{$this->oral_diagnostic}'
+            AND `tgl_registrasi` BETWEEN '$tgl_awal' AND '$tgl_akhir'
+        ");
+
+        $cetak = $this->db('mlite_temporary')->toArray();
+
+        echo $this->draw('cetak.oral_diagnostic.html', [
+            'cetak' => $cetak,
+            'tgl_awal' => $tgl_awal,
+            'tgl_akhir' => $tgl_akhir
+        ]);
+
+        exit;
     }
 
     public function getCetakPdf()
     {
-      $mpdf = new \Mpdf\Mpdf([
-        'mode' => 'utf-8',
-        'orientation' => 'L'
-      ]);
-  
-      $mpdf->SetHTMLHeader($this->core->setPrintHeader());
-      $mpdf->SetHTMLFooter($this->core->setPrintFooter());
-            
-      $url = url(ADMIN.'/tmp/cetak.oral_diagnostic.html');
-      $html = file_get_contents($url);
-      $mpdf->WriteHTML($this->core->setPrintCss(),\Mpdf\HTMLParserMode::HEADER_CSS);
-      $mpdf->WriteHTML($html,\Mpdf\HTMLParserMode::HTML_BODY);
-  
-      // Output a PDF file directly to the browser
-      $mpdf->Output();
-      exit();
+        $cetak = $this->db('mlite_temporary')->toArray();
+
+        /* ===============================
+        * INJECT DATA KE TEMPLATE
+        * =============================== */
+        $this->tpl->set('cetak', $cetak);
+
+        /* ===============================
+        * RENDER HTML SEKALI
+        * =============================== */
+        $html = $this->draw('cetak.oral_diagnostic.html');
+
+        /* ===============================
+        * GENERATE PDF
+        * =============================== */
+        $mpdf = new \Mpdf\Mpdf([
+            'mode' => 'utf-8',
+            'orientation' => 'L'
+        ]);
+
+        $mpdf->SetHTMLHeader($this->core->setPrintHeader());
+        $mpdf->SetHTMLFooter($this->core->setPrintFooter());
+
+        $mpdf->WriteHTML(
+            $this->core->setPrintCss(),
+            \Mpdf\HTMLParserMode::HEADER_CSS
+        );
+        $mpdf->WriteHTML(
+            $html,
+            \Mpdf\HTMLParserMode::HTML_BODY
+        );
+
+        $mpdf->Output();
+        exit;
     }
+
 
     public function getLokalis()
     {
