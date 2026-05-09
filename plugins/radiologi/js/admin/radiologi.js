@@ -520,6 +520,7 @@ $("#rincian").on("click",".hasil_radiologi", function(event){
       + '<form method="post" action="" enctype="multipart/form-data">'
       + '  Select file : <input type="file" name="file" id="file" class="form-control"><br>'
       + '  <input type="button" class="btn btn-info" value="Upload" id="btn_upload">'
+      + '  <input type="button" class="btn btn-success" value="Upload Mini PACS (CR)" id="btn_upload_pacs" style="margin-left: 5px;">'
       + '</form>'
       + '<div id="preview"></div>'
       + '</div>'
@@ -596,6 +597,53 @@ $("#rincian").on("click",".hasil_radiologi", function(event){
             {
                 bootbox.alert(data.result);
             }
+        }
+      });
+    });
+
+    $('#btn_upload_pacs').click(function(){
+      var baseURL = mlite.url + '/' + mlite.admin;
+      var url= baseURL + '/mini_pacs/apiupload?t=' + mlite.token;
+
+      var fd = new FormData();
+      var files = $('#file')[0].files[0];
+      if(!files) {
+        bootbox.alert("Silakan pilih file gambar (JPEG/PNG) terlebih dahulu.");
+        return;
+      }
+      fd.append('file_image',files);
+      fd.append('no_rawat',no_rawat);
+      fd.append('modality','CR');
+
+      var btn = $(this);
+      var oldVal = btn.val();
+      btn.prop('disabled', true).val('Uploading...');
+
+      $.ajax({
+        url: url,
+        type: 'post',
+        data: fd,
+        contentType: false,
+        processData: false,
+        dataType: 'json',
+        success: function(data)
+        {
+            btn.prop('disabled', false).val(oldVal);
+            if(data.status == 'success')
+            {
+                bootbox.alert("Berhasil mengunggah dan mengkonversi ke Mini PACS!");
+                if(data.result) {
+                    $('#preview').append("<img src='"+data.result+"' width='100' height='100' style='display: inline-block; margin: 5px; border: 2px solid #555;'>");
+                }
+            }
+            else
+            {
+                bootbox.alert(data.message || 'Gagal mengunggah');
+            }
+        },
+        error: function() {
+            btn.prop('disabled', false).val(oldVal);
+            bootbox.alert("Terjadi kesalahan jaringan.");
         }
       });
     });
@@ -848,7 +896,7 @@ $("#form_rincian").on("click","#jam_reg", function(event){
   {if: $mlite.websocket_proxy != ''}
     var URL_WEBSOCKET = "{$mlite.websocket_proxy}";
   {else}
-    var URL_WEBSOCKET = "ws://<?php echo $_SERVER['HTTP_HOST'] ?>:3892";
+    var URL_WEBSOCKET = "wss://<?php echo $_SERVER['HTTP_HOST'] ?>:3892";
   {/if}
 
   var ws = new WebSocket(URL_WEBSOCKET);

@@ -48,7 +48,7 @@ class Admin extends AdminModule
       ['name' => 'Monitoring Data Klaim', 'url' => url([ADMIN, 'veronisa', 'monitoringdataklaim']), 'icon' => 'bar-chart', 'desc' => 'Monitoring Data Klaim veronisa'],
       ['name' => 'Pengaturan', 'url' => url([ADMIN, 'veronisa', 'settings']), 'icon' => 'cog', 'desc' => 'Pengaturan veronisa']
     ];
-    return $this->draw('manage.html', ['sub_modules' => $sub_modules]);
+    return $this->draw('manage.html', ['sub_modules' => htmlspecialchars_array($sub_modules)]);
   }
 
   public function anyIndex($page = 1)
@@ -217,7 +217,7 @@ class Admin extends AdminModule
 
     if (!$rows) {
       $this->assign['list'] = [];
-      return $this->draw('index.html', ['veronisa' => $this->assign]);
+      return $this->draw('index.html', ['veronisa' => htmlspecialchars_array($this->assign)]);
     }
 
     // === Optimasi: kumpulkan semua no_rawat ===
@@ -280,7 +280,7 @@ class Admin extends AdminModule
     $this->core->addJS(url('assets/jscripts/lightbox/lightbox.min.js'));
 
     $this->assign['searchUrl'] =  url([ADMIN, 'veronisa', 'index', $page . '?s=' . $phrase . '&start_date=' . $start_date . '&end_date=' . $end_date]);
-    return $this->draw('index.html', ['veronisa' => $this->assign]);
+    return $this->draw('index.html', ['veronisa' => htmlspecialchars_array($this->assign)]);
   }
 
   public function postHapusVeronisa()
@@ -333,45 +333,46 @@ class Admin extends AdminModule
   public function getApotekOnline()
   {
     $parsedown = new \Systems\Lib\Parsedown();
-    $readme_file = MODULES . '/veronisa/Help.md';
+    $readme_file = MODULES . '/veronisa/README.md';
     $readme =  $parsedown->text($this->tpl->noParse(file_get_contents($readme_file)));
     return $this->draw('apotekonline.html', ['readme' => $readme]);
   }
 
   public function getReferensi()
   {
-    return $this->draw('referensi.html', ['veronisa' => $this->assign]);
+    return $this->draw('referensi.html', ['veronisa' => htmlspecialchars_array($this->assign)]);
   }
   
   public function getObat()
   {
-    return $this->draw('obat.html', ['veronisa' => $this->assign]);
+    return $this->draw('obat.html', ['veronisa' => htmlspecialchars_array($this->assign)]);
   }
 
   public function getPelayananObat()
   {
-    return $this->draw('pelayananobat.html', ['veronisa' => $this->assign]);
+    return $this->draw('pelayananobat.html', ['veronisa' => htmlspecialchars_array($this->assign)]);
   }
 
   public function getResep()
   {
-    return $this->draw('resep.html', ['veronisa' => $this->assign]);
+    return $this->draw('resep.html', ['veronisa' => htmlspecialchars_array($this->assign)]);
   }
 
   public function getCariSEP()
   {
-    return $this->draw('carisep.html', ['veronisa' => $this->assign]);
+    return $this->draw('carisep.html', ['veronisa' => htmlspecialchars_array($this->assign)]);
   }
 
   public function getMonitoringKlaim()
   {
-    return $this->draw('monitoringklaim.html', ['veronisa' => $this->assign]);
+    return $this->draw('monitoringklaim.html', ['veronisa' => htmlspecialchars_array($this->assign)]);
   }
 
   public function getMonitoringDataKlaim()
   {
     $this->_addHeaderFiles();
-    return $this->draw('monitoringdataklaim.html', ['veronisa' => $this->assign]);
+    $assign = is_array($this->assign) ? $this->assign : [];
+    return $this->draw('monitoringdataklaim.html', ['veronisa' => htmlspecialchars_array($assign)]);
   }
 
   public function getKirimApotikOnline($no_rawat)
@@ -470,7 +471,7 @@ class Admin extends AdminModule
     $this->assign['user'] = $this->core->getUserInfo('username', $_SESSION['mlite_user']);
     $this->assign['kd_dokter'] = isset_or($obat_data['0']['kd_dokter'], '');
     
-    echo $this->draw('kirimapotikonline.html', ['veronisa' => $this->assign]);
+    echo $this->draw('kirimapotikonline.html', ['veronisa' => htmlspecialchars_array($this->assign)]);
     exit();
   }
 
@@ -555,9 +556,9 @@ public function postHapusResepResponse()
         ], JSON_PRETTY_PRINT));
 
         // Jika ada error saat hapus obat, catat tapi lanjutkan
-        if ($json_hapus_obat['metaData']['code'] !== '200') {
-          error_log('Gagal hapus obat ' . $obat['kode_brng'] . ': ' . $json_hapus_obat['metaData']['message']);
-        }
+      if ($json_hapus_obat['metaData']['code'] !== '200') {
+        error_log('Gagal hapus obat ' . htmlspecialchars($obat['kode_brng'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') . ': ' . htmlspecialchars($json_hapus_obat['metaData']['message'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'));
+      }
       }
 
       // Setelah hapus semua obat, baru hapus resep
@@ -567,7 +568,7 @@ public function postHapusResepResponse()
 
       // Cek response dari BPJS
       if ($json_hapus['metaData']['code'] !== '200') {
-        throw new \Exception('Gagal menghapus resep di BPJS: ' . $json_hapus['metaData']['message']);
+        throw new \Exception('Gagal menghapus resep di BPJS: ' . htmlspecialchars($json_hapus['metaData']['message'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'));
       }
 
       // Hapus data dari tabel mlite_apotek_online_resep_response_log setelah berhasil hapus di BPJS
@@ -612,7 +613,7 @@ public function postHapusResepResponse()
       
       echo json_encode([
         'success' => false,
-        'message' => $e->getMessage(),
+        'message' => htmlspecialchars($e->getMessage(), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'),
         'debug_info' => [
           'file' => $e->getFile(),
           'line' => $e->getLine(),
@@ -626,7 +627,7 @@ public function postHapusResepResponse()
       
       echo json_encode([
         'success' => false,
-        'message' => 'Terjadi kesalahan sistem: ' . $e->getMessage(),
+        'message' => 'Terjadi kesalahan sistem: ' . htmlspecialchars($e->getMessage(), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'),
         'debug_info' => [
           'file' => $e->getFile(),
           'line' => $e->getLine(),
@@ -712,7 +713,7 @@ public function postHapusResepResponse()
       ], JSON_PRETTY_PRINT));
 
       if ($json_resep['metaData']['code'] !== '200') {
-        throw new \Exception('Gagal mengirim data resep: ' . $json_resep['metaData']['message']);
+        throw new \Exception('Gagal mengirim data resep: ' . htmlspecialchars($json_resep['metaData']['message'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'));
       }
 
       // Simpan respons resep ke tabel khusus
@@ -721,8 +722,8 @@ public function postHapusResepResponse()
         $message = $json_resep['metaData']['message'];
         $raw_response = '{
                 "metaData": {
-                  "code": "' . $code . '",
-                  "message": "' . $message . '"
+                  "code": "' . htmlspecialchars($code, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') . '",
+                  "message": "' . htmlspecialchars($message, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') . '"
                 },
                 "response": ' . $decompress . '}';
                       
@@ -773,7 +774,7 @@ public function postHapusResepResponse()
             // Simpan ke file debug untuk setiap obat
             file_put_contents("debug_kirim_obat_{$index}.json", json_encode([
               'url' => $url_obat,
-              'payload' => $obat_data,
+              'payload' => htmlspecialchars_array($obat_data),
               'response' => $json_obat
             ], JSON_PRETTY_PRINT));
 
@@ -783,7 +784,7 @@ public function postHapusResepResponse()
               $obat_errors[] = [
                 'index' => $index,
                 'message' => $json_obat['metaData']['message'],
-                'data' => $obat_data
+                'data' => htmlspecialchars_array($obat_data)
               ];
             }
 
@@ -793,11 +794,11 @@ public function postHapusResepResponse()
               'data' => $obat ?? []
             ], JSON_PRETTY_PRINT));
 
-            $obat_responses[] = ['metaData' => ['code' => '500', 'message' => $ex->getMessage()]];
+            $obat_responses[] = ['metaData' => ['code' => '500', 'message' => htmlspecialchars($ex->getMessage(), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8')]];
 
             $obat_errors[] = [
               'index' => $index,
-              'message' => $ex->getMessage(),
+              'message' => htmlspecialchars($ex->getMessage(), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'),
               'data' => $obat_data ?? $obat
             ];
           }
@@ -960,7 +961,7 @@ public function postHapusResepResponse()
           'noresep' => $_POST['NORESEP'] ?? '',
           'tanggal_kirim' => date('Y-m-d H:i:s'),
           'status' => 'error',
-          'response_resep' => $e->getMessage(),
+          'response_resep' => htmlspecialchars($e->getMessage(), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'),
           'response_obat' => '',
           'request' => json_encode($error_request_data),
           'user' => $this->core->getUserInfo('username', null, true)
@@ -969,13 +970,13 @@ public function postHapusResepResponse()
       
       echo json_encode([
         'success' => false,
-        'message' => $e->getMessage()
+        'message' => htmlspecialchars($e->getMessage(), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8')
       ]);
     } catch (\Error $e) {
       ob_clean();
       echo json_encode([
         'success' => false,
-        'message' => 'Fatal error: ' . $e->getMessage()
+        'message' => 'Fatal error: ' . htmlspecialchars($e->getMessage(), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8')
       ]);
     }
 
@@ -1137,8 +1138,8 @@ public function postHapusResepResponse()
             
             echo json_encode([
                 'metaData' => [
-                    'code' => $code,
-                    'message' => $message
+                    'code' => htmlspecialchars($code, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'),
+                    'message' => htmlspecialchars($message, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8')
                 ],
                 'response' => json_decode($decompress, true),
                 'request_info' => [
@@ -1161,7 +1162,7 @@ public function postHapusResepResponse()
         echo json_encode([
             'metaData' => [
                 'code' => '5000',
-                'message' => 'Error: ' . $e->getMessage()
+                'message' => 'Error: ' . htmlspecialchars($e->getMessage(), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8')
             ],
             'response' => 'Terjadi kesalahan saat menghubungi server BPJS'
         ]);
@@ -1270,7 +1271,7 @@ public function postHapusResepResponse()
         echo json_encode([
             'metaData' => [
                 'code' => '5000',
-                'message' => 'Error: ' . $e->getMessage()
+                'message' => 'Error: ' . htmlspecialchars($e->getMessage(), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8')
             ],
             'response' => 'Terjadi kesalahan saat menghubungi server BPJS',
             'debug' => [
@@ -1317,8 +1318,8 @@ public function postHapusResepResponse()
     if ($data != null) {
       $data = '{
           "metaData": {
-            "code": "' . $code . '",
-            "message": "' . $message . '"
+            "code": "' . htmlspecialchars($code, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') . '",
+            "message": "' . htmlspecialchars($message, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') . '"
           },
           "response": ' . $decompress . '}';
       $data = json_decode($data, true);
@@ -1336,7 +1337,7 @@ public function postHapusResepResponse()
     if ($data['response']['jnsPelayanan'] == 'Rawat Inap') {
       $jenis_pelayanan = '1';
     }
-    // echo json_encode($data);
+    // echo json_encode(htmlspecialchars_array($data));
     $data_rujukan = [];
     $no_telp = "00000000";
     if ($data['response']['noRujukan'] == "") {
@@ -1365,8 +1366,8 @@ public function postHapusResepResponse()
       if ($data_rujukan != null) {
         $data_rujukan = '{
             "metaData": {
-              "code": "' . $code . '",
-              "message": "' . $message . '"
+              "code": "' . htmlspecialchars($code, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') . '",
+              "message": "' . htmlspecialchars($message, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') . '"
             },
             "response": ' . $decompress . '}';
         $data_rujukan = json_decode($data_rujukan, true);
@@ -1593,6 +1594,15 @@ public function postHapusResepResponse()
       $result_detail['obat_operasi'][] = $obat_operasi;
     }
 
+    $result_detail['resep_pulang'] = $this->db('resep_pulang')
+      ->join('databarang', 'databarang.kode_brng=resep_pulang.kode_brng')
+      ->where('resep_pulang.no_rawat', $no_rawat)
+      ->toArray();
+
+    $result_detail['tambahan_biaya'] = $this->db('tambahan_biaya')
+      ->where('no_rawat', $no_rawat)
+      ->toArray();
+
     $qr=QRCode::getMinimumQRCode($this->core->getUserInfo('fullname', null, true),QR_ERROR_CORRECT_LEVEL_L);
     //$qr=QRCode::getMinimumQRCode('Petugas: '.$this->core->getUserInfo('fullname', null, true).'; Lokasi: '.UPLOADS.'/invoices/'.$result['kd_billing'].'.pdf',QR_ERROR_CORRECT_LEVEL_L);
     $im=$qr->createImage(4,4);
@@ -1677,13 +1687,11 @@ public function postHapusResepResponse()
       $row['nomor'] = $dpjp_i++;
       $dpjp_ranap[] = $row;
     }
-    /*
-    $rujukan_internal = $this->db('rujukan_internal_poli')
-      ->join('poliklinik', 'poliklinik.kd_poli = rujukan_internal_poli.kd_poli')
-      ->join('dokter', 'dokter.kd_dokter = rujukan_internal_poli.kd_dokter')
+    $rujukan_internal = $this->db('mlite_rujukan_internal_poli')
+      ->join('poliklinik', 'poliklinik.kd_poli = mlite_rujukan_internal_poli.kd_poli')
+      ->join('dokter', 'dokter.kd_dokter = mlite_rujukan_internal_poli.kd_dokter')
       ->where('no_rawat', $this->revertNorawat($id))
       ->oneArray();
-    */
     $diagnosa_pasien = $this->db('diagnosa_pasien')
       ->join('penyakit', 'penyakit.kd_penyakit = diagnosa_pasien.kd_penyakit')
       ->where('no_rawat', $this->revertNorawat($id))
@@ -1899,15 +1907,23 @@ public function postHapusResepResponse()
 
   public function getSettings()
   {
+    if ($this->core->getUserInfo('role') != 'admin') {
+        $this->notify('failure', 'Anda tidak memiliki hak akses untuk halaman ini.');
+        redirect(url([ADMIN, 'veronisa', 'index']));
+    }
     $this->_addHeaderFiles();
     $this->assign['title'] = 'Pengaturan Modul veronisa';
     $this->assign['veronisa'] = htmlspecialchars_array($this->settings('veronisa'));
     $this->assign['master_berkas_digital'] = $this->db('master_berkas_digital')->toArray();
-    return $this->draw('settings.html', ['settings' => $this->assign]);
+    return $this->draw('settings.html', ['settings' => htmlspecialchars_array($this->assign)]);
   }
 
   public function postSaveSettings()
   {
+    if ($this->core->getUserInfo('role') != 'admin') {
+        $this->notify('failure', 'Anda tidak memiliki hak akses untuk halaman ini.');
+        redirect(url([ADMIN, 'veronisa', 'index']));
+    }
     foreach ($_POST['veronisa'] as $key => $val) {
       $this->settings('veronisa', $key, $val);
     }
@@ -2064,7 +2080,7 @@ public function postHapusResepResponse()
       ob_clean();
       echo json_encode([
         'status' => 'error',
-        'message' => 'Terjadi kesalahan sistem: ' . $e->getMessage(),
+        'message' => 'Terjadi kesalahan sistem: ' . htmlspecialchars($e->getMessage(), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'),
         'debug' => [
           'file' => $e->getFile(),
           'line' => $e->getLine(),
@@ -2212,7 +2228,7 @@ public function postHapusResepResponse()
       error_log('Error in postCariSep: ' . $e->getMessage());
       echo json_encode([
         'success' => false,
-        'message' => 'Terjadi kesalahan sistem: ' . $e->getMessage()
+        'message' => 'Terjadi kesalahan sistem: ' . htmlspecialchars($e->getMessage(), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8')
       ]);
       exit();
     }
@@ -2243,8 +2259,15 @@ public function postHapusResepResponse()
     $this->assign['totalRecords'] = $totalRecords;
 
     $offset = $pagination->offset();
-    $query = $this->db()->pdo()->prepare("SELECT * FROM mlite_apotek_online_log WHERE (no_rawat LIKE ? OR noresep LIKE ? OR user LIKE ?) AND DATE(tanggal_kirim) BETWEEN ? AND ? ORDER BY tanggal_kirim DESC LIMIT $perpage OFFSET $offset");
-    $query->execute(['%' . $phrase . '%', '%' . $phrase . '%', '%' . $phrase . '%', $start_date, $end_date]);
+    $query = $this->db()->pdo()->prepare("SELECT * FROM mlite_apotek_online_log WHERE (no_rawat LIKE ? OR noresep LIKE ? OR user LIKE ?) AND DATE(tanggal_kirim) BETWEEN ? AND ? ORDER BY tanggal_kirim DESC LIMIT :limit OFFSET :offset");
+    $query->bindValue(1, '%' . $phrase . '%', \PDO::PARAM_STR);
+    $query->bindValue(2, '%' . $phrase . '%', \PDO::PARAM_STR);
+    $query->bindValue(3, '%' . $phrase . '%', \PDO::PARAM_STR);
+    $query->bindValue(4, $start_date, \PDO::PARAM_STR);
+    $query->bindValue(5, $end_date, \PDO::PARAM_STR);
+    $query->bindValue(':limit', (int)$perpage, \PDO::PARAM_INT);
+    $query->bindValue(':offset', (int)$offset, \PDO::PARAM_INT);
+    $query->execute();
     $rows = $query->fetchAll();
 
     $this->assign['list'] = [];
@@ -2256,7 +2279,7 @@ public function postHapusResepResponse()
     }
 
     $this->assign['searchUrl'] = url([ADMIN, 'veronisa', 'logapotikonline', $page]);
-    return $this->draw('logapotikonline.html', ['log_apotek' => $this->assign]);
+    return $this->draw('logapotikonline.html', ['log_apotek' => htmlspecialchars_array($this->assign)]);
   }
 
   public function postHapusLogApotikOnline()
@@ -2373,7 +2396,7 @@ public function postHapusResepResponse()
                 // Jika API gagal, jangan hapus log lokal
                 echo json_encode([
                   'success' => false,
-                  'message' => 'Gagal menghapus resep dari sistem BPJS: ' . $api_message
+                  'message' => 'Gagal menghapus resep dari sistem BPJS: ' . htmlspecialchars($api_message, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8')
                 ]);
                 exit();
               } else {
@@ -2384,7 +2407,7 @@ public function postHapusResepResponse()
               $api_message = 'Data tidak lengkap untuk menghapus resep dari API BPJS';
               echo json_encode([
                 'success' => false,
-                'message' => $api_message
+                'message' => htmlspecialchars($api_message, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8')
               ]);
               exit();
             }
@@ -2393,7 +2416,7 @@ public function postHapusResepResponse()
             $api_message = 'Data request tidak valid untuk menghapus resep dari API BPJS';
             echo json_encode([
               'success' => false,
-              'message' => $api_message
+              'message' => htmlspecialchars($api_message, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8')
             ]);
             exit();
           }
@@ -2402,7 +2425,7 @@ public function postHapusResepResponse()
           error_log('Error saat hapus resep dari API: ' . $e->getMessage());
           echo json_encode([
             'success' => false,
-            'message' => 'Terjadi kesalahan saat menghapus resep dari sistem BPJS: ' . $e->getMessage()
+            'message' => 'Terjadi kesalahan saat menghapus resep dari sistem BPJS: ' . htmlspecialchars($e->getMessage(), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8')
           ]);
           exit();
         }
@@ -2418,7 +2441,7 @@ public function postHapusResepResponse()
         }
         echo json_encode([
           'success' => true,
-          'message' => $message
+          'message' => htmlspecialchars($message, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8')
         ]);
       } else {
         echo json_encode([
@@ -2431,7 +2454,7 @@ public function postHapusResepResponse()
       error_log('Error in postHapusLogApotikOnline: ' . $e->getMessage());
       echo json_encode([
         'success' => false,
-        'message' => 'Terjadi kesalahan sistem: ' . $e->getMessage()
+        'message' => 'Terjadi kesalahan sistem: ' . htmlspecialchars($e->getMessage(), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8')
       ]);
     }
     exit();

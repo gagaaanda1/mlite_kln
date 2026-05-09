@@ -10,8 +10,8 @@ class Admin extends AdminModule
     {
         return [
             'Manage' => 'manage',
-            'Settings' => 'settings',
             'Studies' => 'studies',
+            'Pengaturan' => 'settings',
         ];
     }
 
@@ -21,12 +21,16 @@ class Admin extends AdminModule
         ['name' => 'Settings', 'url' => url([ADMIN, 'orthanc', 'settings']), 'icon' => 'cubes', 'desc' => 'Pengaturan Orthanc'],
         ['name' => 'Studies', 'url' => url([ADMIN, 'orthanc', 'studies']), 'icon' => 'cubes', 'desc' => 'Data studies'],
       ];
-      return $this->draw('manage.html', ['sub_modules' => $sub_modules]);
+      return $this->draw('manage.html', ['sub_modules' => htmlspecialchars_array($sub_modules)]);
     }
 
     public function getSettings()
     {
-      $orthanc['server'] = $this->settings->get('orthanc.server');
+        if ($this->core->getUserInfo('role') != 'admin') {
+            $this->notify('failure', 'Anda tidak memiliki hak akses untuk halaman ini.');
+            redirect(url([ADMIN, 'orthanc', 'studies']));
+        }
+        $orthanc['server'] = $this->settings->get('orthanc.server');
       $orthanc['username'] = $this->settings->get('orthanc.username');
       $orthanc['password'] = $this->settings->get('orthanc.password');
       $orthanc['ai_api_key'] = $this->settings->get('orthanc.ai_api_key');
@@ -36,6 +40,10 @@ class Admin extends AdminModule
 
     public function postSaveSettings()
     {
+        if ($this->core->getUserInfo('role') != 'admin') {
+            $this->notify('failure', 'Anda tidak memiliki hak akses untuk halaman ini.');
+            redirect(url([ADMIN, 'orthanc', 'studies']));
+        }
         foreach ($_POST['orthanc'] as $key => $val) {
             $this->settings('orthanc', $key, $val);
         }
@@ -45,6 +53,90 @@ class Admin extends AdminModule
         $orthanc['password'] = $this->settings->get('orthanc.password');
         $this->notify('success', 'Pengaturan telah disimpan');
         redirect(url([ADMIN, 'orthanc', 'manage']));
+    }
+
+    private function isSafeUrl($url, $allow_local = false) {
+        $parsed = parse_url($url);
+        
+        // Always require http or https
+        if (!$parsed || !isset($parsed['scheme']) || !in_array(strtolower($parsed['scheme']), ['http', 'https'])) {
+            return false;
+        }
+        
+        // If not explicitly allowing local, enforce HTTPS only
+        if (!$allow_local && strtolower($parsed['scheme']) !== 'https') {
+            return false;
+        }
+
+        $host = $parsed['host'] ?? '';
+        $ips = gethostbynamel($host);
+        
+        if (!$ips) {
+            return false;
+        }
+        
+        foreach ($ips as $ip) {
+            // Check if IP is private/reserved
+            $is_private = !filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE);
+            
+            // If it's private and we don't allow local, reject it
+            if ($is_private && !$allow_local) {
+                return false;
+            }
+        }
+        
+        return true;
+    }
+
+    public function postTestOpenai()
+    {
+      $orthanc['ai_api_key'] = $_POST['api_key'];
+      $orthanc['ai_api_url'] = $_POST['api_url'];
+      if($orthanc['ai_api_key'] != "" && $orthanc['ai_api_url'] != "") {
+        $result = true;
+      } else {
+        $result = false;
+      }
+
+      if($result) {
+        // SSRF protection: validate ai_api_url is a public https URL
+        if (!$this->isSafeUrl($orthanc['ai_api_url'])) {
+             $output = array('message' => 'error', 'code' => '400', 'desc' => 'Invalid or insecure API URL');
+             echo json_encode(htmlspecialchars_array($output));
+             exit();
+        }
+
+        $curl = curl_init();
+        curl_setopt ($curl, CURLOPT_URL, $orthanc['ai_api_url']);
+        curl_setopt($curl, CURLOPT_PROTOCOLS, CURLPROTO_HTTPS);
+        curl_setopt($curl, CURLOPT_REDIR_PROTOCOLS, CURLPROTO_HTTPS);
+        curl_setopt($curl, CURLOPT_FOLLOWLOCATION, false);
+        curl_setopt($curl, CURLOPT_HTTPHEADER, array(
+          'Content-Type: application/json',
+          'Authorization: Bearer ' . $orthanc['ai_api_key']
+        ));
+        curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
+        $resp = curl_exec($curl);
+        curl_close($curl);
+        $response = json_decode($resp, true);
+
+        if(isset($response['error'])) {
+          $message = 'error';
+          $code = '401';
+        } else {
+          $message = 'sukses';
+          $code = '200';
+        }
+      } else {
+        $message = 'error';
+        $code = '201';
+      }
+      $output = array(
+       'message' => $message,
+       'code'  => $code
+      );
+      echo json_encode(htmlspecialchars_array($output));
+      exit();
     }
 
     public function getBridgingOrthanc($no_rawat, $status='', $tgl_periksa='', $jam='')
@@ -179,21 +271,13 @@ class Admin extends AdminModule
 
             // --- Validasi URL ---
             $valid = false;
-            if (filter_var($url, FILTER_VALIDATE_URL)) {
-                $valid = true;
-            } else {
-                // Fallback validasi Docker container host
+            if ($this->isSafeUrl($url, true)) { // Allow local IP/HTTP for Orthanc Server
                 $parts = parse_url($url);
-                if (
-                    $parts &&
-                    !empty($parts['scheme']) &&
-                    in_array($parts['scheme'], ['http','https'], true) &&
-                    !empty($parts['host']) &&
-                    (
-                        preg_match('/^[a-zA-Z0-9\-_]+$/', $parts['host']) || 
-                        filter_var($parts['host'], FILTER_VALIDATE_IP)
-                    )
-                ) {
+                $orthanc_server = $this->settings->get('orthanc.server');
+                $orthanc_parts = parse_url($orthanc_server);
+                
+                if (isset($parts['host']) && isset($orthanc_parts['host']) && 
+                    strtolower($parts['host']) === strtolower($orthanc_parts['host'])) {
                     $valid = true;
                 }
             }
@@ -203,26 +287,37 @@ class Admin extends AdminModule
                     $this->settings->get('orthanc.username') . ":" . 
                     $this->settings->get('orthanc.password')
                 );
-                $context = stream_context_create([
-                    "http" => [
-                        "header" => "Authorization: Basic $auth"
-                    ]
+                
+                // Use cURL for better security controls
+                $curlHandle = curl_init();
+                curl_setopt($curlHandle, CURLOPT_URL, $url);
+                curl_setopt($curlHandle, CURLOPT_PROTOCOLS, CURLPROTO_HTTPS | CURLPROTO_HTTP);
+                curl_setopt($curlHandle, CURLOPT_REDIR_PROTOCOLS, CURLPROTO_HTTPS | CURLPROTO_HTTP);
+                curl_setopt($curlHandle, CURLOPT_FOLLOWLOCATION, false);
+                curl_setopt($curlHandle, CURLOPT_RETURNTRANSFER, true);
+                curl_setopt($curlHandle, CURLOPT_HTTPHEADER, [
+                    "Authorization: Basic $auth"
                 ]);
+                $image_data = curl_exec($curlHandle);
+                curl_close($curlHandle);
 
-                $image_data = file_get_contents($url, false, $context);
-                $filename = time() . '.png';
-                $new_image_path = WEBAPPS_PATH . '/radiologi/pages/upload/' . $filename;
+                if ($image_data !== false) {
+                    $filename = time() . '.png';
+                    $new_image_path = WEBAPPS_PATH . '/radiologi/pages/upload/' . $filename;
 
-                file_put_contents($new_image_path, $image_data);
+                    file_put_contents($new_image_path, $image_data);
 
-                $message = 'Hasil PACS telah disimpan ke server SIMRS';
+                    $message = 'Hasil PACS telah disimpan ke server SIMRS';
 
-                $result = $this->db('gambar_radiologi')->save([
-                    'no_rawat'      => $_POST['no_rawat'],
-                    'tgl_periksa'   => $_POST['tgl_periksa'],
-                    'jam'           => $_POST['jam_periksa'],
-                    'lokasi_gambar' => 'pages/upload/' . $filename
-                ]);
+                    $result = $this->db('gambar_radiologi')->save([
+                        'no_rawat'      => $_POST['no_rawat'],
+                        'tgl_periksa'   => $_POST['tgl_periksa'],
+                        'jam'           => $_POST['jam_periksa'],
+                        'lokasi_gambar' => 'pages/upload/' . $filename
+                    ]);
+                } else {
+                    $message = 'Gagal mengambil gambar PACS';
+                }
             } else {
                 $message = 'Invalid Url';
             }
@@ -231,7 +326,7 @@ class Admin extends AdminModule
                 'message' => $message,
                 'image'   => $image
             ];
-            echo json_encode($output);
+            echo json_encode(htmlspecialchars_array($output));
         }
         exit();
     }
@@ -262,7 +357,7 @@ class Admin extends AdminModule
        'message' => $message,
        'code'  => $code
       );
-      echo json_encode($output);
+      echo json_encode(htmlspecialchars_array($output));
       exit();
     }
 
@@ -617,7 +712,7 @@ class Admin extends AdminModule
         if ($configError) {
             echo json_encode([
                 'success' => false,
-                'message' => $configError
+                'message' => htmlspecialchars($configError, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8')
             ]);
             exit();
         }
@@ -629,7 +724,7 @@ class Admin extends AdminModule
         curl_setopt($curl, CURLOPT_USERPWD, $orthanc['username'].":".$orthanc['password']);
         curl_setopt($curl, CURLOPT_TIMEOUT, 10);
         curl_setopt($curl, CURLOPT_CONNECTTIMEOUT, 5);
-        curl_setopt($curl, CURLOPT_SSL_VERIFYPEER, false);
+        curl_setopt($curl, CURLOPT_SSL_VERIFYPEER, true);
         curl_setopt($curl, CURLOPT_SSL_VERIFYHOST, false);
         
         $resp = curl_exec($curl);
@@ -659,7 +754,7 @@ class Admin extends AdminModule
             $errorMessage = $this->getHttpErrorMessage($httpCode, $resp);
             echo json_encode([
                 'success' => false,
-                'message' => 'Server error: ' . $errorMessage['message'],
+                'message' => htmlspecialchars('Server error: ' . $errorMessage['message'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'),
                 'troubleshooting' => $errorMessage['troubleshooting']
             ]);
         }
@@ -760,7 +855,7 @@ class Admin extends AdminModule
         curl_setopt($curl, CURLOPT_USERPWD, $orthanc['username'].":".$orthanc['password']);
         curl_setopt($curl, CURLOPT_TIMEOUT, 30);
         curl_setopt($curl, CURLOPT_CONNECTTIMEOUT, 10);
-        curl_setopt($curl, CURLOPT_SSL_VERIFYPEER, false);
+        curl_setopt($curl, CURLOPT_SSL_VERIFYPEER, true);
         curl_setopt($curl, CURLOPT_SSL_VERIFYHOST, false);
         
         // Apply additional options
@@ -817,7 +912,7 @@ class Admin extends AdminModule
         
         if ($curlErrno !== 0) {
             http_response_code(500);
-            echo json_encode(['error' => 'Connection failed: ' . $curlError]);
+            echo json_encode(['error' => 'Connection failed: ' . htmlspecialchars($curlError, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8')]);
             exit();
         }
         
@@ -850,6 +945,7 @@ class Admin extends AdminModule
 
     public function postGetstudydetails()
     {
+        header('Content-Type: application/json');
         // Validate token
         if (!isset($_POST['token']) || $_POST['token'] !== $_SESSION['token']) {
             echo json_encode([
@@ -901,7 +997,7 @@ class Admin extends AdminModule
                 $errorMessage = $this->getCurlErrorMessage($curlErrno, $curlError);
                 echo json_encode([
                     'success' => false,
-                    'message' => 'Connection failed: ' . $errorMessage['message']
+                    'message' => 'Connection failed: ' . htmlspecialchars($errorMessage['message'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8')
                 ]);
                 exit();
             }
@@ -929,7 +1025,7 @@ class Admin extends AdminModule
                 $errorMessage = $this->getHttpErrorMessage($httpCode, $resp);
                 echo json_encode([
                     'success' => false,
-                    'message' => 'Server error: ' . $errorMessage['message']
+                    'message' => 'Server error: ' . htmlspecialchars($errorMessage['message'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8')
                 ]);
             }
             
@@ -941,7 +1037,7 @@ class Admin extends AdminModule
             header('Content-Type: application/json');
             echo json_encode([
                 'success' => false,
-                'message' => 'Error: ' . $e->getMessage()
+                'message' => htmlspecialchars('Error: ' . $e->getMessage(), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8')
             ]);
         }
         
@@ -950,6 +1046,7 @@ class Admin extends AdminModule
     
     public function postModifystudytags()
     {
+        header('Content-Type: application/json');
         // Validate token
         if (!isset($_POST['token']) || $_POST['token'] !== $_SESSION['token']) {
             echo json_encode([
@@ -1089,7 +1186,7 @@ class Admin extends AdminModule
                 $errorMessage = $this->getCurlErrorMessage($curlErrno, $curlError);
                 echo json_encode([
                     'success' => false,
-                    'message' => 'Connection failed: ' . $errorMessage['message']
+                    'message' => 'Connection failed: ' . htmlspecialchars($errorMessage['message'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8')
                 ]);
                 exit();
             }
@@ -1114,14 +1211,14 @@ class Admin extends AdminModule
                 echo json_encode([
                     'success' => true,
                     'message' => $successMessage,
-                    'data' => $result,
+                    'data' => htmlspecialchars_array($result),
                     'modifyOption' => $modifyOption
                 ]);
             } else {
                 $errorMessage = $this->getHttpErrorMessage($httpCode, $resp);
                 echo json_encode([
                     'success' => false,
-                    'message' => 'Modification failed: ' . $errorMessage['message']
+                    'message' => htmlspecialchars('Modification failed: ' . $errorMessage['message'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8')
                 ]);
             }
             
@@ -1130,7 +1227,7 @@ class Admin extends AdminModule
             header('Content-Type: application/json');
             echo json_encode([
                 'success' => false,
-                'message' => 'Error: ' . $e->getMessage(),
+                'message' => htmlspecialchars('Error: ' . $e->getMessage(), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'),
                 'debug' => [
                     'exception_trace' => $e->getTraceAsString()
                 ]
@@ -1160,7 +1257,7 @@ class Admin extends AdminModule
         curl_setopt($curl, CURLOPT_FILE, $fp);
         curl_setopt($curl, CURLOPT_FOLLOWLOCATION, true);
         curl_setopt($curl, CURLOPT_TIMEOUT, 300);
-        curl_setopt($curl, CURLOPT_SSL_VERIFYPEER, false);
+        curl_setopt($curl, CURLOPT_SSL_VERIFYPEER, true);
         curl_setopt($curl, CURLOPT_SSL_VERIFYHOST, false);
         
         $result = curl_exec($curl);
@@ -1273,7 +1370,7 @@ class Admin extends AdminModule
                 $errorMessage = $this->getCurlErrorMessage($curlErrno, $curlError);
                 echo json_encode([
                     'success' => false,
-                    'message' => 'Connection failed: ' . $errorMessage['message']
+                    'message' => 'Connection failed: ' . htmlspecialchars($errorMessage['message'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8')
                 ]);
                 exit();
             }
@@ -1310,7 +1407,7 @@ class Admin extends AdminModule
                 header('Content-Type: application/json');
                 echo json_encode([
                     'success' => false,
-                    'message' => 'Download failed: ' . $errorMessage['message']
+                    'message' => 'Download failed: ' . htmlspecialchars($errorMessage['message'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8')
                 ]);
                 exit();
             }
@@ -1339,14 +1436,14 @@ class Admin extends AdminModule
                 header('Content-Type: application/json');
                 echo json_encode([
                     'success' => false,
-                    'message' => 'Download failed: ' . $errorMessage['message']
+                    'message' => 'Download failed: ' . htmlspecialchars($errorMessage['message'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8')
                 ]);
             }
             
         } catch (\Exception $e) {
             echo json_encode([
                 'success' => false,
-                'message' => 'Error: ' . $e->getMessage()
+                'message' => htmlspecialchars('Error: ' . $e->getMessage(), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8')
             ]);
         }
         
@@ -1411,7 +1508,7 @@ class Admin extends AdminModule
                 header('Content-Type: application/json');
                 echo json_encode([
                     'success' => false,
-                    'message' => 'Connection failed: ' . $errorMessage['message']
+                    'message' => 'Connection failed: ' . htmlspecialchars($errorMessage['message'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8')
                 ]);
                 exit();
             }
@@ -1474,7 +1571,7 @@ class Admin extends AdminModule
                 header('Content-Type: application/json');
                 echo json_encode([
                     'success' => false,
-                    'message' => 'Download failed: ' . $errorMessage['message'],
+                    'message' => 'Download failed: ' . htmlspecialchars($errorMessage['message'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'),
                     'debug' => [
                         'curl_errno' => $curlErrno,
                         'curl_error' => $curlError,
@@ -1589,7 +1686,7 @@ class Admin extends AdminModule
         } catch (\Exception $e) {
             echo json_encode([
                 'success' => false,
-                'message' => 'Error: ' . $e->getMessage()
+                'message' => htmlspecialchars('Error: ' . $e->getMessage(), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8')
             ]);
         }
         
@@ -1650,7 +1747,7 @@ class Admin extends AdminModule
                 $errorMessage = $this->getCurlErrorMessage($curlErrno, $curlError);
                 echo json_encode([
                     'success' => false,
-                    'message' => 'Connection failed: ' . $errorMessage['message']
+                    'message' => 'Connection failed: ' . htmlspecialchars($errorMessage['message'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8')
                 ]);
                 exit();
             }
@@ -1683,25 +1780,25 @@ class Admin extends AdminModule
                 $errorMessage = $this->getCurlErrorMessage($curlErrno, $curlError);
                 echo json_encode([
                     'success' => false,
-                    'message' => 'Delete operation failed: ' . $errorMessage['message']
+                    'message' => 'Delete operation failed: ' . htmlspecialchars($errorMessage['message'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8')
                 ]);
                 exit();
             }
             
             if ($httpCode === 200) {
                 // Log the deletion for audit purposes
-                error_log('Orthanc Study Deleted: ' . $studyId . ' by user: ' . ($_SESSION['username'] ?? 'unknown'));
+                error_log('Orthanc Study Deleted: ' . htmlspecialchars($studyId) . ' by user: ' . htmlspecialchars($_SESSION['username'] ?? 'unknown'));
                 
                 echo json_encode([
                     'success' => true,
                     'message' => 'Study deleted successfully from Orthanc server',
-                    'studyId' => $studyId
+                    'studyId' => htmlspecialchars($studyId)
                 ]);
             } else {
                 $errorMessage = $this->getHttpErrorMessage($httpCode, $deleteResp);
                 echo json_encode([
                     'success' => false,
-                    'message' => 'Delete failed: ' . $errorMessage['message'],
+                    'message' => 'Delete failed: ' . htmlspecialchars($errorMessage['message'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'),
                     'httpCode' => $httpCode
                 ]);
             }
@@ -1710,7 +1807,7 @@ class Admin extends AdminModule
             error_log('Orthanc Delete Study Error: ' . $e->getMessage());
             echo json_encode([
                 'success' => false,
-                'message' => 'Error: ' . $e->getMessage()
+                'message' => htmlspecialchars('Error: ' . $e->getMessage(), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8')
             ]);
         }
         
@@ -1848,7 +1945,7 @@ Instruksi format:
                 'Content-Type: application/json',
                 'Authorization: Bearer ' . $apiKey
             ]);
-            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
             curl_setopt($ch, CURLOPT_TIMEOUT, 60);
 
             $response = curl_exec($ch);
@@ -1860,7 +1957,7 @@ Instruksi format:
             if ($curlErrno !== 0) {
                 echo json_encode([
                     'success' => false,
-                    'message' => 'Connection failed: ' . $curlError
+                    'message' => htmlspecialchars('Connection failed: ' . $curlError, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8')
                 ]);
                 exit();
             }
@@ -1889,7 +1986,7 @@ Instruksi format:
         } catch (\Exception $e) {
             echo json_encode([
                 'success' => false,
-                'message' => 'Error: ' . $e->getMessage()
+                'message' => htmlspecialchars('Error: ' . $e->getMessage(), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8')
             ]);
         }
 

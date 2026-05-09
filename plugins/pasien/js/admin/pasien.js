@@ -282,7 +282,8 @@ function bersih(){
   $('input:text[name=pekerjaan]').val("");
   $('input:text[name=no_ktp]').val("");
   $('textarea[name=alamat]').val("");
-  $('input:text[name=telepon]').val("");
+  $('input:text[name=no_tlp]').val("");
+  $('input:text[name=no_peserta]').val("");
   $('#tgl_daftar').val("");
   $('#email').val("");
   $('select').selectator('destroy');
@@ -350,7 +351,7 @@ $(function (event) {
   {if: $mlite.websocket_proxy != ''}
     var URL_WEBSOCKET = "{$mlite.websocket_proxy}";
   {else}
-    var URL_WEBSOCKET = "ws://<?php echo $_SERVER['HTTP_HOST'] ?>:3892";
+    var URL_WEBSOCKET = "wss://<?php echo $_SERVER['HTTP_HOST'] ?>:3892";
   {/if}
 
   var ws = new WebSocket(URL_WEBSOCKET);

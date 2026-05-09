@@ -47,6 +47,8 @@ use Plugins\Master\Src\MetodeRacik;
 use Plugins\Master\Src\RuangOk;
 use Plugins\Master\Src\Penyakit;
 use Plugins\Master\Src\Icd9;
+use Plugins\Master\Src\PersonalPasien;
+use Plugins\Master\Src\MliteNotifications;
 
 class Admin extends AdminModule
 {
@@ -95,6 +97,8 @@ class Admin extends AdminModule
   protected $ruangok;
   protected $penyakit;
   protected $icd9;
+  protected $personalpasien;
+  protected $mlitenotifications;
 
     public function init()
     {
@@ -142,6 +146,8 @@ class Admin extends AdminModule
         $this->ruangok = new RuangOk();
         $this->penyakit = new Penyakit();
         $this->icd9 = new Icd9();
+        $this->personalpasien = new PersonalPasien();
+        $this->mlitenotifications = new MliteNotifications();
     }
 
     public function navigation()
@@ -202,19 +208,7 @@ class Admin extends AdminModule
             return ['status' => 'error', 'message' => 'Invalid User Permission Credentials'];
         }
 
-        // Whitelist allowed tables
-        $allowed_tables = [
-            'dokter', 'petugas', 'poliklinik', 'bangsal', 'kamar', 'databarang',
-            'jns_perawatan', 'jns_perawatan_inap', 'jns_perawatan_lab', 'jns_perawatan_radiologi',
-            'bahasa', 'propinsi', 'kabupaten', 'kecamatan', 'kelurahan', 'cacat_fisik', 'suku_bangsa',
-            'perusahaan_pasien', 'penjab', 'golongan_barang', 'industri_farmasi', 'jenis', 'kategori_barang',
-            'kategori_penyakit', 'penyakit', 'icd9', 'kategori_perawatan', 'kode_satuan',
-            'master_aturan_pakai', 'master_berkas_digital', 'spesialis', 'bank', 'bidang', 'departemen',
-            'emergency_index', 'jabatan', 'jenjang_jabatan', 'kelompok_jabatan', 'pendidikan',
-            'resiko_kerja', 'status_kerja', 'status_wp', 'metode_racik', 'ruang_ok', 'gudangbarang', 'riwayat_barang_medis', 
-            'mlite_users', 'resep_obat', 'resep_dokter', 'resep_dokter_racikan', 'resep_dokter_racikan_detail', 
-            'diagnosa_pasien', 'prosedur_pasien', 'mlite_modules', 'mlite_settings', 'detail_pemberian_obat', 'mutasibarang'
-        ];
+        $allowed_tables = $this->_getAllowedTables();
         
         if (!in_array($table, $allowed_tables)) {
              return ['status' => 'error', 'message' => 'Table not allowed or not found'];
@@ -383,7 +377,7 @@ class Admin extends AdminModule
         } catch (\Exception $e) {
             $message = $e->getMessage();
             $message = preg_replace('/`[^`]+`\./', '', $message);
-            return ['status' => 'error', 'message' => $message];
+            return ['status' => 'error', 'message' => htmlspecialchars_array($message)];
         }
     }
 
@@ -417,8 +411,18 @@ class Admin extends AdminModule
         } catch (\Exception $e) {
             $message = $e->getMessage();
             $message = preg_replace('/`[^`]+`\./', '', $message);
-            return ['status' => 'error', 'message' => $message];
+            return ['status' => 'error', 'message' => htmlspecialchars_array($message)];
         }
+    }
+
+    private function _getAllowedTables()
+    {
+        if (DBDRIVER == 'sqlite') {
+            $allowed_tables = $this->db()->pdo()->query("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'")->fetchAll(\PDO::FETCH_COLUMN);
+        } else {
+            $allowed_tables = $this->db()->pdo()->query("SHOW TABLES")->fetchAll(\PDO::FETCH_COLUMN);
+        }
+        return array_filter($allowed_tables, fn($t) => $t !== 'mlite_api_key');
     }
 
     private function getTableProperty($table)
@@ -494,7 +498,7 @@ class Admin extends AdminModule
         ['name' => 'Metode Racik', 'url' => url([ADMIN, 'master', 'metoderacik']), 'icon' => 'cubes', 'desc' => 'Master metode racik'],
         ['name' => 'Ruang OK', 'url' => url([ADMIN, 'master', 'ruangok']), 'icon' => 'cubes', 'desc' => 'Master ruang OK'],
       ];
-      return $this->draw('manage.html', ['sub_modules' => $sub_modules]);
+      return $this->draw('manage.html', ['sub_modules' => htmlspecialchars_array($sub_modules)]);
     }
 
     /* Start Dokter Section */
@@ -792,11 +796,11 @@ class Admin extends AdminModule
       
       if($query) {
         $data['status'] = 'success';
-        echo json_encode($data);
+        echo json_encode(htmlspecialchars_array($data));
       } else {
         $data['status'] = 'error';
         $data['msg'] = $query->errorInfo()['2'];
-        echo json_encode($data);
+        echo json_encode(htmlspecialchars_array($data));
       }
 
       exit();
@@ -993,11 +997,11 @@ class Admin extends AdminModule
       $query = $this->db('template_laboratorium')->where('id_template', $_POST['id_template'])->delete();
       if($query == 1) {
         $data['status'] = 'success';
-        echo json_encode($data);
+        echo json_encode(htmlspecialchars_array($data));
       } else {
         $data['status'] = 'error';
-        $data['msg'] = $query->errorInfo()['2'];
-        echo json_encode($data);
+        $data['msg'] = htmlspecialchars($query->errorInfo()['2'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+        echo json_encode(htmlspecialchars_array($data));
       }
       exit();
     }
@@ -1196,21 +1200,10 @@ class Admin extends AdminModule
         $str = implode(',', $value_query);
         echo '['.date('d-m-Y H:i:s').'][info] Memasukkan data<br>';
 
-        if (DBDRIVER === 'sqlite') {
-            $sql = "
-                INSERT INTO propinsi (kd_prop, nm_prop)
-                VALUES $str
-                ON CONFLICT(kd_prop)
-                DO UPDATE SET nm_prop = excluded.nm_prop
-            ";
-        } else {
-            $sql = "
-                INSERT INTO propinsi (kd_prop, nm_prop)
-                VALUES $str
-                ON DUPLICATE KEY UPDATE
-                  nm_prop = VALUES(nm_prop)
-            ";
-        }
+        $sql = "
+            REPLACE INTO propinsi (kd_prop, nm_prop)
+            VALUES $str
+        ";
 
         $result = $this->core->db()->pdo()->exec($sql);
 
@@ -1297,11 +1290,7 @@ class Admin extends AdminModule
       }
       $str = implode(",", $value_query);
       echo '['.date('d-m-Y H:i:s').'][info] Memasukkan data'."<br>";
-      if(DBDRIVER === 'sqlite') {
-        $result = $this->core->db()->pdo()->exec("INSERT INTO kabupaten (kd_kab, nm_kab) VALUES $str ON CONFLICT(kd_kab) DO UPDATE SET nm_kab = excluded.nm_kab");
-      } else {
-        $result = $this->core->db()->pdo()->exec("INSERT INTO kabupaten (kd_kab, nm_kab) VALUES $str ON DUPLICATE KEY UPDATE kd_kab=VALUES(kd_kab)");
-      }
+      $result = $this->core->db()->pdo()->exec("REPLACE INTO kabupaten (kd_kab, nm_kab) VALUES $str");
       if($result) {
         echo '['.date('d-m-Y H:i:s').'][info] Impor selesai'."<br>";
       } else {
@@ -1365,23 +1354,34 @@ class Admin extends AdminModule
 
         $csvData = file_get_contents($filename);
         if (!$csvData) {
-            echo '['.date('d-m-Y H:i:s').'][error] File '.$filename.' tidak ditemukan<br>';
+            echo '['.date('d-m-Y H:i:s').'][error] File tidak ditemukan<br>';
             exit();
         }
 
         echo '['.date('d-m-Y H:i:s').'][info] Berkas ditemukan<br>';
+        echo '['.date('d-m-Y H:i:s').'][info] Memasukkan data...<br>';
 
         $pdo = $this->core->db()->pdo();
         $pdo->setAttribute(\PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION);
 
-        $lines = array_filter(explode(PHP_EOL, $csvData));
-        $value_query = [];
+        $lines = explode(PHP_EOL, $csvData);
+
+        $pdo->beginTransaction();
+
+        $stmt = $pdo->prepare("
+            REPLACE INTO kecamatan (kd_kec, nm_kec)
+            VALUES (?, ?)
+        ");
+
+        $total = 0;
 
         foreach ($lines as $line) {
+
+            if (empty(trim($line))) continue;
+
             $delimiter = str_contains($line, ';') ? ';' : ',';
             $data = str_getcsv($line, $delimiter, '"', '\\');
 
-            // districts.csv: kd_kec ada di kolom 0, nama di kolom 2
             if (count($data) < 3) continue;
 
             $kode = trim($data[0]);
@@ -1390,51 +1390,17 @@ class Admin extends AdminModule
             if ($kode === '' || $nama === '') continue;
             if (!is_numeric($kode)) continue;
 
-            // ✅ ESCAPE PALING BENAR
-            $value_query[] = '(' .
-                $pdo->quote($kode) . ',' .
-                $pdo->quote($nama) .
-            ')';
+            try {
+                $stmt->execute([$kode, $nama]);
+                $total++;
+            } catch (\Exception $e) {
+                echo '['.date('d-m-Y H:i:s').'][error] '.$e->getMessage().'<br>';
+            }
         }
 
-        if (!$value_query) {
-            echo '['.date('d-m-Y H:i:s').'][error] Data CSV kosong<br>';
-            exit();
-        }
+        $pdo->commit();
 
-        $str = implode(',', $value_query);
-        echo '['.date('d-m-Y H:i:s').'][info] Memasukkan data<br>';
-
-        if (DBDRIVER === 'sqlite') {
-            $sql = "
-                INSERT INTO kecamatan (kd_kec, nm_kec)
-                VALUES $str
-                ON CONFLICT(kd_kec)
-                DO UPDATE SET nm_kec = excluded.nm_kec
-            ";
-        } else {
-            $sql = "
-                INSERT INTO kecamatan (kd_kec, nm_kec)
-                VALUES $str
-                ON DUPLICATE KEY UPDATE
-                  nm_kec = VALUES(nm_kec)
-            ";
-        }
-
-        try {
-            $pdo->beginTransaction();
-            $pdo->exec($sql);
-            $pdo->commit();
-        } catch (\PDOException $e) {
-            $pdo->rollBack();
-            echo '<pre>';
-            echo "SQL ERROR:\n".$e->getMessage()."\n\n";
-            echo "SQL:\n".$sql;
-            echo '</pre>';
-            exit();
-        }
-
-        echo '['.date('d-m-Y H:i:s').'][info] Impor selesai<br>';
+        echo '['.date('d-m-Y H:i:s').'][info] Impor selesai. Total: '.$total.' data<br>';
         exit();
     }
     /* End Kecamatan Section */    
@@ -1485,46 +1451,59 @@ class Admin extends AdminModule
 
     public function getImportKelurahan()
     {
-      $filename = 'https://basoro.id/downloads/villages.csv';
-      echo '['.date('d-m-Y H:i:s').'][info] --- Mengimpor file csv'."<br>";
+        $filename = 'https://basoro.id/downloads/villages.csv';
+        echo '['.date('d-m-Y H:i:s').'][info] --- Mengimpor file csv<br>';
 
-      $csvData = file_get_contents($filename);
-      if($csvData) {
-        echo '['.date('d-m-Y H:i:s').'][info] Berkas ditemukan'."<br>";
-      } else {
-        echo '['.date('d-m-Y H:i:s').'][error] File '.$filename.' tidak ditemukan'."<br>";
+        $csvData = file_get_contents($filename);
+        if (!$csvData) {
+            echo '['.date('d-m-Y H:i:s').'][error] File tidak ditemukan<br>';
+            exit();
+        }
+
+        echo '['.date('d-m-Y H:i:s').'][info] Berkas ditemukan<br>';
+        echo '['.date('d-m-Y H:i:s').'][info] Memasukkan data...<br>';
+
+        $pdo = $this->core->db()->pdo();
+        $pdo->setAttribute(\PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION);
+
+        $lines = explode(PHP_EOL, $csvData);
+
+        $pdo->beginTransaction();
+
+        $stmt = $pdo->prepare("
+            REPLACE INTO kelurahan (kd_kel, nm_kel)
+            VALUES (?, ?)
+        ");
+
+        $total = 0;
+
+        foreach ($lines as $line) {
+
+            if (empty(trim($line))) continue;
+
+            $delimiter = str_contains($line, ';') ? ';' : ',';
+            $data = str_getcsv($line, $delimiter, '"', '\\');
+
+            if (!isset($data[0], $data[2])) continue;
+
+            $kode = trim($data[0]);
+            $nama = trim($data[2]);
+
+            if ($kode === '' || $nama === '') continue;
+
+            try {
+                $stmt->execute([$kode, $nama]);
+                $total++;
+            } catch (\Exception $e) {
+                echo '['.date('d-m-Y H:i:s').'][error] '.$e->getMessage().'<br>';
+            }
+        }
+
+        $pdo->commit();
+
+        echo '['.date('d-m-Y H:i:s').'][info] Impor selesai. Total: '.$total.' data<br>';
         exit();
-      }
-
-      $lines = explode(PHP_EOL, $csvData);
-      $array = array();
-      foreach ($lines as $line) {
-          $delimiter = str_contains($line, ';') ? ';' : ',';
-          $array[] = str_getcsv($line, $delimiter, '"', '\\');  
-      }
-
-      foreach ($array as $data){   
-        $kode = $data[0];
-        $nama = $data[2];
-        $value_query[] = "('".$kode."','".str_replace("'","\'",$nama)."')";
-      }
-      $str = implode(",", $value_query);
-      echo '['.date('d-m-Y H:i:s').'][info] Memasukkan data'."<br>";
-      if(DBDRIVER === 'sqlite') {
-        $result = $this->core->db()->pdo()->exec("INSERT INTO kelurahan (kd_kel, nm_kel) VALUES $str ON CONFLICT(kd_kel) DO UPDATE SET nm_kel = excluded.nm_kel");
-      } else {
-        $result = $this->core->db()->pdo()->exec("INSERT INTO kelurahan (kd_kel, nm_kel) VALUES $str ON DUPLICATE KEY UPDATE kd_kel=VALUES(kd_kel)");
-      } 
-      if($result) {
-        echo '['.date('d-m-Y H:i:s').'][info] Impor selesai'."<br>";
-      } else {
-        echo '['.date('d-m-Y H:i:s').'][error] kesalahan selama import : <pre>'.json_encode($str, JSON_PRETTY_PRINT).''."</pre><br>";
-        exit();
-      }
-
-      exit();
     }
-
     /* End Kelurahan Section */   
 
     /* Start Cacat Fisik Section */
@@ -2782,40 +2761,55 @@ class Admin extends AdminModule
 
     public function getImportICD10()
     {
-      $filename = 'https://basoro.id/downloads/icd10.csv';
-      echo '['.date('d-m-Y H:i:s').'][info] --- Mengimpor file csv'."<br>";
+        $filename = 'https://basoro.id/downloads/icd10.csv';
+        echo '['.date('d-m-Y H:i:s').'][info] --- Mengimpor file csv<br>';
 
-      $csvData = file_get_contents($filename);
-      if($csvData) {
-        echo '['.date('d-m-Y H:i:s').'][info] Berkas ditemukan'."<br>";
-      } else {
-        echo '['.date('d-m-Y H:i:s').'][error] File '.$filename.' tidak ditemukan'."<br>";
+        $csvData = file_get_contents($filename);
+        if (!$csvData) {
+            echo '['.date('d-m-Y H:i:s').'][error] File tidak ditemukan<br>';
+            exit();
+        }
+
+        $lines = explode(PHP_EOL, $csvData);
+        $chunk_size = 500;
+        $chunks = array_chunk($lines, $chunk_size);
+
+        $pdo = $this->core->db()->pdo();
+        $pdo->beginTransaction();
+
+        echo '['.date('d-m-Y H:i:s').'][info] Memasukkan data...<br>';
+
+        $stmt = $pdo->prepare("
+            REPLACE INTO penyakit 
+            (kd_penyakit, nm_penyakit, ciri_ciri, keterangan, kd_ktg, status) 
+            VALUES (?, ?, '', '', '-', 'Tidak Menular')
+        ");
+
+        foreach ($chunks as $chunk) {
+
+            foreach ($chunk as $line) {
+                if (empty(trim($line))) continue;
+
+                $delimiter = str_contains($line, ';') ? ';' : ',';
+                $data = str_getcsv($line, $delimiter);
+
+                if (!isset($data[0])) continue;
+
+                $kode = trim($data[0]);
+                $nama = trim($data[1] ?? '');
+
+                try {
+                    $stmt->execute([$kode, $nama]);
+                } catch (\Exception $e) {
+                    echo '['.date('d-m-Y H:i:s').'][error] '.$e->getMessage().'<br>';
+                }
+            }
+        }
+
+        $pdo->commit();
+
+        echo '['.date('d-m-Y H:i:s').'][info] Impor selesai<br>';
         exit();
-      }
-
-      $lines = explode(PHP_EOL, $csvData);
-      $array = array();
-      foreach ($lines as $line) {
-          $array[] = str_getcsv($line);
-      }
-
-      foreach ($array as $data){   
-        $kode = $data[0];
-        $nama = isset_or($data[1], '');
-        $nama = str_replace('"','',$nama);
-        $value_query[] = "('".$kode."','".str_replace("'","\'",$nama)."','','','-','Tidak Menular')";
-      }
-      $str = implode(",", $value_query);
-      echo '['.date('d-m-Y H:i:s').'][info] Memasukkan data'."<br>";
-      $result = $this->core->db()->pdo()->exec("INSERT INTO penyakit (kd_penyakit, nm_penyakit, ciri_ciri, keterangan, kd_ktg, status) VALUES $str ON DUPLICATE KEY UPDATE kd_penyakit=VALUES(kd_penyakit)");
-      if($result) {
-        echo '['.date('d-m-Y H:i:s').'][info] Impor selesai'."<br>";
-      } else {
-        echo '['.date('d-m-Y H:i:s').'][error] kesalahan selama import : <pre>'.json_encode($str, JSON_PRETTY_PRINT).''."</pre><br>";
-        exit();
-      }
-      
-      exit();
     }
 
     public function getPenyakitJS()
@@ -2866,39 +2860,55 @@ class Admin extends AdminModule
 
     public function getImportICD9()
     {
-      $filename = 'https://basoro.id/downloads/icd9cm.csv';
-      echo '['.date('d-m-Y H:i:s').'][info] --- Mengimpor file csv'."<br>";
+        $filename = 'https://basoro.id/downloads/icd9cm.csv';
+        echo '['.date('d-m-Y H:i:s').'][info] --- Mengimpor file csv<br>';
 
-      $csvData = file_get_contents($filename);
-      if($csvData) {
-        echo '['.date('d-m-Y H:i:s').'][info] Berkas ditemukan'."<br>";
-      } else {
-        echo '['.date('d-m-Y H:i:s').'][error] File '.$filename.' tidak ditemukan'."<br>";
+        $csvData = file_get_contents($filename);
+        if (!$csvData) {
+            echo '['.date('d-m-Y H:i:s').'][error] File tidak ditemukan<br>';
+            exit();
+        }
+
+        echo '['.date('d-m-Y H:i:s').'][info] Berkas ditemukan<br>';
+        echo '['.date('d-m-Y H:i:s').'][info] Memasukkan data...<br>';
+
+        $lines = explode(PHP_EOL, $csvData);
+        $pdo = $this->core->db()->pdo();
+
+        $pdo->beginTransaction();
+
+        $stmt = $pdo->prepare("
+            REPLACE INTO icd9 
+            (kode, deskripsi_panjang, deskripsi_pendek) 
+            VALUES (?, ?, '')
+        ");
+
+        $total = 0;
+
+        foreach ($lines as $line) {
+
+            if (empty(trim($line))) continue;
+
+            $delimiter = str_contains($line, ';') ? ';' : ',';
+            $data = str_getcsv($line, $delimiter);
+
+            if (!isset($data[0])) continue;
+
+            $kode = trim($data[0]);
+            $nama = trim($data[1] ?? '');
+
+            try {
+                $stmt->execute([$kode, $nama]);
+                $total++;
+            } catch (\Exception $e) {
+                echo '['.date('d-m-Y H:i:s').'][error] '.$e->getMessage().'<br>';
+            }
+        }
+
+        $pdo->commit();
+
+        echo '['.date('d-m-Y H:i:s').'][info] Impor selesai. Total: '.$total.' data<br>';
         exit();
-      }
-
-      $lines = explode(PHP_EOL, $csvData);
-      $array = array();
-      foreach ($lines as $line) {
-          $array[] = str_getcsv($line);
-      }
-
-      foreach ($array as $data){   
-        $kode = $data[0];
-        $nama = isset_or($data[1], '');
-        $value_query[] = "('".$kode."','".str_replace("'","\'",$nama)."','')";
-      }
-      $str = implode(",", $value_query);
-      echo '['.date('d-m-Y H:i:s').'][info] Memasukkan data'."<br>";
-      $result = $this->core->db()->pdo()->exec("INSERT INTO icd9 (kode, deskripsi_panjang, deskripsi_pendek) VALUES $str ON DUPLICATE KEY UPDATE kode=VALUES(kode)");
-      if($result) {
-        echo '['.date('d-m-Y H:i:s').'][info] Impor selesai'."<br>";
-      } else {
-        echo '['.date('d-m-Y H:i:s').'][error] kesalahan selama import : <pre>'.json_encode($str, JSON_PRETTY_PRINT).''."</pre><br>";
-        exit();
-      }
-      
-      exit();
     }
 
     public function getIcd9JS()

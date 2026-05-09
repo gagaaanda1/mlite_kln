@@ -123,7 +123,10 @@ class Poliklinik
         $rowperpage = $_POST['length'] ?? 10;
         $columnIndex = $_POST['order'][0]['column'] ?? 0;
         $columnName = $_POST['columns'][$columnIndex]['data'] ?? 'kd_poli';
-        $columnSortOrder = $_POST['order'][0]['dir'] ?? 'asc';
+        $columnSortOrder = strtolower($_POST['order'][0]['dir'] ?? 'asc');
+        if (!in_array($columnSortOrder, ['asc', 'desc'])) {
+            $columnSortOrder = 'asc';
+        }
         $searchValue = $_POST['search']['value'] ?? '';
     
         $search_field = $_POST['search_field_poliklinik'] ?? '';
@@ -131,15 +134,20 @@ class Poliklinik
     
         $searchQuery = "";
         $params = [];
+        
+        $allowedColumns = ['kd_poli','nm_poli','registrasi','registrasilama','status'];
+        if (!in_array($columnName, $allowedColumns)) {
+            $columnName = 'kd_poli';
+        }
     
         // ✅ Periksa dengan isset + !== '' agar '0' tidak dianggap kosong
-        if (isset($search_text) && $search_text !== '') {
+        if (isset($search_text) && $search_text !== '' && in_array($search_field, $allowedColumns)) {
             if ($search_field === 'status') {
                 // untuk field status yang tipenya integer atau tinyint
-                $searchQuery .= " AND $search_field = :search_text ";
+                $searchQuery .= " AND `$search_field` = :search_text ";
                 $params[':search_text'] = (int)$search_text; // convert ke integer
             } else {
-                $searchQuery .= " AND $search_field LIKE :search_text ";
+                $searchQuery .= " AND `$search_field` LIKE :search_text ";
                 $params[':search_text'] = "%$search_text%";
             }
         }
@@ -157,27 +165,30 @@ class Poliklinik
         $totalRecordwithFilter = $records['allcount'];
     
         // Data paginated
-        $sql = "SELECT * FROM poliklinik WHERE 1=1 $searchQuery ORDER BY $columnName $columnSortOrder LIMIT $row1, $rowperpage";
+        $sql = "SELECT * FROM poliklinik WHERE 1=1 $searchQuery ORDER BY `$columnName` $columnSortOrder LIMIT ".(int)$row1.", ".(int)$rowperpage;
         $stmt = $this->core->db()->pdo()->prepare($sql);
-        $stmt->execute($params);
+        foreach ($params as $key => $val) {
+            $stmt->bindValue($key, $val);
+        }
+        $stmt->execute();
         $result = $stmt->fetchAll(\PDO::FETCH_ASSOC);
     
         $data = [];
         foreach ($result as $row) {
             $data[] = [
-                'kd_poli'        => $row['kd_poli'],
-                'nm_poli'        => $row['nm_poli'],
-                'registrasi'     => $row['registrasi'],
-                'registrasilama' => $row['registrasilama'],
-                'status'         => $row['status']
+                'kd_poli'        => htmlspecialchars($row['kd_poli'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'),
+                'nm_poli'        => htmlspecialchars($row['nm_poli'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'),
+                'registrasi'     => htmlspecialchars($row['registrasi'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'),
+                'registrasilama' => htmlspecialchars($row['registrasilama'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'),
+                'status'         => htmlspecialchars($row['status'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8')
             ];
         }
     
         echo json_encode([
-            "draw" => intval($draw),
+            "draw" => intval(htmlspecialchars($draw, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8')),
             "iTotalRecords" => $totalRecords,
             "iTotalDisplayRecords" => $totalRecordwithFilter,
-            "aaData" => $data
+            "aaData" => htmlspecialchars_array($data)
         ]);
         exit();
     }    
@@ -230,10 +241,10 @@ class Poliklinik
 
             } elseif ($act == 'del') {
                 $kd_poli= $_POST['kd_poli'];
-                $binds = [];
-                $sql = "DELETE FROM poliklinik WHERE kd_poli='$kd_poli'";
+                $binds = [$kd_poli];
+                $sql = "DELETE FROM poliklinik WHERE kd_poli=?";
                 $stmt = $this->core->db()->pdo()->prepare($sql);
-                $stmt->execute();
+                $stmt->execute($binds);
 
                 if($this->core->settings->get('settings.log_query') == 'ya') {
                   \Systems\Lib\QueryWrapper::logPdoQuery($sql, $binds);
@@ -252,13 +263,15 @@ class Poliklinik
               $searchQuery = "";
               $params = [];
               
+              $allowedColumns = ['kd_poli','nm_poli','registrasi','registrasilama','status'];
+
               // Periksa apakah search_text diset dan tidak kosong secara literal
-              if (isset($search_text) && $search_text !== '') {
+              if (isset($search_text) && $search_text !== '' && in_array($search_field, $allowedColumns)) {
                   if ($search_field === 'status') {
-                      $searchQuery .= " AND $search_field = :search_text ";
+                      $searchQuery .= " AND `$search_field` = :search_text ";
                       $params[':search_text'] = (int)$search_text; // casting ke int untuk status (TINYINT)
                   } else {
-                      $searchQuery .= " AND $search_field LIKE :search_text ";
+                      $searchQuery .= " AND `$search_field` LIKE :search_text ";
                       $params[':search_text'] = "%$search_text%";
                   }
               }
@@ -280,7 +293,7 @@ class Poliklinik
                   ];
               }
               
-              echo json_encode($data);
+              echo json_encode(htmlspecialchars_array($data));
               
             }
         } catch (\PDOException $e) {
@@ -314,11 +327,10 @@ class Poliklinik
             $datasets = json_encode(array_column($datasets, "COUNT($column)"));
         }
 
-        $database = DBNAME;
         $nama_table = 'poliklinik';
 
-        $stmt = $this->core->db()->pdo()->prepare("SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=? AND TABLE_NAME=?");
-        $stmt->execute([$database, $nama_table]);
+        $stmt = $this->core->db()->pdo()->prepare("SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME=?");
+        $stmt->execute([$nama_table]);
         $result = $stmt->fetchAll();
 
         return [
