@@ -74,6 +74,7 @@ class Admin extends AdminModule
       if($id_penjualan) {
         $penjualan = $this->db('mlite_penjualan')->where('id', $id_penjualan)->oneArray();
         $rows = $this->db('mlite_penjualan_detail')->where('id_penjualan', $id_penjualan)->toArray();
+        $rows = $this->db('mlite_penjualan_detail')->where('id_penjualan', $id_penjualan)->toArray();
         $no = 1;
         $total_tagihan = 0;
         foreach($rows as $row) {
@@ -166,6 +167,9 @@ class Admin extends AdminModule
             exit();
         }
 
+        $tanggal = !empty($_POST['tanggal']) ? $_POST['tanggal'] : date('Y-m-d');
+        $jam = !empty($_POST['jam']) ? $_POST['jam'] : date('H:i:s');
+
         $barang = $this->db('mlite_penjualan_barang')->select(['harga' => 'harga'])->where('id', $_POST['id_barang'])->oneArray();
         if(!$barang) {
           $barang = $this->db('databarang')->select(['harga' => 'dasar'])->where('kode_brng', $_POST['id_barang'])->oneArray();
@@ -185,8 +189,8 @@ class Admin extends AdminModule
                 'harga' => $barang['harga'], 
                 'jumlah' => $_POST['jumlah'], 
                 'harga_total' => $harga_total, 
-                'tanggal' => $_POST['tanggal'], 
-                'jam' => $_POST['jam'], 
+                'tanggal' => $tanggal, 
+                'jam' => $jam, 
                 'id_user' => $this->core->getUserInfo('username', null, true) 
             ]);
             echo htmlspecialchars($_POST['id']);
@@ -205,8 +209,8 @@ class Admin extends AdminModule
                       'keluar' => $_POST['jumlah'],
                       'stok_akhir' => $gudangbarang['stok'] - $_POST['jumlah'],
                       'posisi' => 'Penjualan',
-                      'tanggal' => date('Y-m-d'),
-                      'jam' => date('H:i:s'),
+                      'tanggal' => $tanggal,
+                      'jam' => $jam,
                       'petugas' => $this->core->getUserInfo('fullname', null, true),
                       'kd_bangsal' => $this->settings->get('farmasi.obatluar'),
                       'status' => 'Simpan',
@@ -223,8 +227,8 @@ class Admin extends AdminModule
                 'alamat_pembeli' => $_POST['alamat_pembeli'], 
                 'nomor_telepon' => $_POST['nomor_telepon'], 
                 'email' => $_POST['email'], 
-                'tanggal' => $_POST['tanggal'], 
-                'jam' => $_POST['jam'], 
+                'tanggal' => $tanggal, 
+                'jam' => $jam, 
                 'id_user' => $this->core->getUserInfo('username', null, true), 
                 'keterangan' => $_POST['keterangan']
             ]);
@@ -238,8 +242,8 @@ class Admin extends AdminModule
                     'harga' => $barang['harga'], 
                     'jumlah' => $_POST['jumlah'], 
                     'harga_total' => $harga_total, 
-                    'tanggal' => $_POST['tanggal'], 
-                    'jam' => $_POST['jam'], 
+                    'tanggal' => $tanggal, 
+                    'jam' => $jam, 
                     'id_user' => $this->core->getUserInfo('username', null, true) 
                 ]);
                 echo $lastInsertID;
@@ -258,8 +262,8 @@ class Admin extends AdminModule
                           'keluar' => $_POST['jumlah'],
                           'stok_akhir' => $gudangbarang['stok'] - $_POST['jumlah'],
                           'posisi' => 'Penjualan',
-                          'tanggal' => date('Y-m-d'),
-                          'jam' => date('H:i:s'),
+                          'tanggal' => $tanggal,
+                          'jam' => $jam,
                           'petugas' => $this->core->getUserInfo('fullname', null, true),
                           'kd_bangsal' => $this->settings->get('farmasi.obatluar'),
                           'status' => 'Simpan',

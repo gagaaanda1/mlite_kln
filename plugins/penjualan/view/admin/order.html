@@ -8,6 +8,7 @@
         <div class="panel-body">
           <div class="form-horizontal" id="form_penjualan">
             <input type="hidden" name="id" value="{?=isset_or($id_penjualan)?}">
+            <input type="hidden" name="jam" value="{?=date('H:i:s')?}">
             <div class="form-group">
               <label for="" class="col-sm-3 control-label">ID Penjualan</label>
               <div class="col-sm-4">
@@ -54,12 +55,9 @@
                 <select class="form-control" id="barang" name="id_barang">
                   <option value="">Select</option>
                   {loop: $barang}
-<<<<<<< HEAD
                   <option value="{$value.id}" data-subtitle="{$value.harga}" data-right="{$value.stok}">
                     {$value.nama_barang}</option>
-=======
                   <option value="{?=isset_or($value.id)?}" data-subtitle="{?=isset_or($value.harga)?}" data-right="{?=isset_or($value.stok)?}">{?=isset_or($value.nama_barang)?}</option>
->>>>>>> 5e591d1d89e2855365b07c6f29b0c22027599484
                   {/loop}
                 </select>
               </div>
@@ -102,7 +100,6 @@
                 </tr>
               </thead>
               <tbody>
-<<<<<<< HEAD
                 {loop: $rincian_penjualan}
                 <tr>
                   <td>{$value.no}</td>
@@ -113,7 +110,6 @@
                         class="fa fa-trash"></i></button></td>
                 </tr>
                 {/loop}
-=======
                   {loop: $rincian_penjualan}
                   <tr>
                       <td>{?=isset_or($value.no)?}</td>
@@ -123,7 +119,6 @@
                       <td><button class="btn btn-xs btn-danger hapus_rincian_penjualan" data-id="{?=isset_or($value.id)?}"><i class="fa fa-trash"></i></button></td>
                   </tr>
                   {/loop}
->>>>>>> 5e591d1d89e2855365b07c6f29b0c22027599484
               </tbody>
             </table>
           </div>
@@ -131,7 +126,6 @@
             <div class="container-fluid" id="form_rincian_penjualan">
               <div class="form-group">
                 <div class="form-group">
-<<<<<<< HEAD
                   <label class="col-sm-5 control-label">Jumlah Tagihan</label>
                   <div class="col-sm-7">
                     <input type="text" class="form-control" style="text-align:right;font-weight:bold" placeholder="0"
@@ -141,13 +135,6 @@
                     style="background-color:white;border:none;box-shadow:none;text-align:right;font-weight:bold;"
                     placeholder="jumlah total" value="{?=terbilang($total_tagihan)?}" name="terbilang_jumlah_total"
                     disabled>
-=======
-                <label class="col-sm-5 control-label">Jumlah Tagihan</label>
-                <div class="col-sm-7">
-                    <input type="text" class="form-control" style="text-align:right;font-weight:bold" placeholder="0" value="{?=isset_or($total_tagihan)?}" name="jumlah_total" maxlength="11" disabled>
-                </div>
-                <input type="text" class="form-control" style="background-color:white;border:none;box-shadow:none;text-align:right;font-weight:bold;" placeholder="jumlah total"  value="{?=terbilang($total_tagihan)?}" name="terbilang_jumlah_total" disabled >
->>>>>>> 5e591d1d89e2855365b07c6f29b0c22027599484
                 </div>
                 <div class="form-group">
                   <label class="col-sm-5 control-label">Potongan</label>
@@ -158,7 +145,6 @@
                   </div>
                 </div>
                 <div class="form-group">
-<<<<<<< HEAD
                   <label class="col-sm-5 control-label">Jumlah Harus Bayar</label>
                   <div class="col-sm-7">
                     <input type="text" class="form-control" style="text-align:right;font-weight:bold" placeholder="0"
@@ -168,13 +154,6 @@
                     style="background-color:white;color:blue;border:none;box-shadow:none;text-align:right;font-weight:bold"
                     placeholder="jumlah total" value="{?=terbilang($total_tagihan)?}"
                     name="terbilang_jumlah_harus_bayar" disabled>
-=======
-                <label class="col-sm-5 control-label">Jumlah Harus Bayar</label>
-                <div class="col-sm-7">
-                    <input type="text" class="form-control" style="text-align:right;font-weight:bold" placeholder="0" value="{?=isset_or($total_tagihan)?}" name="jumlah_harus_bayar" maxlength="11" disabled />
-                </div>
-                <input type="text" class="form-control" style="background-color:white;color:blue;border:none;box-shadow:none;text-align:right;font-weight:bold" placeholder="jumlah total"  value="{?=terbilang($total_tagihan)?}" name="terbilang_jumlah_harus_bayar" disabled >
->>>>>>> 5e591d1d89e2855365b07c6f29b0c22027599484
                 </div>
                 <div class="form-group">
                   <label class="col-sm-5 control-label">Jumlah Bayar</label>
