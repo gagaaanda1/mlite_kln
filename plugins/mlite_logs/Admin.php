@@ -26,15 +26,22 @@ class Admin extends AdminModule
         $rowperpage = $_POST['length'] ?? 10;
         $columnIndex = $_POST['order'][0]['column'] ?? 0;
         $columnName = $_POST['columns'][$columnIndex]['data'] ?? 'username';
-        $columnSortOrder = $_POST['order'][0]['dir'] ?? 'asc';
+        $columnSortOrder = strtolower($_POST['order'][0]['dir'] ?? 'asc');
+        if (!in_array($columnSortOrder, ['asc', 'desc'])) {
+            $columnSortOrder = 'asc';
+        }
         $searchValue = $_POST['search']['value'] ?? '';
 
         $search_field = $_POST['search_field_mlite_query_logs'] ?? '';
         $search_text = $_POST['search_text_mlite_query_logs'] ?? '';
 
         $searchQuery = "";
-        if (!empty($search_text)) {
-            $searchQuery .= " AND (" . $search_field . " LIKE :search_text) ";
+        $allowedColumns = ['id','sql_text','bindings','created_at','error_message','username'];
+        if (!in_array($columnName, $allowedColumns)) {
+            $columnName = 'id';
+        }
+        if (!empty($search_text) && in_array($search_field, $allowedColumns)) {
+            $searchQuery .= " AND (`" . $search_field . "` LIKE :search_text) ";
         }
 
         $stmt = $this->db()->pdo()->prepare("SELECT COUNT(*) AS allcount FROM mlite_query_logs");
@@ -43,16 +50,16 @@ class Admin extends AdminModule
         $totalRecords = $records['allcount'];
 
         $stmt = $this->db()->pdo()->prepare("SELECT COUNT(*) AS allcount FROM mlite_query_logs WHERE 1=1 $searchQuery");
-        if (!empty($search_text)) {
+        if (!empty($search_text) && in_array($search_field, $allowedColumns)) {
             $stmt->bindValue(':search_text', "%$search_text%", \PDO::PARAM_STR);
         }
         $stmt->execute();
         $records = $stmt->fetch();
-        $totalRecordwithFilter = $records['allcount'];
+        $totalRecordwithFilter = $records['allcount'] ?? 0;
 
-        $sql = "SELECT * FROM mlite_query_logs WHERE 1=1 $searchQuery ORDER BY $columnName $columnSortOrder LIMIT $row1, $rowperpage";
+        $sql = "SELECT * FROM mlite_query_logs WHERE 1=1 $searchQuery ORDER BY `$columnName` $columnSortOrder LIMIT ".(int)$row1.", ".(int)$rowperpage;
         $stmt = $this->db()->pdo()->prepare($sql);
-        if (!empty($search_text)) {
+        if (!empty($search_text) && in_array($search_field, $allowedColumns)) {
             $stmt->bindValue(':search_text', "%$search_text%", \PDO::PARAM_STR);
         }
         $stmt->execute();
@@ -62,21 +69,21 @@ class Admin extends AdminModule
         foreach ($result as $row) {
             $nama = $this->core->getPegawaiInfo('nama', $row['username']);
             $data[] = [
-                'id'=>$row['id'],
-'sql_text'=>$row['sql_text'],
-'bindings'=>$row['bindings'],
-'created_at'=>$row['created_at'],
-'error_message'=>$row['error_message'],
-'username'=>isset_or($nama, 'Tidak Diketahui')
+                'id'=>htmlspecialchars($row['id'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'),
+'sql_text'=>htmlspecialchars($row['sql_text'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'),
+'bindings'=>htmlspecialchars($row['bindings'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'),
+'created_at'=>htmlspecialchars($row['created_at'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'),
+'error_message'=>htmlspecialchars($row['error_message'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'),
+'username'=>htmlspecialchars(isset_or($nama, 'Tidak Diketahui'), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8')
 
             ];
         }
 
         echo json_encode([
-            "draw" => intval($draw),
+            "draw" => intval(htmlspecialchars($draw, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8')),
             "iTotalRecords" => $totalRecords,
             "iTotalDisplayRecords" => $totalRecordwithFilter,
-            "aaData" => $data
+            "aaData" => htmlspecialchars_array($data)
         ]);
         exit();
     }
@@ -116,13 +123,14 @@ $username = $_POST['username'];
                 $search_text = $_POST['search_text_mlite_query_logs'] ?? '';
 
                 $searchQuery = "";
-                if (!empty($search_text)) {
-                    $searchQuery .= " AND (" . $search_field . " LIKE :search_text) ";
+                $allowedColumns = ['id','sql_text','bindings','created_at','error_message','username'];
+                if (!empty($search_text) && in_array($search_field, $allowedColumns)) {
+                    $searchQuery .= " AND (`" . $search_field . "` LIKE :search_text) ";
                 }
 
                 $stmt = $this->db()->pdo()->prepare("SELECT * FROM mlite_query_logs WHERE 1=1 $searchQuery");
 
-                if (!empty($search_text)) {
+                if (!empty($search_text) && in_array($search_field, $allowedColumns)) {
                     $stmt->bindValue(':search_text', "%$search_text%", \PDO::PARAM_STR);
                 }
 
@@ -141,7 +149,7 @@ $username = $_POST['username'];
                     ];
                 }
 
-                echo json_encode($data);
+                echo json_encode(htmlspecialchars_array($data));
             }
         } catch (\PDOException $e) {
             if($this->settings->get('settings.log_query') == 'ya') {            
@@ -188,7 +196,7 @@ $username = $_POST['username'];
         $stmt->execute([$database, $nama_table]);
         $result = $stmt->fetchAll();
 
-        echo $this->draw('chart.html', ['type' => $type, 'column' => $result, 'labels' => $labels, 'datasets' => $datasets]);
+        echo $this->draw('chart.html', ['type' => $type, 'column' => htmlspecialchars_array($result), 'labels' => $labels, 'datasets' => $datasets]);
         exit();
     }
 

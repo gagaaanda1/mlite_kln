@@ -40,7 +40,7 @@ class JnsPerawatanLab
     {
         $return['penjab'] = $this->db('penjab')->where('status', '1')->toArray();
         $return['kelas'] = ['Kelas 1','Kelas 2','Kelas 3','Kelas Utama','Kelas VIP','Kelas VVIP'];
-        $return['kategori'] = ['PA','PK'];
+        $return['kategori'] = ['PA','PK','Dental'];
         if (isset($_POST['kd_jenis_prw'])){
           $return['form'] = $this->db('jns_perawatan_lab')->where('kd_jenis_prw', $_POST['kd_jenis_prw'])->oneArray();
         } else {
@@ -158,15 +158,24 @@ class JnsPerawatanLab
         $rowperpage = $_POST['length'] ?? 10;
         $columnIndex = $_POST['order'][0]['column'] ?? 0;
         $columnName = $_POST['columns'][$columnIndex]['data'] ?? 'kd_jenis_prw';
-        $columnSortOrder = $_POST['order'][0]['dir'] ?? 'asc';
+        $columnSortOrder = strtolower($_POST['order'][0]['dir'] ?? 'asc');
+        if (!in_array($columnSortOrder, ['asc', 'desc'])) {
+            $columnSortOrder = 'asc';
+        }
         $searchValue = $_POST['search']['value'] ?? '';
 
         $search_field = $_POST['search_field_jns_perawatan_lab'] ?? '';
         $search_text = $_POST['search_text_jns_perawatan_lab'] ?? '';
 
         $searchQuery = "";
-        if (!empty($search_text)) {
-            $searchQuery .= " AND (" . $search_field . " LIKE :search_text) ";
+        $allowedColumns = ['kd_jenis_prw','nm_perawatan','bagian_rs','bhp','tarif_perujuk','tarif_tindakan_dokter','tarif_tindakan_petugas','kso','menejemen','total_byr','kd_pj','status','kelas','kategori'];
+        
+        if (!in_array($columnName, $allowedColumns)) {
+            $columnName = 'kd_jenis_prw';
+        }
+
+        if (!empty($search_text) && in_array($search_field, $allowedColumns)) {
+            $searchQuery .= " AND (`" . $search_field . "` LIKE :search_text) ";
         }
 
         $stmt = $this->db()->pdo()->prepare("SELECT COUNT(*) AS allcount FROM jns_perawatan_lab");
@@ -175,16 +184,18 @@ class JnsPerawatanLab
         $totalRecords = $records['allcount'];
 
         $stmt = $this->db()->pdo()->prepare("SELECT COUNT(*) AS allcount FROM jns_perawatan_lab WHERE 1=1 $searchQuery");
-        if (!empty($search_text)) {
+        if (!empty($search_text) && in_array($search_field, $allowedColumns)) {
             $stmt->bindValue(':search_text', "%$search_text%", \PDO::PARAM_STR);
         }
         $stmt->execute();
         $records = $stmt->fetch();
         $totalRecordwithFilter = $records['allcount'];
 
-        $sql = "SELECT * FROM jns_perawatan_lab WHERE 1=1 $searchQuery ORDER BY $columnName $columnSortOrder LIMIT $row1, $rowperpage";
+        $sql = "SELECT * FROM jns_perawatan_lab WHERE 1=1 $searchQuery ORDER BY `$columnName` $columnSortOrder LIMIT :row1, :rowperpage";
         $stmt = $this->db()->pdo()->prepare($sql);
-        if (!empty($search_text)) {
+        $stmt->bindValue(':row1', intval($row1), \PDO::PARAM_INT);
+        $stmt->bindValue(':rowperpage', intval($rowperpage), \PDO::PARAM_INT);
+        if (!empty($search_text) && in_array($search_field, $allowedColumns)) {
             $stmt->bindValue(':search_text', "%$search_text%", \PDO::PARAM_STR);
         }
         $stmt->execute();
@@ -193,8 +204,8 @@ class JnsPerawatanLab
         $data = [];
         foreach ($result as $row) {
             $data[] = [
-                'kd_jenis_prw'=>$row['kd_jenis_prw'],
-                'nm_perawatan'=>$row['nm_perawatan'],
+                'kd_jenis_prw'=>htmlspecialchars($row['kd_jenis_prw'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'),
+                'nm_perawatan'=>htmlspecialchars($row['nm_perawatan'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'),
                 'bagian_rs'=>$row['bagian_rs'],
                 'bhp'=>$row['bhp'],
                 'tarif_perujuk'=>$row['tarif_perujuk'],
@@ -203,18 +214,18 @@ class JnsPerawatanLab
                 'kso'=>$row['kso'],
                 'menejemen'=>$row['menejemen'],
                 'total_byr'=>$row['total_byr'],
-                'kd_pj'=>$row['kd_pj'],
-                'status'=>$row['status'],
-                'kelas'=>$row['kelas'],
-                'kategori'=>$row['kategori']
+                'kd_pj'=>htmlspecialchars($row['kd_pj'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'),
+                'status'=>htmlspecialchars($row['status'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'),
+                'kelas'=>htmlspecialchars($row['kelas'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'),
+                'kategori'=>htmlspecialchars($row['kategori'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8')
             ];
         }
 
         echo json_encode([
-            "draw" => intval($draw),
+            "draw" => intval(htmlspecialchars($draw, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8')),
             "iTotalRecords" => $totalRecords,
             "iTotalDisplayRecords" => $totalRecordwithFilter,
-            "aaData" => $data
+            "aaData" => htmlspecialchars_array($data)
         ]);
         exit();
     }

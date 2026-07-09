@@ -24,7 +24,7 @@ class Admin extends AdminModule
         ['name' => 'TTE Invisible', 'url' => url([ADMIN, 'sertisign', 'signinginvisible']), 'icon' => 'database', 'desc' => 'TTE Invisible'],  
         ['name' => 'Settings', 'url' => url([ADMIN, 'sertisign', 'settings']), 'icon' => 'clipboard', 'desc' => 'Settings'],
         ];
-        return $this->draw('manage.html', ['sub_modules' => $sub_modules]);
+        return $this->draw('manage.html', ['sub_modules' => htmlspecialchars_array($sub_modules)]);
     }
 
     public function getSigningInvisible()
@@ -239,6 +239,10 @@ public function postSigningQrERM()
 
     public function getSettings()
     {
+        if ($this->core->getUserInfo('role') != 'admin') {
+            $this->notify('failure', 'Anda tidak memiliki hak akses untuk halaman ini.');
+            redirect(url([ADMIN, 'sertisign', 'signingqr']));
+        }
         $settings = [];
         $settings['api_host'] = $this->settings('sertisign', 'api_host');
         $settings['api_key'] = $this->settings('sertisign', 'api_key');
@@ -248,6 +252,10 @@ public function postSigningQrERM()
 
     public function postSaveSettings()
     {
+        if ($this->core->getUserInfo('role') != 'admin') {
+            $this->notify('failure', 'Anda tidak memiliki hak akses untuk halaman ini.');
+            redirect(url([ADMIN, 'sertisign', 'signingqr']));
+        }
         foreach ($_POST as $field => $value) {
             $this->settings('sertisign', $field, $value);
         }
@@ -490,9 +498,9 @@ public function getDataWebhook($return = false)
     $limit  = isset($_GET['limit']) ? (int) $_GET['limit'] : 20;
     $offset = isset($_GET['offset']) ? (int) $_GET['offset'] : 0;
 
-    $draw   = intval($_GET['draw'] ?? 1);
-    $start  = intval($_GET['start'] ?? 0);
-    $length = intval($_GET['length'] ?? 10);
+    $draw   = intval(htmlspecialchars($_GET['draw'] ?? 1, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'));
+    $start  = intval(htmlspecialchars($_GET['start'] ?? 0, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'));
+    $length = intval(htmlspecialchars($_GET['length'] ?? 10, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'));
         
     $db = $this->db('mlite_sertisign_webhook');
 
@@ -535,7 +543,7 @@ public function getDataWebhook($return = false)
     }
 
     header('Content-Type: application/json');
-    echo json_encode($result);
+    echo json_encode(htmlspecialchars_array($result));
     exit;
 }
 
@@ -545,7 +553,7 @@ public function getTampilWebhook()
     $this->core->addJS(url('assets/jscripts/datatables.min.js'));
 
     $result = $this->getDataWebhook(true); // 🔥 ambil array, bukan JSON
-    return $this->draw('tampil.webhook.html', ['data' => $result]);
+    return $this->draw('tampil.webhook.html', ['data' => htmlspecialchars_array($result)]);
 }
 
 

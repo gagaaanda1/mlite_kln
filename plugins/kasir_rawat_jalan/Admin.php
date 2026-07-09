@@ -71,9 +71,10 @@ class Admin extends AdminModule
              $row['total_tagihan'] = $row['jumlah_harus_bayar'];
         }
 
+        header('Content-Type: application/json');
         echo json_encode([
             'status' => 'success',
-            'data' => $data,
+            'data' => htmlspecialchars_array($data),
             'total' => $total,
             'page' => $page,
             'per_page' => $per_page
@@ -256,6 +257,26 @@ class Admin extends AdminModule
             $total_biaya += $t['besar_biaya'];
         }
 
+        // 9. Obat Pulang
+        $resep_pulang = $this->db('resep_pulang')
+            ->join('databarang', 'databarang.kode_brng = resep_pulang.kode_brng')
+            ->where('resep_pulang.no_rawat', $no_rawat)
+            ->toArray();
+        foreach ($resep_pulang as $r) {
+            $details[] = [
+                'kategori' => 'Obat Pulang',
+                'nama' => $r['nama_brng'],
+                'biaya' => $r['harga'],
+                'jumlah' => $r['jml_barang'],
+                'subtotal' => $r['total'],
+                'kode_brng' => $r['kode_brng'],
+                'tanggal' => $r['tanggal'],
+                'jam' => $r['jam'],
+                'type' => 'obat_pulang'
+            ];
+            $total_biaya += $r['total'];
+        }
+
         header('Content-Type: application/json');
         echo json_encode([
             'status' => 'success',
@@ -329,7 +350,7 @@ class Admin extends AdminModule
         $cek_laboratorium = $this->db('mlite_modules')->where('dir', 'laboratorium')->oneArray();
         $cek_radiologi = $this->db('mlite_modules')->where('dir', 'radiologi')->oneArray();
         $this->_Display($tgl_kunjungan, $tgl_kunjungan_akhir, $status_periksa, $status_bayar);
-        return $this->draw('manage.html', ['rawat_jalan' => $this->assign, 'cek_vclaim' => $cek_vclaim, 'cek_laboratorium' => $cek_laboratorium, 'cek_radiologi' => $cek_radiologi]);
+        return $this->draw('manage.html', ['rawat_jalan' => htmlspecialchars_array($this->assign), 'cek_vclaim' => htmlspecialchars_array($cek_vclaim), 'cek_laboratorium' => htmlspecialchars_array($cek_laboratorium), 'cek_radiologi' => htmlspecialchars_array($cek_radiologi)]);
     }
 
     public function anyDisplay()
@@ -351,7 +372,7 @@ class Admin extends AdminModule
         $cek_laboratorium = $this->db('mlite_modules')->where('dir', 'laboratorium')->oneArray();
         $cek_radiologi = $this->db('mlite_modules')->where('dir', 'radiologi')->oneArray();
         $this->_Display($tgl_kunjungan, $tgl_kunjungan_akhir, $status_periksa);
-        echo $this->draw('display.html', ['rawat_jalan' => $this->assign, 'cek_vclaim' => $cek_vclaim, 'cek_laboratorium' => $cek_laboratorium, 'cek_radiologi' => $cek_radiologi]);
+        echo $this->draw('display.html', ['rawat_jalan' => htmlspecialchars_array($this->assign), 'cek_vclaim' => htmlspecialchars_array($cek_vclaim), 'cek_laboratorium' => htmlspecialchars_array($cek_laboratorium), 'cek_radiologi' => htmlspecialchars_array($cek_radiologi)]);
         exit();
     }
 
@@ -887,6 +908,31 @@ class Admin extends AdminModule
         $jumlah_total_obat_operasi += $obat_operasi['harga'];
       }
 
+      $rows_resep_pulang = $this->db('resep_pulang')
+        ->join('databarang', 'databarang.kode_brng=resep_pulang.kode_brng')
+        ->where('resep_pulang.no_rawat', $_POST['no_rawat'])
+        ->toArray();
+      $resep_pulang = [];
+      $no_resep_pulang = 1;
+      $jumlah_total_obat_pulang = 0;
+      foreach ($rows_resep_pulang as $row) {
+        $row['nomor'] = $no_resep_pulang++;
+        $jumlah_total_obat_pulang += $row['total'];
+        $resep_pulang[] = $row;
+      }
+
+      $rows_tambahan_biaya = $this->db('tambahan_biaya')
+        ->where('no_rawat', $_POST['no_rawat'])
+        ->toArray();
+      $tambahan_biaya = [];
+      $no_tambahan_biaya = 1;
+      $jumlah_total_tambahan = 0;
+      foreach ($rows_tambahan_biaya as $row) {
+        $row['nomor'] = $no_tambahan_biaya++;
+        $jumlah_total_tambahan += $row['besar_biaya'];
+        $tambahan_biaya[] = $row;
+      }
+
       echo $this->draw('rincian.html', [
         'rawat_jl_dr' => $rawat_jl_dr,
         'rawat_jl_pr' => $rawat_jl_pr,
@@ -896,16 +942,20 @@ class Admin extends AdminModule
         'jumlah_total_obat' => $jumlah_total_obat,
         'jumlah_total_embalase' => $jumlah_total_embalase,
         'jumlah_total_tuslah' => $jumlah_total_tuslah,
-        'poliklinik' => $poliklinik,
-        'biaya_registrasi' => $poliklinik['registrasi'],
-        'detail_pemberian_obat' => $detail_pemberian_obat,
+        'poliklinik' => htmlspecialchars_array($poliklinik),
+        'biaya_registrasi' => htmlspecialchars_array($poliklinik)['registrasi'],
+        'detail_pemberian_obat' => htmlspecialchars_array($detail_pemberian_obat),
         'periksa_lab' => $periksa_lab,
         'jumlah_total_lab' => $jumlah_total_lab,
         'periksa_radiologi' => $periksa_radiologi,
         'jumlah_total_radiologi' => $jumlah_total_radiologi,
         'jumlah_total_operasi' => $jumlah_total_operasi,
         'jumlah_total_obat_operasi' => $jumlah_total_obat_operasi,
-        'no_rawat' => $_POST['no_rawat']
+        'resep_pulang' => htmlspecialchars_array($resep_pulang),
+        'jumlah_total_obat_pulang' => $jumlah_total_obat_pulang,
+        'tambahan_biaya' => $tambahan_biaya,
+        'jumlah_total_tambahan' => $jumlah_total_tambahan,
+        'no_rawat' => htmlspecialchars($_POST['no_rawat'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8')
       ]);
       exit();
     }
@@ -914,10 +964,10 @@ class Admin extends AdminModule
     {
       $layanan = $this->db('jns_perawatan')
         ->where('status', '1')
-        ->like('nm_perawatan', '%'.$_POST['layanan'].'%')
+        ->like('nm_perawatan', '%'.htmlspecialchars($_POST['layanan'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8').'%')
         ->limit(10)
         ->toArray();
-      echo $this->draw('layanan.html', ['layanan' => $layanan]);
+      echo $this->draw('layanan.html', ['layanan' => htmlspecialchars_array($layanan)]);
       exit();
     }
 
@@ -927,10 +977,10 @@ class Admin extends AdminModule
         ->join('gudangbarang', 'gudangbarang.kode_brng=databarang.kode_brng')
         ->where('kd_bangsal', $this->settings->get('farmasi.deporalan'))
         ->where('status', '1')
-        ->like('databarang.nama_brng', '%'.$_POST['obat'].'%')
+        ->like('databarang.nama_brng', '%'.htmlspecialchars($_POST['obat'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8').'%')
         ->limit(10)
         ->toArray();
-      echo $this->draw('obat.html', ['obat' => $obat]);
+      echo $this->draw('obat.html', ['obat' => htmlspecialchars_array($obat)]);
       exit();
     }
 
@@ -938,10 +988,10 @@ class Admin extends AdminModule
     {
       $laboratorium = $this->db('jns_perawatan_lab')
         ->where('status', '1')
-        ->like('nm_perawatan', '%'.$_POST['laboratorium'].'%')
+        ->like('nm_perawatan', '%'.htmlspecialchars($_POST['laboratorium'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8').'%')
         ->limit(10)
         ->toArray();
-      echo $this->draw('laboratorium.html', ['laboratorium' => $laboratorium]);
+      echo $this->draw('laboratorium.html', ['laboratorium' => htmlspecialchars_array($laboratorium)]);
       exit();
     }
 
@@ -949,10 +999,10 @@ class Admin extends AdminModule
     {
       $radiologi = $this->db('jns_perawatan_radiologi')
         ->where('status', '1')
-        ->like('nm_perawatan', '%'.$_POST['radiologi'].'%')
+        ->like('nm_perawatan', '%'.htmlspecialchars($_POST['radiologi'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8').'%')
         ->limit(10)
         ->toArray();
-      echo $this->draw('radiologi.html', ['radiologi' => $radiologi]);
+      echo $this->draw('radiologi.html', ['radiologi' => htmlspecialchars_array($radiologi)]);
       exit();
     }
 
@@ -966,7 +1016,7 @@ class Admin extends AdminModule
         $output = '';
         if(count($rows)){
           foreach ($rows as $row) {
-            $output .= '<li class="list-group-item link-class">'.$row["aturan"].'</li>';
+            $output .= '<li class="list-group-item link-class">'.htmlspecialchars($row["aturan"], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8').'</li>';
           }
         }
         echo $output;
@@ -986,7 +1036,7 @@ class Admin extends AdminModule
         $output = '';
         if(count($rows)){
           foreach ($rows as $row) {
-            $output .= '<li class="list-group-item link-class">'.$row["kd_dokter"].': '.$row["nm_dokter"].'</li>';
+            $output .= '<li class="list-group-item link-class">'.htmlspecialchars($row["kd_dokter"].': '.$row["nm_dokter"], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8').'</li>';
           }
         }
         echo $output;
@@ -1006,7 +1056,7 @@ class Admin extends AdminModule
         $output = '';
         if(count($rows)){
           foreach ($rows as $row) {
-            $output .= '<li class="list-group-item link-class">'.$row["nip"].': '.$row["nama"].'</li>';
+            $output .= '<li class="list-group-item link-class">'.htmlspecialchars($row["nip"].': '.$row["nama"], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8').'</li>';
           }
         }
         echo $output;
@@ -2027,6 +2077,15 @@ class Admin extends AdminModule
           $result_detail['obat_operasi'][] = $obat_operasi;
         }
 
+        $result_detail['resep_pulang'] = $this->db('resep_pulang')
+          ->join('databarang', 'databarang.kode_brng=resep_pulang.kode_brng')
+          ->where('resep_pulang.no_rawat', $_GET['no_rawat'])
+          ->toArray();
+
+        $result_detail['tambahan_biaya'] = $this->db('tambahan_biaya')
+          ->where('no_rawat', $_GET['no_rawat'])
+          ->toArray();
+
         $reg_periksa = $this->db('reg_periksa')->where('no_rawat', $_GET['no_rawat'])->oneArray();
         $pasien = $this->db('pasien')->where('no_rkm_medis', $reg_periksa['no_rkm_medis'])->oneArray();
 
@@ -2095,7 +2154,7 @@ class Admin extends AdminModule
         $result = $this->db('mlite_billing')->where('no_rawat', $_GET['no_rawat'])->like('kd_billing', 'RJ%')->desc('id_billing')->oneArray();
         $reg_periksa = $this->db('reg_periksa')->where('no_rawat', $_GET['no_rawat'])->oneArray();
         $pasien = $this->db('pasien')->where('no_rkm_medis', $reg_periksa['no_rkm_medis'])->oneArray();
-        echo $this->draw('billing.kecil.html', ['billing' => $result, 'pasien' => $pasien, 'fullname' => $this->core->getUserInfo('fullname', null, true)]);
+        echo $this->draw('billing.kecil.html', ['billing' => htmlspecialchars_array($result), 'pasien' => $pasien, 'fullname' => $this->core->getUserInfo('fullname', null, true)]);
         break;
       }
       exit();

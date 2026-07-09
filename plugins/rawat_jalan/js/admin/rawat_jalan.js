@@ -250,6 +250,7 @@ $("#display").on("click", ".sep", function(event){
       $('#no_kartu_peserta').text(json_obj[0].response.peserta.noKartu);
       $('#no_mr_peserta').text(no_rkm_medis);
       $('#nik_peserta').text(json_obj[0].response.peserta.nik);
+      $('#prov_umum_peserta').text(json_obj[0].response.peserta.provUmum.nmProvider);
       $('#tgl_lahir_peserta').text(json_obj[0].response.peserta.tglLahir);
       $('#status_peserta').text(json_obj[0].response.peserta.statusPeserta.keterangan);
       $('#jenis_peserta').text(json_obj[0].response.peserta.jenisPeserta.keterangan);
@@ -1224,7 +1225,7 @@ $(document).on('click', 'a[href="#rujuk_internal"]', function(event){
     var rujuk_internal = ''
         + '<div class="form-group">'
         + '<label for="status_keluar">Pilih Poli</label>'
-        + '<select name="kd_poli" id="kd_poli" class="form-control" data-use-dimmer="false"' + disabled_attr + '>'
+        + '<select name="kd_poli" id="kd_poli" class="form-control" data-use-dimmer="false">'
         + '{loop: $mlite.poliklinik}'
         + '<option value="{$value.kd_poli}">{$value.nm_poli}</option>'
         + '{/loop}'
@@ -1232,7 +1233,7 @@ $(document).on('click', 'a[href="#rujuk_internal"]', function(event){
         + '</div>'
         + '<div class="form-group">'
         + '<label for="status_keluar">Pilih Dokter</label>'
-        + '<select name="kd_dokter" id="kd_dokter" class="form-control" data-use-dimmer="false"' + disabled_attr + '>'
+        + '<select name="kd_dokter" id="kd_dokter" class="form-control" data-use-dimmer="false">'
         + '{loop: $mlite.dokter}'
         + '<option value="{$value.kd_dokter}">{$value.nm_dokter}</option>'
         + '{/loop}'
@@ -1240,7 +1241,7 @@ $(document).on('click', 'a[href="#rujuk_internal"]', function(event){
         + '</div>'
         + '<div class="form-group">'
         + '<label for="status_keluar">Isi Rujukan</label>'
-        + '<textarea name="isi_rujukan" id="isi_rujukan" class="form-control" rows="6" ' + disabled_attr + '>' + isi_rujukan_val + '</textarea>'
+        + '<textarea name="isi_rujukan" id="isi_rujukan" class="form-control" rows="6">' + isi_rujukan_val + '</textarea>'
         + '</div>'
         + '<div class="form-group">'
         + '<label for="status_keluar">Jawab Rujukan</label>'
@@ -1380,7 +1381,7 @@ $(document).on('click', 'a[href="#hapus_rujukan_internal"]', function(event){
   {if: $mlite.websocket_proxy != ''}
     var URL_WEBSOCKET = "{$mlite.websocket_proxy}";
   {else}
-    var URL_WEBSOCKET = "ws://<?php echo $_SERVER['HTTP_HOST'] ?>:3892";
+    var URL_WEBSOCKET = "wss://<?php echo $_SERVER['HTTP_HOST'] ?>:3892";
   {/if}
 
   var ws = new WebSocket(URL_WEBSOCKET);

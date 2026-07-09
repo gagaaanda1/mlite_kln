@@ -7,11 +7,17 @@ websocket
 uploads
 vendor
 __vendor
-systems/data/database.sdb
+app_amati/
+systems/data/*.sdb
 webapps
 backup/
 plugins/apotek_online
 plugins/simrsp
+# plugins/mini_pacs/*.sh
+# plugins/mini_pacs/*.json
+# plugins/mini_pacs/worklist_monitor.php
+# plugins/mini_pacs/receiver.php
+# plugins/mini_pacs/systemd/*
 config.php
 themes/mlite
 systems/lib/jasperphp
@@ -37,6 +43,8 @@ plugins/utd/Site.php
 plugins/utd/view/adonan.html
 websocket
 plugins/website_ausy
+plugins/rsgmgha
+plugins/verifikasi_klaim
 plugins/pasien_galleries
 # plugins/log_antrian_taskid
 
@@ -46,7 +54,7 @@ frontend-react/dist
 frontend-react/node_modules/*
 frontend-react/dist/*
 
-docker/
+#docker/
 docker/mysql*
 docker/orthanc/orthanc-db/*
 docker/orthanc/dummy-dicom/*

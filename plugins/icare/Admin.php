@@ -46,11 +46,15 @@ class Admin extends AdminModule
     $icare['userkey'] = $this->settings->get('icare.userkey');
     $icare['usernameICare'] = $this->settings->get('icare.usernameICare');
     $icare['passwordICare'] = $this->settings->get('icare.passwordICare');
-    return $this->draw('manage.html', ['icare' => $icare]);
+    return $this->draw('manage.html', ['icare' => htmlspecialchars_array($icare)]);
   }
 
   public function postSaveSettings()
   {
+      if ($this->core->getUserInfo('role') != 'admin') {
+          $this->notify('failure', 'Anda tidak memiliki hak akses untuk halaman ini.');
+          redirect(url([ADMIN, 'icare', 'manage']));
+      }
       foreach ($_POST['icare'] as $key => $val) {
           $this->settings('icare', $key, $val);
       }
@@ -103,7 +107,7 @@ class Admin extends AdminModule
     } else {
       $message = $json['metaData']['message'];
     }
-    echo $this->draw('riwayat.html', ['url' => $riwayat['url'], 'message' => $message]);
+    echo $this->draw('riwayat.html', ['url' => htmlspecialchars_array($riwayat['url']), 'message' => htmlspecialchars_array($message)]);
     exit();
   }
 

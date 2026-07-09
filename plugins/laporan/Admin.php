@@ -29,7 +29,7 @@ class Admin extends AdminModule
             ['name' => '10 Besar Penyakit Ranap', 'url' => url([ADMIN, 'laporan', 'laporanpenyakitranap']), 'icon' => 'fa fa-bar-chart', 'desc' => 'Laporan 10 besar penyakit rawat inap']
         ];
 
-        return $this->draw('manage.html', ['sub_modules' => $sub_modules]);
+        return $this->draw('manage.html', ['sub_modules' => htmlspecialchars_array($sub_modules)]);
     }
 
     public function anyLaporanTb()
@@ -351,9 +351,9 @@ class Admin extends AdminModule
         
         echo $this->draw('cetak_pdf_penyakit_ralan.html', [
             'laporan' => $query,
-            'tgl_awal' => $tgl_awal,
-            'tgl_akhir' => $tgl_akhir,
-            'settings' => $settings
+            'tgl_awal' => htmlspecialchars($tgl_awal, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'),
+            'tgl_akhir' => htmlspecialchars($tgl_akhir, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'),
+            'settings' => htmlspecialchars_array($settings)
         ]);
         exit();
     }
@@ -383,9 +383,9 @@ class Admin extends AdminModule
         
         echo $this->draw('cetak_pdf_penyakit_ranap.html', [
             'laporan' => $query,
-            'tgl_awal' => $tgl_awal,
-            'tgl_akhir' => $tgl_akhir,
-            'settings' => $settings
+            'tgl_awal' => htmlspecialchars($tgl_awal, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'),
+            'tgl_akhir' => htmlspecialchars($tgl_akhir, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'),
+            'settings' => htmlspecialchars_array($settings)
         ]);
         exit();
     }

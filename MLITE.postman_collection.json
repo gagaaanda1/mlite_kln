@@ -51,9 +51,55 @@
                         "login"
                     ]
                 },
-                "description": "Mendapatkan Token JWT. \n\nKeamanan Layer 1: API Key harus sesuai dengan Username yang digunakan."
+                "description": "Mendapatkan Token JWT untuk Frontend/Mobile App. \n\nKeamanan Layer 1: Aplikasi diverifikasi via X-Api-Key.\nKeamanan Layer 2: End-User diverifikasi via Username & Password di body.\n(API Key bebas digunakan untuk meloginkan End-User mana saja sesuai tabel mlite_users)."
             },
             "response": []
+        },
+        {
+            "name": "Dashboard",
+            "item": [
+                {
+                    "name": "Doctor Dashboard",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "X-Api-Key",
+                                "value": "{{apiKey}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Username-Permission",
+                                "value": "{{username_permission}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Password-Permission",
+                                "value": "{{password_permission}}",
+                                "type": "text"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/admin/api/dashboard/stats",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "admin",
+                                "api",
+                                "dashboard",
+                                "stats"
+                            ]
+                        }
+                    },
+                    "response": []
+                }
+            ]
         },
         {
             "name": "Pasien",
@@ -182,7 +228,7 @@
                             }
                         ],
                         "url": {
-                            "raw": "{{baseUrl}}/admin/api/pasien/riwayatperawatan/{{no_rkm_medis}}?no_rawat={{no_rawat}}",
+                            "raw": "{{baseUrl}}/admin/api/pasien/riwayatperawatan/{{no_rkm_medis}}?no_rawat={{no_rawat}}&detail=false",
                             "host": [
                                 "{{baseUrl}}"
                             ],
@@ -197,6 +243,10 @@
                                 {
                                     "key": "no_rawat",
                                     "value": "{{no_rawat}}"
+                                },
+                                {
+                                    "key": "detail",
+                                    "value": "false"
                                 }
                             ]
                         }
@@ -1570,6 +1620,434 @@
                                 "api",
                                 "rawat_jalan",
                                 "deletelaporanoperasi"
+                            ]
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Website",
+            "item": [
+                {
+                    "name": "List Website News",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "X-Api-Key",
+                                "value": "{{apiKey}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Username-Permission",
+                                "value": "{{username_permission}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Password-Permission",
+                                "value": "{{password_permission}}",
+                                "type": "text"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/admin/api/website/list?draw=1&start=0&length=10&search=",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "admin",
+                                "api",
+                                "website",
+                                "list"
+                            ],
+                            "query": [
+                                {
+                                    "key": "draw",
+                                    "value": "1"
+                                },
+                                {
+                                    "key": "start",
+                                    "value": "0"
+                                },
+                                {
+                                    "key": "length",
+                                    "value": "10"
+                                },
+                                {
+                                    "key": "search",
+                                    "value": ""
+                                }
+                            ]
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Show Website News",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "X-Api-Key",
+                                "value": "{{apiKey}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Username-Permission",
+                                "value": "{{username_permission}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Password-Permission",
+                                "value": "{{password_permission}}",
+                                "type": "text"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/admin/api/website/show/{{news_id}}",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "admin",
+                                "api",
+                                "website",
+                                "show",
+                                "{{news_id}}"
+                            ]
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Create Website News",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "X-Api-Key",
+                                "value": "{{apiKey}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Username-Permission",
+                                "value": "{{username_permission}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Password-Permission",
+                                "value": "{{password_permission}}",
+                                "type": "text"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"title\": \"Judul Berita API\",\n    \"content\": \"Isi berita dari API\",\n    \"intro\": \"Ringkasan berita\",\n    \"status\": 2,\n    \"comments\": 1,\n    \"markdown\": 0,\n    \"published_at\": \"2026-05-01 10:00:00\",\n    \"tags\": [\"api\", \"website\"]\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/admin/api/website/create",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "admin",
+                                "api",
+                                "website",
+                                "create"
+                            ]
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Update Website News",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "X-Api-Key",
+                                "value": "{{apiKey}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Username-Permission",
+                                "value": "{{username_permission}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Password-Permission",
+                                "value": "{{password_permission}}",
+                                "type": "text"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"title\": \"Judul Berita API (Update)\",\n    \"intro\": \"Ringkasan update\",\n    \"status\": 2,\n    \"tags\": [\"api\", \"update\"]\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/admin/api/website/update/{{news_id}}",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "admin",
+                                "api",
+                                "website",
+                                "update",
+                                "{{news_id}}"
+                            ]
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Delete Website News",
+                    "request": {
+                        "method": "DELETE",
+                        "header": [
+                            {
+                                "key": "X-Api-Key",
+                                "value": "{{apiKey}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Username-Permission",
+                                "value": "{{username_permission}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Password-Permission",
+                                "value": "{{password_permission}}",
+                                "type": "text"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/admin/api/website/delete/{{news_id}}",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "admin",
+                                "api",
+                                "website",
+                                "delete",
+                                "{{news_id}}"
+                            ]
+                        }
+                    },
+                    "response": []
+                }
+            ]
+        },
+        {
+            "name": "Presensi",
+            "item": [
+                {
+                    "name": "List Presensi",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "X-Api-Key",
+                                "value": "{{apiKey}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}",
+                                "type": "text"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/admin/api/presensi/list",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "admin",
+                                "api",
+                                "presensi",
+                                "list"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Show Presensi",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "X-Api-Key",
+                                "value": "{{apiKey}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}",
+                                "type": "text"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/admin/api/presensi/show?tanggal={{tanggal}}",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "admin",
+                                "api",
+                                "presensi",
+                                "show"
+                            ],
+                            "query": [
+                                {
+                                    "key": "tanggal",
+                                    "value": "{{tanggal}}"
+                                }
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Clock In",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "X-Api-Key",
+                                "value": "{{apiKey}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}",
+                                "type": "text"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"shift\": \"Pagi\",\n    \"photo\": \"\",\n    \"lat\": \"-6.200000\",\n    \"lng\": \"106.816666\"\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/admin/api/presensi/create",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "admin",
+                                "api",
+                                "presensi",
+                                "create"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Clock Out",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "X-Api-Key",
+                                "value": "{{apiKey}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}",
+                                "type": "text"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/admin/api/presensi/update",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "admin",
+                                "api",
+                                "presensi",
+                                "update"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Delete Presensi",
+                    "request": {
+                        "method": "DELETE",
+                        "header": [
+                            {
+                                "key": "X-Api-Key",
+                                "value": "{{apiKey}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}",
+                                "type": "text"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"jam_datang\": \"2023-01-01 08:00:00\"\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/admin/api/presensi/delete",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "admin",
+                                "api",
+                                "presensi",
+                                "delete"
                             ]
                         }
                     }
@@ -3880,6 +4358,1108 @@
             ]
         },
         {
+            "name": "Laboratorium",
+            "item": [
+                {
+                    "name": "List Laboratorium",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "X-Api-Key",
+                                "value": "{{apiKey}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Username-Permission",
+                                "value": "{{username_permission}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Password-Permission",
+                                "value": "{{password_permission}}",
+                                "type": "text"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/admin/api/laboratorium/list?draw=1&start=0&length=10&tgl_awal=2025-01-01&tgl_akhir=2025-12-31",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "admin",
+                                "api",
+                                "laboratorium",
+                                "list"
+                            ],
+                            "query": [
+                                {
+                                    "key": "draw",
+                                    "value": "1"
+                                },
+                                {
+                                    "key": "start",
+                                    "value": "0"
+                                },
+                                {
+                                    "key": "length",
+                                    "value": "10"
+                                },
+                                {
+                                    "key": "tgl_awal",
+                                    "value": "2025-01-01"
+                                },
+                                {
+                                    "key": "tgl_akhir",
+                                    "value": "2025-12-31"
+                                },
+                                {
+                                    "key": "search",
+                                    "value": ""
+                                }
+                            ]
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Show Laboratorium",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "X-Api-Key",
+                                "value": "{{apiKey}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Username-Permission",
+                                "value": "{{username_permission}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Password-Permission",
+                                "value": "{{password_permission}}",
+                                "type": "text"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/admin/api/laboratorium/show/{{no_rawat}}",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "admin",
+                                "api",
+                                "laboratorium",
+                                "show",
+                                "{{no_rawat}}"
+                            ]
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Create Laboratorium",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "X-Api-Key",
+                                "value": "{{apiKey}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Username-Permission",
+                                "value": "{{username_permission}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Password-Permission",
+                                "value": "{{password_permission}}",
+                                "type": "text"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"no_rkm_medis\": \"000001\",\n    \"tgl_registrasi\": \"2025-01-01\",\n    \"jam_reg\": \"08:00:00\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/admin/api/laboratorium/save",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "admin",
+                                "api",
+                                "laboratorium",
+                                "save"
+                            ]
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Update Laboratorium",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "X-Api-Key",
+                                "value": "{{apiKey}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Username-Permission",
+                                "value": "{{username_permission}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Password-Permission",
+                                "value": "{{password_permission}}",
+                                "type": "text"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"kd_dokter\": \"D00002\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/admin/api/laboratorium/update/{{no_rawat}}",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "admin",
+                                "api",
+                                "laboratorium",
+                                "update",
+                                "{{no_rawat}}"
+                            ]
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Delete Laboratorium",
+                    "request": {
+                        "method": "DELETE",
+                        "header": [
+                            {
+                                "key": "X-Api-Key",
+                                "value": "{{apiKey}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Username-Permission",
+                                "value": "{{username_permission}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Password-Permission",
+                                "value": "{{password_permission}}",
+                                "type": "text"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/admin/api/laboratorium/delete/{{no_rawat}}",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "admin",
+                                "api",
+                                "laboratorium",
+                                "delete",
+                                "{{no_rawat}}"
+                            ]
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Save Detail Laboratorium",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "X-Api-Key",
+                                "value": "{{apiKey}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Username-Permission",
+                                "value": "{{username_permission}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Password-Permission",
+                                "value": "{{password_permission}}",
+                                "type": "text"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"kat\": \"laboratorium\",\n    \"no_rawat\": \"{{no_rawat}}\",\n    \"kd_jenis_prw\": \"PK0001\",\n    \"jml_tindakan\": 1,\n    \"tgl_perawatan\": \"2025-01-01\",\n    \"jam_rawat\": \"10:00:00\",\n    \"kode_provider\": \"D00001\",\n    \"status\": \"Ralan\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/admin/api/laboratorium/savedetail",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "admin",
+                                "api",
+                                "laboratorium",
+                                "savedetail"
+                            ]
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Delete Detail Laboratorium",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "X-Api-Key",
+                                "value": "{{apiKey}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Username-Permission",
+                                "value": "{{username_permission}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Password-Permission",
+                                "value": "{{password_permission}}",
+                                "type": "text"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"no_rawat\": \"{{no_rawat}}\",\n    \"kd_jenis_prw\": \"PK0001\",\n    \"tgl_perawatan\": \"2025-01-01\",\n    \"jam_rawat\": \"10:00:00\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/admin/api/laboratorium/deletedetail",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "admin",
+                                "api",
+                                "laboratorium",
+                                "deletedetail"
+                            ]
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Show Detail Laboratorium",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "X-Api-Key",
+                                "value": "{{apiKey}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Username-Permission",
+                                "value": "{{username_permission}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Password-Permission",
+                                "value": "{{password_permission}}",
+                                "type": "text"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/admin/api/laboratorium/showdetail/{{status}}/{{no_rawat}}/{{noorder}}",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "admin",
+                                "api",
+                                "laboratorium",
+                                "showdetail",
+                                "{{status}}",
+                                "{{no_rawat}}",
+                                "{{noorder}}"
+                            ]
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Save Nilai Laboratorium",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "X-Api-Key",
+                                "value": "{{apiKey}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Username-Permission",
+                                "value": "{{username_permission}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Password-Permission",
+                                "value": "{{password_permission}}",
+                                "type": "text"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"no_rawat\": \"{{no_rawat}}\",\n    \"tgl_periksa\": \"2025-01-01\",\n    \"jam\": \"10:00:00\",\n    \"id_template\": \"1\",\n    \"value\": \"Normal\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/admin/api/laboratorium/savenilai",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "admin",
+                                "api",
+                                "laboratorium",
+                                "savenilai"
+                            ]
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Save Keterangan Laboratorium",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "X-Api-Key",
+                                "value": "{{apiKey}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Username-Permission",
+                                "value": "{{username_permission}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Password-Permission",
+                                "value": "{{password_permission}}",
+                                "type": "text"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"no_rawat\": \"{{no_rawat}}\",\n    \"tgl_periksa\": \"2025-01-01\",\n    \"jam\": \"10:00:00\",\n    \"id_template\": \"1\",\n    \"value\": \"Catat tambahan\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/admin/api/laboratorium/saveketerangan",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "admin",
+                                "api",
+                                "laboratorium",
+                                "saveketerangan"
+                            ]
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Save Validasi Laboratorium",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "X-Api-Key",
+                                "value": "{{apiKey}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Username-Permission",
+                                "value": "{{username_permission}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Password-Permission",
+                                "value": "{{password_permission}}",
+                                "type": "text"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"no_rawat\": \"{{no_rawat}}\",\n    \"noorder\": \"PR0001\",\n    \"tgl_permintaan\": \"2025-01-01\",\n    \"jam_permintaan\": \"10:00:00\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/admin/api/laboratorium/savevalidasi",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "admin",
+                                "api",
+                                "laboratorium",
+                                "savevalidasi"
+                            ]
+                        }
+                    },
+                    "response": []
+                }
+            ]
+        },
+        {
+            "name": "Radiologi",
+            "item": [
+                {
+                    "name": "List Radiologi",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "X-Api-Key",
+                                "value": "{{apiKey}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Username-Permission",
+                                "value": "{{username_permission}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Password-Permission",
+                                "value": "{{password_permission}}",
+                                "type": "text"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/admin/api/radiologi/list?draw=1&start=0&length=10&tgl_awal=2025-01-01&tgl_akhir=2025-12-31",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "admin",
+                                "api",
+                                "radiologi",
+                                "list"
+                            ],
+                            "query": [
+                                {
+                                    "key": "draw",
+                                    "value": "1"
+                                },
+                                {
+                                    "key": "start",
+                                    "value": "0"
+                                },
+                                {
+                                    "key": "length",
+                                    "value": "10"
+                                },
+                                {
+                                    "key": "tgl_awal",
+                                    "value": "2025-01-01"
+                                },
+                                {
+                                    "key": "tgl_akhir",
+                                    "value": "2025-12-31"
+                                },
+                                {
+                                    "key": "search",
+                                    "value": ""
+                                }
+                            ]
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Show Radiologi",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "X-Api-Key",
+                                "value": "{{apiKey}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Username-Permission",
+                                "value": "{{username_permission}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Password-Permission",
+                                "value": "{{password_permission}}",
+                                "type": "text"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/admin/api/radiologi/show/{{no_rawat}}",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "admin",
+                                "api",
+                                "radiologi",
+                                "show",
+                                "{{no_rawat}}"
+                            ]
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Create Radiologi",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "X-Api-Key",
+                                "value": "{{apiKey}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Username-Permission",
+                                "value": "{{username_permission}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Password-Permission",
+                                "value": "{{password_permission}}",
+                                "type": "text"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"no_rkm_medis\": \"000001\",\n    \"tgl_registrasi\": \"2025-01-01\",\n    \"jam_reg\": \"08:00:00\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/admin/api/radiologi/save",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "admin",
+                                "api",
+                                "radiologi",
+                                "save"
+                            ]
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Update Radiologi",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "X-Api-Key",
+                                "value": "{{apiKey}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Username-Permission",
+                                "value": "{{username_permission}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Password-Permission",
+                                "value": "{{password_permission}}",
+                                "type": "text"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"kd_dokter\": \"D00002\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/admin/api/radiologi/update/{{no_rawat}}",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "admin",
+                                "api",
+                                "radiologi",
+                                "update",
+                                "{{no_rawat}}"
+                            ]
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Delete Radiologi",
+                    "request": {
+                        "method": "DELETE",
+                        "header": [
+                            {
+                                "key": "X-Api-Key",
+                                "value": "{{apiKey}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Username-Permission",
+                                "value": "{{username_permission}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Password-Permission",
+                                "value": "{{password_permission}}",
+                                "type": "text"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/admin/api/radiologi/delete/{{no_rawat}}",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "admin",
+                                "api",
+                                "radiologi",
+                                "delete",
+                                "{{no_rawat}}"
+                            ]
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Save Detail Radiologi",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "X-Api-Key",
+                                "value": "{{apiKey}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Username-Permission",
+                                "value": "{{username_permission}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Password-Permission",
+                                "value": "{{password_permission}}",
+                                "type": "text"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"kat\": \"radiologi\",\n    \"no_rawat\": \"{{no_rawat}}\",\n    \"kd_jenis_prw\": \"PR0001\",\n    \"jml_tindakan\": 1,\n    \"tgl_perawatan\": \"2025-01-01\",\n    \"jam_rawat\": \"10:00:00\",\n    \"kode_provider\": \"D00001\",\n    \"status\": \"Ralan\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/admin/api/radiologi/savedetail",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "admin",
+                                "api",
+                                "radiologi",
+                                "savedetail"
+                            ]
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Delete Detail Radiologi",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "X-Api-Key",
+                                "value": "{{apiKey}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Username-Permission",
+                                "value": "{{username_permission}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Password-Permission",
+                                "value": "{{password_permission}}",
+                                "type": "text"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"no_rawat\": \"{{no_rawat}}\",\n    \"kd_jenis_prw\": \"PR0001\",\n    \"tgl_perawatan\": \"2025-01-01\",\n    \"jam_rawat\": \"10:00:00\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/admin/api/radiologi/deletedetail",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "admin",
+                                "api",
+                                "radiologi",
+                                "deletedetail"
+                            ]
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Show Detail Radiologi",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "X-Api-Key",
+                                "value": "{{apiKey}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Username-Permission",
+                                "value": "{{username_permission}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Password-Permission",
+                                "value": "{{password_permission}}",
+                                "type": "text"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/admin/api/radiologi/showdetail/{{status}}/{{no_rawat}}/{{noorder}}",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "admin",
+                                "api",
+                                "radiologi",
+                                "showdetail",
+                                "{{status}}",
+                                "{{no_rawat}}",
+                                "{{noorder}}"
+                            ]
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Save Hasil Radiologi",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "X-Api-Key",
+                                "value": "{{apiKey}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Username-Permission",
+                                "value": "{{username_permission}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Password-Permission",
+                                "value": "{{password_permission}}",
+                                "type": "text"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"no_rawat\": \"{{no_rawat}}\",\n    \"tgl_periksa\": \"2025-01-01\",\n    \"jam\": \"10:00:00\",\n    \"hasil\": \"Tampak normal batas jantung dan paru\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/admin/api/radiologi/savehasil",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "admin",
+                                "api",
+                                "radiologi",
+                                "savehasil"
+                            ]
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Delete Hasil Radiologi",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "X-Api-Key",
+                                "value": "{{apiKey}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Username-Permission",
+                                "value": "{{username_permission}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Password-Permission",
+                                "value": "{{password_permission}}",
+                                "type": "text"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"no_rawat\": \"{{no_rawat}}\",\n    \"tgl_perawatan\": \"2025-01-01\",\n    \"jam_rawat\": \"10:00:00\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/admin/api/radiologi/deletehasil",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "admin",
+                                "api",
+                                "radiologi",
+                                "deletehasil"
+                            ]
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Save Validasi Radiologi",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "X-Api-Key",
+                                "value": "{{apiKey}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Username-Permission",
+                                "value": "{{username_permission}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Password-Permission",
+                                "value": "{{password_permission}}",
+                                "type": "text"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"no_rawat\": \"{{no_rawat}}\",\n    \"noorder\": \"PR0001\",\n    \"tgl_permintaan\": \"2025-01-01\",\n    \"jam_permintaan\": \"10:00:00\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/admin/api/radiologi/savevalidasi",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "admin",
+                                "api",
+                                "radiologi",
+                                "savevalidasi"
+                            ]
+                        }
+                    },
+                    "response": []
+                }
+            ]
+        },
+        {
             "name": "Vedika",
             "item": [
                 {
@@ -4359,6 +5939,7 @@
         },
         {
             "name": "Master",
+            "description": "\n\n#### Modul Master menyediakan endpoint list/simpan/hapus data master.\n\n### Endpoint\n- **List Data (GET)**: `{{baseUrl}}/admin/api/master/list/{table}`\n- **Simpan Data (POST)**: `{{baseUrl}}/admin/api/master/save/{table}`\n- **Hapus Data (DELETE)**: `{{baseUrl}}/admin/api/master/delete/{table}`\n\n### Perilaku Endpoint\n- `list/{table}`: bersifat generic untuk tabel yang ada di database (kecuali tabel sensitif yang diblokir).\n- `save/{table}` dan `delete/{table}`: hanya bisa untuk tabel yang sudah terdaftar handler-nya di modul `plugins/master`.\n- Jika tabel belum didukung handler, API mengembalikan: `Table not allowed or not found`.\n\n### Parameter Pencarian (GET)\n- `page`: Nomor halaman (default: 1)\n- `per_page`: Jumlah record per halaman (default: 10)\n- `s`: Kata kunci pencarian (string)\n- `col`: Nama kolom spesifik untuk pencarian (opsional)\n\n### Catatan Keamanan\n- Tabel sensitif seperti `mlite_api_key` diblokir.\n\n### Contoh `{table}`\n- Data dasar: `dokter`, `petugas`, `poliklinik`, `bangsal`, `kamar`, `databarang`\n- Layanan: `jns_perawatan`, `jns_perawatan_inap`, `jns_perawatan_lab`, `jns_perawatan_radiologi`\n- Biodata: `bahasa`, `suku_bangsa`, `cacat_fisik`, `pendidikan`, `personal_pasien`\n- Diagnosis/prosedur: `penyakit` (ICD-10), `icd9` (ICD-9)",
             "item": [
                 {
                     "name": "List Master Data",
@@ -4584,6 +6165,55 @@
                                 {
                                     "key": "tgl_akhir",
                                     "value": "{{tgl_akhir}}"
+                                }
+                            ]
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Show Detail",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "X-Api-Key",
+                                "value": "{{apiKey}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Username-Permission",
+                                "value": "{{username_permission}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Password-Permission",
+                                "value": "{{password_permission}}",
+                                "type": "text"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/admin/api/apotek_ralan/showdetail/{{category}}/{{no_rawat}}?no_resep={{no_resep}}",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "admin",
+                                "api",
+                                "apotek_ralan",
+                                "showdetail",
+                                "{{category}}",
+                                "{{no_rawat}}"
+                            ],
+                            "query": [
+                                {
+                                    "key": "no_resep",
+                                    "value": "{{no_resep}}"
                                 }
                             ]
                         }
@@ -4850,6 +6480,55 @@
                                 {
                                     "key": "tgl_akhir",
                                     "value": "{{tgl_akhir}}"
+                                }
+                            ]
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Show Detail",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "X-Api-Key",
+                                "value": "{{apiKey}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Username-Permission",
+                                "value": "{{username_permission}}",
+                                "type": "text"
+                            },
+                            {
+                                "key": "X-Password-Permission",
+                                "value": "{{password_permission}}",
+                                "type": "text"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/admin/api/apotek_ranap/showdetail/{{category}}/{{no_rawat}}?no_resep={{no_resep}}",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "admin",
+                                "api",
+                                "apotek_ranap",
+                                "showdetail",
+                                "{{category}}",
+                                "{{no_rawat}}"
+                            ],
+                            "query": [
+                                {
+                                    "key": "no_resep",
+                                    "value": "{{no_resep}}"
                                 }
                             ]
                         }
@@ -5205,7 +6884,7 @@
                             ]
                         }
                     }
-                },                
+                },
                 {
                     "name": "Billing List (Rawat Inap)",
                     "request": {
@@ -5385,8 +7064,15 @@
                         },
                         "url": {
                             "raw": "{{baseUrl}}/admin/api/users/save",
-                            "host": ["{{baseUrl}}"],
-                            "path": ["admin", "api", "users", "save"]
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "admin",
+                                "api",
+                                "users",
+                                "save"
+                            ]
                         }
                     },
                     "response": []
@@ -5418,8 +7104,15 @@
                         },
                         "url": {
                             "raw": "{{baseUrl}}/admin/api/users/delete",
-                            "host": ["{{baseUrl}}"],
-                            "path": ["admin", "api", "users", "delete"]
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "admin",
+                                "api",
+                                "users",
+                                "delete"
+                            ]
                         }
                     },
                     "response": []
@@ -5447,8 +7140,15 @@
                         ],
                         "url": {
                             "raw": "{{baseUrl}}/admin/api/settings/settings",
-                            "host": ["{{baseUrl}}"],
-                            "path": ["admin", "api", "settings", "settings"]
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "admin",
+                                "api",
+                                "settings",
+                                "settings"
+                            ]
                         }
                     },
                     "response": []
@@ -5480,11 +7180,118 @@
                         },
                         "url": {
                             "raw": "{{baseUrl}}/admin/api/settings/saveSettings",
-                            "host": ["{{baseUrl}}"],
-                            "path": ["admin", "api", "settings", "saveSettings"]
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "admin",
+                                "api",
+                                "settings",
+                                "saveSettings"
+                            ]
                         }
                     },
                     "response": []
+                }
+            ]
+        },
+        {
+            "name": "Mini PACS",
+            "item": [
+                {
+                    "name": "Study List",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "X-Api-Key",
+                                "value": "{{apiKey}}"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/admin/api/mini_pacs/studylist?page=1&per_page=10&s="
+                        }
+                    }
+                },
+                {
+                    "name": "Study Detail",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "X-Api-Key",
+                                "value": "{{apiKey}}"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/admin/api/mini_pacs/studydetail/{{study_id}}"
+                        }
+                    }
+                },
+                {
+                    "name": "Series Detail",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "X-Api-Key",
+                                "value": "{{apiKey}}"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/admin/api/mini_pacs/seriesdetail/{{series_id}}"
+                        }
+                    }
+                },
+                {
+                    "name": "Download DICOM",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "X-Api-Key",
+                                "value": "{{apiKey}}"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/admin/api/mini_pacs/instancedicom/{{instance_id}}"
+                        }
+                    }
+                },
+                {
+                    "name": "Get Thumbnail",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "X-Api-Key",
+                                "value": "{{apiKey}}"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/admin/api/mini_pacs/instancejpg/{{instance_id}}"
+                        }
+                    }
                 }
             ]
         }

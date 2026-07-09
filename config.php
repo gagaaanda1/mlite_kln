@@ -4,7 +4,8 @@ if (!version_compare(PHP_VERSION, '8.0.0', '>=')) {
     exit("mLITE requires at least <b>PHP 8.0.0</b> (Current: " . PHP_VERSION . ")");
 }
 
-function env(string $key, $default = null) {
+function env(string $key, $default = null)
+{
     return $_ENV[$key] ?? $_SERVER[$key] ?? $default;
 }
 
@@ -25,14 +26,14 @@ if (file_exists(BASE_DIR . '/.env')) {
         }
 
         [$name, $value] = explode('=', $line, 2);
-        $name  = trim($name);
+        $name = trim($name);
         $value = trim($value);
 
         // Hapus tanda kutip jika ada
         $value = trim($value, "\"'");
 
         if (!isset($_ENV[$name]) && !isset($_SERVER[$name])) {
-            $_ENV[$name]    = $value;
+            $_ENV[$name] = $value;
             $_SERVER[$name] = $value;
         }
     }
@@ -46,7 +47,11 @@ if (DBDRIVER == 'sqlite') {
     $db_host = '';
     $db_user = '';
     $db_pass = '';
+<<<<<<< HEAD
     $db_name = BASE_DIR . '';
+=======
+    $db_name = BASE_DIR . '/systems/data/mlite.sdb';
+>>>>>>> 5e591d1d89e2855365b07c6f29b0c22027599484
     $db_port = '';
 } else {
     $db_host = env('MYSQLHOST') ?: 'localhost';
@@ -63,12 +68,12 @@ define('DBPASS', $db_pass);
 define('DBNAME', $db_name);
 
 // URL Webapps
-define('WEBAPPS_URL', 'http://mlite.loc/uploads'); // Sesuaikan http://mlite.loc dengan domain atau IP Address server
+define('WEBAPPS_URL', env('APPURL') ?: 'http://localhost:8000/uploads'); // Sesuaikan http://mlite.loc dengan domain atau IP Address server
 define('WEBAPPS_PATH', BASE_DIR . '/uploads');
 
 // Multi APP
-define('MULTI_APP', false);
-define('MULTI_APP_REDIRECT', '');
+define('MULTI_APP', env('MULTIAPP') ?: 'false');
+define('MULTI_APP_REDIRECT', env('MULTIAPP_REDIRECT') ?: '');
 
 // Admin cat name
 define('ADMIN', 'admin');
@@ -86,7 +91,7 @@ define('UPLOADS', BASE_DIR . '/uploads');
 define('FILE_LOCK', false);
 
 // Basic modules
-define('BASIC_MODULES', serialize([
+define('BASIC_MODULES', json_encode([
     9 => 'settings',
     0 => 'dashboard',
     1 => 'master',
@@ -97,11 +102,11 @@ define('BASIC_MODULES', serialize([
     6 => 'farmasi',
     8 => 'users',
     7 => 'modules',
-   10 => 'wagateway'
+    10 => 'wagateway'
 ]));
 
 // Developer mode
-define('DEV_MODE', true);
+define('DEV_MODE', env('DEVMODE') ?: 'true');
 
 define('JWT_SECRET', 'mlite_secret_key_change_me');
 

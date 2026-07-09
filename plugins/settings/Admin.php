@@ -37,11 +37,16 @@ class Admin extends AdminModule
         ['name' => 'Pembaruan Sistem', 'url' => url([ADMIN, 'settings', 'updates']), 'icon' => 'cubes', 'desc' => 'Pembaruan sistem'],
         ['name' => 'Backup & Restore', 'url' => url([ADMIN, 'settings', 'backuprestore']), 'icon' => 'database', 'desc' => 'Backup dan restore database'],
       ];
-      return $this->draw('manage.html', ['sub_modules' => $sub_modules]);
+      return $this->draw('manage.html', ['sub_modules' => htmlspecialchars_array($sub_modules)]);
     }
 
     public function getGeneral()
     {
+        if ($this->core->getUserInfo('role') != 'admin') {
+            $this->notify('failure', 'Anda tidak memiliki hak akses untuk halaman ini.');
+            redirect(url([ADMIN, 'settings', 'manage']));
+        }
+
         $this->_addHeaderFiles();
         $settings = $this->settings('settings');
         $settings['module_pasien'] = $this->db('mlite_modules')->where('dir', 'pasien')->oneArray();
@@ -103,9 +108,48 @@ class Admin extends AdminModule
         return $this->draw('general.html');
     }
 
+    private function isSafeUrl($url) {
+        $parsed = parse_url($url);
+        if (!$parsed || !isset($parsed['scheme']) || strtolower($parsed['scheme']) !== 'https') {
+            return false;
+        }
+        $host = $parsed['host'] ?? '';
+        $ips = gethostbynamel($host);
+        if (!$ips) {
+            return false;
+        }
+        foreach ($ips as $ip) {
+            if (!filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     public function postSaveGeneral()
     {
         unset($_POST['save']);
+
+        if (!empty($_POST['_b64'])) {
+            unset($_POST['_b64']);
+            $encodedFields = [];
+            if (!empty($_POST['_b64_fields'])) {
+                $decodedFields = json_decode($_POST['_b64_fields'], true);
+                if (is_array($decodedFields)) {
+                    $encodedFields = $decodedFields;
+                }
+            }
+            unset($_POST['_b64_fields']);
+            foreach ($encodedFields as $field) {
+                if (isset($_POST[$field]) && is_string($_POST[$field])) {
+                    $decoded = base64_decode($_POST[$field], true);
+                    if ($decoded !== false) {
+                        $_POST[$field] = $decoded;
+                    }
+                }
+            }
+        }
+
         if (($_logo = isset_or($_FILES['logo']['tmp_name'], false))) {
             $img = new \Systems\Lib\Image;
 
@@ -159,16 +203,29 @@ class Admin extends AdminModule
         if (!$errors) {
 
             $url = "https://mlite.id/datars/save";
-            $curlHandle = curl_init();
-            curl_setopt($curlHandle, CURLOPT_URL, $url);
-            curl_setopt($curlHandle, CURLOPT_POSTFIELDS,"nama_instansi=".$_POST['nama_instansi']."&alamat_instansi=".$_POST['alamat']."&kabupaten=".$_POST['kota']."&propinsi=".$_POST['propinsi']."&kontak=".$_POST['nomor_telepon']."&email=".$_POST['email']);
-            curl_setopt($curlHandle, CURLOPT_HEADER, 0);
-            curl_setopt($curlHandle, CURLOPT_RETURNTRANSFER, 1);
-            curl_setopt($curlHandle, CURLOPT_TIMEOUT,30);
-            curl_setopt($curlHandle, CURLOPT_POST, 1);
-            curl_setopt($curlHandle, CURLOPT_SSL_VERIFYPEER, false);
-            curl_exec($curlHandle);
-            curl_close($curlHandle);
+            // SSRF protection: validate that the URL is strictly the intended public endpoint
+            if ($url === "https://mlite.id/datars/save" && $this->isSafeUrl($url)) {
+                $curlHandle = curl_init();
+                curl_setopt($curlHandle, CURLOPT_URL, $url);
+                curl_setopt($curlHandle, CURLOPT_PROTOCOLS, CURLPROTO_HTTPS);
+                curl_setopt($curlHandle, CURLOPT_REDIR_PROTOCOLS, CURLPROTO_HTTPS);
+                curl_setopt($curlHandle, CURLOPT_FOLLOWLOCATION, false);
+                curl_setopt($curlHandle, CURLOPT_POSTFIELDS, http_build_query([
+                    'nama_instansi'   => $_POST['nama_instansi'],
+                    'alamat_instansi' => $_POST['alamat'],
+                    'kabupaten'       => $_POST['kota'],
+                    'propinsi'        => $_POST['propinsi'],
+                    'kontak'          => $_POST['nomor_telepon'],
+                    'email'           => $_POST['email'],
+                ]));
+                curl_setopt($curlHandle, CURLOPT_HEADER, 0);
+                curl_setopt($curlHandle, CURLOPT_RETURNTRANSFER, 1);
+                curl_setopt($curlHandle, CURLOPT_TIMEOUT,30);
+                curl_setopt($curlHandle, CURLOPT_POST, 1);
+                curl_setopt($curlHandle, CURLOPT_SSL_VERIFYPEER, true);
+                curl_exec($curlHandle);
+                curl_close($curlHandle);
+            }
 
             $this->notify('success', 'Pengaturan berhasil disimpan.');
 
@@ -250,6 +307,12 @@ class Admin extends AdminModule
 
     public function anyUpdates()
     {
+
+        if ($this->core->getUserInfo('role') != 'admin') {
+            $this->notify('failure', 'Anda tidak memiliki hak akses untuk halaman ini.');
+            redirect(url([ADMIN, 'settings', 'manage']));
+        }
+
         $this->tpl->set('allow_curl', intval(function_exists('curl_init')));
         $settings = $this->settings('settings');
 
@@ -779,25 +842,31 @@ class Admin extends AdminModule
 
     public function anyCekDaftar()
     {
-      if(isset($_POST['request_code'])) {
-        $url = "https://mlite.id/datars/aktif";
-        $curlHandle = curl_init();
-        curl_setopt($curlHandle, CURLOPT_URL, $url);
-        curl_setopt($curlHandle, CURLOPT_POSTFIELDS,"email=".$_POST['email']);
-        curl_setopt($curlHandle, CURLOPT_HEADER, 0);
-        curl_setopt($curlHandle, CURLOPT_RETURNTRANSFER, 1);
-        curl_setopt($curlHandle, CURLOPT_TIMEOUT,30);
-        curl_setopt($curlHandle, CURLOPT_POST, 1);
-        curl_setopt($curlHandle, CURLOPT_SSL_VERIFYPEER, false);
-        $response = curl_exec($curlHandle);
-        curl_close($curlHandle);
-        $response = json_decode($response, true);
-        if($response['status'] == 'error') {
-          $this->notify('failure', 'Request kode validasi pendaftaran aplikasi tidak bisa dilakukan. Silahkan simpan dulu pengaturan aplikasi anda. Atau pastikan email request sama dengan email di pengaturan aplikasi.');
-        } else {
-          $this->notify('success', 'Request kode validasi pendaftaran aplikasi sukses. Silahkan cek inbox email / spam folder yang anda daftarkan.');
+        if (isset($_POST['request_code'])) {
+            $url = "https://mlite.id/datars/aktif";
+            // SSRF protection: validate that the URL is strictly the intended public endpoint
+            if ($url === "https://mlite.id/datars/aktif" && $this->isSafeUrl($url)) {
+                $curlHandle = curl_init();
+                curl_setopt($curlHandle, CURLOPT_URL, $url);
+                curl_setopt($curlHandle, CURLOPT_PROTOCOLS, CURLPROTO_HTTPS);
+                curl_setopt($curlHandle, CURLOPT_REDIR_PROTOCOLS, CURLPROTO_HTTPS);
+                curl_setopt($curlHandle, CURLOPT_FOLLOWLOCATION, false);
+                curl_setopt($curlHandle, CURLOPT_POSTFIELDS, "email=" . $_POST['email']);
+                curl_setopt($curlHandle, CURLOPT_HEADER, 0);
+                curl_setopt($curlHandle, CURLOPT_RETURNTRANSFER, 1);
+                curl_setopt($curlHandle, CURLOPT_TIMEOUT, 30);
+                curl_setopt($curlHandle, CURLOPT_POST, 1);
+                curl_setopt($curlHandle, CURLOPT_SSL_VERIFYPEER, true);
+                $response = curl_exec($curlHandle);
+                curl_close($curlHandle);
+                $response = json_decode($response, true);
+                if ($response['status'] == 'error') {
+                    $this->notify('failure', 'Request kode validasi pendaftaran aplikasi tidak bisa dilakukan. Silahkan simpan dulu pengaturan aplikasi anda. Atau pastikan email request sama dengan email di pengaturan aplikasi.');
+                } else {
+                    $this->notify('success', 'Request kode validasi pendaftaran aplikasi sukses. Silahkan cek inbox email / spam folder yang anda daftarkan.');
+                }
+            }
         }
-      }
       return $this->draw('cek.daftar.html');
     }
 
@@ -814,7 +883,7 @@ class Admin extends AdminModule
 
         $backup_files = glob('../backups/*.sql.gz');
         // $backup_files = pathinfo($backup_files);
-        return $this->draw('backup.restore.html', ['databases' => $result, 'files' => $backup_files]);
+        return $this->draw('backup.restore.html', ['databases' => htmlspecialchars_array($result), 'files' => $backup_files]);
     }
 
     public function getBackupDatabase()
@@ -859,6 +928,12 @@ class Admin extends AdminModule
     {
         $file_name = $_GET['filename'];
 
+        // Security: Prevent path traversal
+        if (strpos($file_name, '..') !== false || strpos($file_name, '/') !== false) {
+             $this->notify('failure', 'Invalid filename.');
+             exit();
+        }
+
         define("BACKUP_FILE", $file_name); // Script will autodetect if backup file is gzipped based on .gz extension
         // Report all errors
         error_reporting(E_ALL);
@@ -882,7 +957,16 @@ class Admin extends AdminModule
     public function getDeleteDatabase()
     {
         $file_name = $_GET['filename'];
-        unlink('../backups/' . $file_name);
+
+        // Security: Prevent path traversal
+        if (strpos($file_name, '..') !== false || strpos($file_name, '/') !== false) {
+             $this->notify('failure', 'Invalid filename.');
+             exit();
+        }
+
+        if (file_exists('../backups/' . $file_name)) {
+            unlink('../backups/' . $file_name);
+        }
         exit();
     }
 

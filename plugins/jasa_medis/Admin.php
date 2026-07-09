@@ -22,7 +22,7 @@ class Admin extends AdminModule
             ['name' => 'Jasa Medis', 'url' => url([ADMIN, 'jasa_medis', 'dokter']), 'icon' => 'user-md', 'desc' => 'Laporan remunerasi jasa medis dokter'],
             ['name' => 'Jasa Paramedis', 'url' => url([ADMIN, 'jasa_medis', 'perawat']), 'icon' => 'user', 'desc' => 'Laporan remunerasi jasa paramedis perawat'],
         ];
-        return $this->draw('manage.html', ['sub_modules' => $sub_modules]);
+        return $this->draw('manage.html', ['sub_modules' => htmlspecialchars_array($sub_modules)]);
     }
 
     public function getDokter(){
@@ -81,8 +81,8 @@ class Admin extends AdminModule
         }
         
         return $this->draw('dokter.html', [
-            'jasa_medis' => $this->assign, 
-            'dokter' => $dokter,
+            'jasa_medis' => htmlspecialchars_array($this->assign), 
+            'dokter' => htmlspecialchars_array($dokter),
             'tgl_awal' => $tgl_awal,
             'tgl_akhir' => $tgl_akhir,
             'search' => $search
@@ -145,7 +145,7 @@ class Admin extends AdminModule
         }
         
         return $this->draw('perawat.html', [
-            'jasa_medis' => $this->assign, 
+            'jasa_medis' => htmlspecialchars_array($this->assign), 
             'petugas' => $petugas,
             'tgl_awal' => $tgl_awal,
             'tgl_akhir' => $tgl_akhir,
@@ -179,6 +179,7 @@ class Admin extends AdminModule
             $this->assign['grandtotal'] = 0;
             $this->assign['dokter'] = [];
             foreach($dokter as $row) {
+                $row['nm_dokter'] = htmlspecialchars($row['nm_dokter'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
                 $tgl_perawatan = $this->db('rawat_jl_dr')
                     ->select(['tgl_perawatan'])
                     ->where('kd_dokter', $row['kd_dokter'])
@@ -202,7 +203,8 @@ class Admin extends AdminModule
                         ->where('kd_dokter', $row['kd_dokter'])
                         ->toArray();
                     $row2['subtotal'] = 0;
-                    foreach($row2['detail'] as $row3) {
+                    foreach($row2['detail'] as &$row3) {
+                        $row3['nm_perawatan'] = htmlspecialchars($row3['nm_perawatan'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
                         $row2['subtotal'] += $row3['tarif_tindakandr'];
                     }
                     $row['total'] += $row2['subtotal'];
@@ -213,7 +215,7 @@ class Admin extends AdminModule
                 $this->assign['dokter'][] = $row;
             }
 
-            echo json_encode($this->assign);
+            echo json_encode(htmlspecialchars_array($this->assign));
         }
 
         if ($act=="lihat_perawat") {
@@ -234,6 +236,7 @@ class Admin extends AdminModule
             $this->assign['grandtotal'] = 0;
             $this->assign['petugas'] = [];
             foreach($reg_periksa as $row) {
+                $row['nama'] = htmlspecialchars($row['nama'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
                 $tgl_perawatan = $this->db('rawat_jl_pr')
                     ->select(['tgl_perawatan'])
                     ->where('nip', $row['nip'])
@@ -257,7 +260,8 @@ class Admin extends AdminModule
                         ->where('nip', $row['nip'])
                         ->toArray();
                     $row2['subtotal'] = 0;
-                    foreach($row2['detail'] as $row3) {
+                    foreach($row2['detail'] as &$row3) {
+                        $row3['nm_perawatan'] = htmlspecialchars($row3['nm_perawatan'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
                         $row2['subtotal'] += $row3['tarif_tindakanpr'];
                     }
                     $row['total'] += $row2['subtotal'];
@@ -268,7 +272,7 @@ class Admin extends AdminModule
                 $this->assign['petugas'][] = $row;
             }
 
-            echo json_encode($this->assign);
+            echo json_encode(htmlspecialchars_array($this->assign));
         }
         exit();
     }
