@@ -93,6 +93,7 @@
               <thead>
                 <tr>
                   <th width="20px;">No.</th>
+                  <th width="20px;">ID</th>
                   <th>Nama Barang</th>
                   <th>Jumlah</th>
                   <th>Harga</th>
@@ -102,7 +103,8 @@
               <tbody>
                 {loop: $rincian_penjualan}
                 <tr>
-                  <td>{$value.no}</td>
+                  <th width="20px;">No.</th>
+                  <td>{$value.id}</td>
                   <td>{$value.nama_barang}</td>
                   <td>{$value.jumlah}</td>
                   <td>{$value.harga}</td>

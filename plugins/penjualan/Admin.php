@@ -16,10 +16,7 @@ class Admin extends AdminModule
             'Kelola'   => 'manage',
             'Penjualan' => 'index',
             'Order Baru' => 'order',
-            // 'Penjualan Obat Luar' => 'obatluar',
-            // 'Barang Jualan' => 'barang',
             'Laporan' => 'laporan',
-            // 'Pengaturan' => 'settings'
         ];
     }
 
@@ -28,23 +25,9 @@ class Admin extends AdminModule
       $sub_modules = [
         ['name' => 'Penjualan', 'url' => url([ADMIN, 'penjualan', 'index']), 'icon' => 'money', 'desc' => 'Data Penjualan'],
         ['name' => 'Order Baru', 'url' => url([ADMIN, 'penjualan', 'order']), 'icon' => 'cart-plus', 'desc' => 'Data Penjualan'],
-        // ['name' => 'Penjualan Obat Luar', 'url' => url([ADMIN, 'penjualan', 'obatluar']), 'icon' => 'cart-plus', 'desc' => 'Order Penjualan Obat Luar'],
-        // ['name' => 'Barang Jualan', 'url' => url([ADMIN, 'penjualan', 'barang']), 'icon' => 'money', 'desc' => 'Data Barang Jualan'],
         ['name' => 'Laporan', 'url' => url([ADMIN, 'penjualan', 'laporan']), 'icon' => 'money', 'desc' => 'Laporan Penjualan'],
-        // ['name' => 'Pengaturan', 'url' => url([ADMIN, 'penjualan', 'settings']), 'icon' => 'money', 'desc' => 'Pengaturan Penjualan']
       ];
       return $this->draw('manage.html', ['sub_modules' => htmlspecialchars_array($sub_modules)]);
-    }
-
-    private function _getStokBangsal($jenis = 'umum')
-    {
-        if ($jenis === 'obat_luar') {
-            $stok = $this->settings->get('farmasi.obat_luar_stok');
-            if (!empty($stok) && $stok !== '-') {
-                return $stok;
-            }
-        }
-        return $this->settings->get('farmasi.obatluar');
     }
 
     public function getIndex()
@@ -74,7 +57,7 @@ class Admin extends AdminModule
       if($id_penjualan) {
         $penjualan = $this->db('mlite_penjualan')->where('id', $id_penjualan)->oneArray();
         $rows = $this->db('mlite_penjualan_detail')->where('id_penjualan', $id_penjualan)->toArray();
-        $rows = $this->db('mlite_penjualan_detail')->where('id_penjualan', $id_penjualan)->toArray();
+        // $rows = $this->db('mlite_penjualan_detail')->where('id_penjualan', $id_penjualan)->toArray();
         $no = 1;
         $total_tagihan = 0;
         foreach($rows as $row) {
@@ -118,29 +101,6 @@ class Admin extends AdminModule
         return $this->draw('barang.html', ['barang' => $this->db('mlite_penjualan_barang')->toArray(), 'obat' => htmlspecialchars_array($obat)]);
     }
 
-    public function postSaveBarang()
-    {
-      if($_POST['simpan']) {
-        unset($_POST['simpan']);
-        unset($_POST['id']);
-        $this->db('mlite_penjualan_barang')->save($_POST);
-        $this->notify('success', 'Data barang penjualan telah disimpan');
-      } else if ($_POST['update']) {
-        $id = $_POST['id'];
-        unset($_POST['update']);
-        unset($_POST['id']);
-        $this->db('mlite_penjualan_barang')
-          ->where('id', $id)
-          ->save($_POST);
-        $this->notify('failure', 'Data barang penjualan telah diubah');
-      } else if ($_POST['hapus']) {
-        $this->db('mlite_penjualan_barang')
-          ->where('id', $_POST['id'])
-          ->delete();
-        $this->notify('failure', 'Data barang penjualan telah dihapus');
-      }
-      redirect(url([ADMIN, 'penjualan', 'barang']));
-    }
   
     public function getLaporan()
     {
@@ -170,10 +130,8 @@ class Admin extends AdminModule
         $tanggal = !empty($_POST['tanggal']) ? $_POST['tanggal'] : date('Y-m-d');
         $jam = !empty($_POST['jam']) ? $_POST['jam'] : date('H:i:s');
 
-        $barang = $this->db('mlite_penjualan_barang')->select(['harga' => 'harga'])->where('id', $_POST['id_barang'])->oneArray();
-        if(!$barang) {
-          $barang = $this->db('databarang')->select(['harga' => 'dasar'])->where('kode_brng', $_POST['id_barang'])->oneArray();
-        }
+        $barang = $this->db('databarang')->select(['harga' => 'dasar'])->where('kode_brng', $_POST['id_barang'])->oneArray();
+
         if (empty($barang['harga'])) {
             echo 'ERROR_HARGA';
             exit();
@@ -232,11 +190,11 @@ class Admin extends AdminModule
                 'id_user' => $this->core->getUserInfo('username', null, true), 
                 'keterangan' => $_POST['keterangan']
             ]);
-            $lastInsertID = $this->db()->pdo()->lastInsertId();
+            $lastInsertID = '122';
             if($penjualan) {
                 $detail = $this->db('mlite_penjualan_detail')
                 ->save([
-                    'id_penjualan' => $lastInsertID, 
+                    'id' => $lastInsertID, 
                     'id_barang' => $_POST['id_barang'], 
                     'nama_barang' => $_POST['nama_barang'], 
                     'harga' => $barang['harga'], 
@@ -299,7 +257,7 @@ class Admin extends AdminModule
 
     public function postFormRincianPenjualan()
     {
-        $rows = $this->db('mlite_penjualan_detail')->where('id_penjualan', $_POST['id_penjualan'])->toArray();
+        $rows = $this->db('mlite_penjualan_detail')->where('id', $_POST['id'])->toArray();
         $form_rincian_penjualan = [];
         $total_tagihan = 0;
         foreach($rows as $row) {
@@ -420,7 +378,7 @@ class Admin extends AdminModule
                 }
 
                 $pembeli = $this->db('mlite_penjualan')
-                    ->where('id', $id_penjualan)
+                    ->where('id', $id)
                     ->oneArray();
 
                 /* ===== QR CODE ===== */

@@ -2,6 +2,7 @@
     <thead>
       <tr>
         <th width="20px;">No.</th>
+        <th width="20px;">ID</th>
         <th>Nama Barang</th>
         <th>Jumlah</th>
         <th>Harga</th>
@@ -12,6 +13,7 @@
         {loop: $rincian_penjualan}
         <tr>
             <td>{?=isset_or($value.no)?}</td>
+            <td>{?=isset_or($value.id)?}</td>
             <td>{?=isset_or($value.nama_barang)?}</td>
             <td>{?=isset_or($value.jumlah)?}</td>
             <td>{?=isset_or($value.harga)?}</td>
