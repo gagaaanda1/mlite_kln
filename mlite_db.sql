@@ -1643,6 +1643,36 @@ CREATE TABLE `mlite_billing` (
   PRIMARY KEY (`id_billing`)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4;
 
+CREATE TABLE `mlite_billing_pembayaran` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `no_rawat` varchar(17) NOT NULL,
+  `tgl_bayar` date NOT NULL,
+  `jam_bayar` time NOT NULL,
+  `metode` varchar(30) NOT NULL DEFAULT 'Tunai',
+  `jumlah_bayar` double NOT NULL DEFAULT 0,
+  `id_user` int(11) DEFAULT NULL,
+  `keterangan` varchar(255) DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_billing_pembayaran_rawat` (`no_rawat`),
+  KEY `idx_billing_pembayaran_tgl` (`tgl_bayar`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC;
+
+CREATE TABLE `mlite_billing_pembayaran_detail` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `pembayaran_id` int(11) NOT NULL,
+  `kelompok` varchar(30) NOT NULL,
+  `jumlah_alokasi` double NOT NULL DEFAULT 0,
+  `ref_modul` varchar(30) DEFAULT NULL,
+  `kd_jenis_prw` varchar(15) DEFAULT NULL,
+  `tgl_periksa` date DEFAULT NULL,
+  `jam` time DEFAULT NULL,
+  `status_periksa` varchar(10) DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_billing_pembayaran_detail_pembayaran` (`pembayaran_id`),
+  KEY `idx_billing_pembayaran_detail_kelompok` (`kelompok`),
+  CONSTRAINT `fk_billing_pembayaran_detail_header` FOREIGN KEY (`pembayaran_id`) REFERENCES `mlite_billing_pembayaran` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC;
+
 CREATE TABLE `mlite_bpjs_emr_device` (
   `id` INT NOT NULL AUTO_INCREMENT,
   `device_id` VARCHAR(50) NOT NULL,
@@ -1651,8 +1681,8 @@ CREATE TABLE `mlite_bpjs_emr_device` (
   `kode_produk` VARCHAR(100) DEFAULT NULL,
   `keterangan` TEXT DEFAULT NULL,
   `manufacturer` VARCHAR(255) DEFAULT NULL,
-  'manufacture_date' DATE NOT NULL, 
-  'expiration_date' DATE NOT NULL, 
+  `manufacture_date` DATE DEFAULT NULL, 
+  `expiration_date` DATE DEFAULT NULL, 
   `model` VARCHAR(255) DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `uq_device_id` (`device_id`),
@@ -2060,7 +2090,7 @@ CREATE TABLE `mlite_esignatures` (
   PRIMARY KEY (`id`),
   KEY `ref_idx` (`ref_type`,`ref_id`),
   KEY `hash_idx` (`signature_hash`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC;
 
 
 CREATE TABLE `mlite_geolocation_presensi` (
@@ -2154,6 +2184,28 @@ CREATE TABLE `mlite_login_attempts` (
 INSERT INTO `mlite_login_attempts` VALUES ("127.0.0.1","0","0");
 
 
+CREATE TABLE `mlite_loinc_lab` (
+  `No` int(11) DEFAULT NULL,
+  `Kategori` text,
+  `NamaPemeriksaan` text,
+  `PermintaanHasil` text,
+  `Spesimen` text,
+  `TipeHasilPemeriksaan` text,
+  `Satuan` text,
+  `MetodeAnalisis` text,
+  `Code` varchar(20) NOT NULL,
+  `Display` text,
+  `Component` text,
+  `Property` text,
+  `Timing` text,
+  `System` text,
+  `Scale` text,
+  `Method` text,
+  `UnitOfMeasure` text,
+  `CodeSystem` text,
+  PRIMARY KEY (`Code`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC;
+
 CREATE TABLE `mlite_loinc_radiologi` (
   `No` text,
   `Kategori` text,
@@ -2173,6 +2225,203 @@ CREATE TABLE `mlite_loinc_radiologi` (
   `BodySiteDisplay` text,
   `BodySiteCodeSystem` text,
   PRIMARY KEY (`Code`) USING BTREE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC;
+
+CREATE TABLE `mlite_kfa` (
+  `kode_kfa` varchar(50) NOT NULL,
+  `nama_kfa` text,
+  `kode_bahan` varchar(50) DEFAULT NULL,
+  `nama_bahan` text,
+  `numerator` varchar(10) DEFAULT NULL,
+  `satuan_num` varchar(10) DEFAULT NULL,
+  `denominator` varchar(10) DEFAULT NULL,
+  `satuan_den` varchar(10) DEFAULT NULL,
+  `nama_satuan_den` varchar(10) DEFAULT NULL,
+  `kode_sediaan` varchar(50) DEFAULT NULL,
+  `nama_sediaan` varchar(100) DEFAULT NULL,
+  `type` enum('obat','alkes') NOT NULL DEFAULT 'obat',
+  PRIMARY KEY (`kode_kfa`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC;
+
+
+CREATE TABLE `mlite_clinical_pathway` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `kode_cp` varchar(30) NOT NULL,
+  `nama_cp` varchar(150) NOT NULL,
+  `jenis_layanan` enum('Ralan','Ranap') NOT NULL DEFAULT 'Ranap',
+  `target_los` int(11) NOT NULL DEFAULT 0,
+  `target_tarif` double NOT NULL DEFAULT 0,
+  `confidence_score` decimal(5,2) NOT NULL DEFAULT 0.00,
+  `evidence_note` text,
+  `guideline_note` text,
+  `aktif` enum('Ya','Tidak') NOT NULL DEFAULT 'Ya',
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `kode_cp` (`kode_cp`),
+  KEY `nama_cp` (`nama_cp`),
+  KEY `jenis_layanan` (`jenis_layanan`),
+  KEY `aktif` (`aktif`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC;
+
+
+CREATE TABLE `mlite_clinical_pathway_diagnosis` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `clinical_pathway_id` int(11) NOT NULL,
+  `kd_penyakit` varchar(10) NOT NULL,
+  `prioritas` tinyint(4) NOT NULL DEFAULT 1,
+  `tipe` enum('Utama','Sekunder') NOT NULL DEFAULT 'Utama',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `cp_diagnosis_unique` (`clinical_pathway_id`,`kd_penyakit`,`tipe`),
+  KEY `kd_penyakit` (`kd_penyakit`),
+  CONSTRAINT `fk_cp_diagnosis_cp` FOREIGN KEY (`clinical_pathway_id`) REFERENCES `mlite_clinical_pathway` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `fk_cp_diagnosis_penyakit` FOREIGN KEY (`kd_penyakit`) REFERENCES `penyakit` (`kd_penyakit`) ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC;
+
+
+CREATE TABLE `mlite_clinical_pathway_day` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `clinical_pathway_id` int(11) NOT NULL,
+  `hari_ke` int(11) NOT NULL,
+  `label_hari` varchar(100) DEFAULT NULL,
+  `tujuan_harian` text,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `cp_day_unique` (`clinical_pathway_id`,`hari_ke`),
+  CONSTRAINT `fk_cp_day_cp` FOREIGN KEY (`clinical_pathway_id`) REFERENCES `mlite_clinical_pathway` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC;
+
+
+CREATE TABLE `mlite_clinical_pathway_activity` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `clinical_pathway_day_id` int(11) NOT NULL,
+  `kategori` enum('Assessment','Laboratorium','Radiologi','Obat','Tindakan','Nutrisi','Edukasi','Monitoring','Outcome') NOT NULL,
+  `uraian_kegiatan` varchar(255) DEFAULT NULL,
+  `sumber_tabel` varchar(50) DEFAULT NULL,
+  `item_kode` varchar(50) DEFAULT NULL,
+  `item_nama` varchar(255) NOT NULL,
+  `keterangan` text,
+  `evidence_frequency` int(11) NOT NULL DEFAULT 0,
+  `evidence_percentage` decimal(5,2) NOT NULL DEFAULT 0.00,
+  `evidence_status` enum('Wajib','Direkomendasikan','Opsional') NOT NULL DEFAULT 'Opsional',
+  `wajib` enum('Ya','Tidak') NOT NULL DEFAULT 'Ya',
+  `urutan` int(11) NOT NULL DEFAULT 0,
+  PRIMARY KEY (`id`),
+  KEY `clinical_pathway_day_id` (`clinical_pathway_day_id`),
+  KEY `kategori` (`kategori`),
+  KEY `item_kode` (`item_kode`),
+  CONSTRAINT `fk_cp_activity_day` FOREIGN KEY (`clinical_pathway_day_id`) REFERENCES `mlite_clinical_pathway_day` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC;
+
+
+CREATE TABLE `mlite_clinical_pathway_patient` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `no_rawat` varchar(17) NOT NULL,
+  `clinical_pathway_id` int(11) NOT NULL,
+  `kd_penyakit` varchar(10) DEFAULT NULL,
+  `tanggal_mulai` datetime NOT NULL,
+  `tanggal_selesai` datetime DEFAULT NULL,
+  `status` enum('Draft','Aktif','Selesai','Drop') NOT NULL DEFAULT 'Aktif',
+  `auto_generated` enum('Ya','Tidak') NOT NULL DEFAULT 'Ya',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `no_rawat` (`no_rawat`),
+  KEY `clinical_pathway_id` (`clinical_pathway_id`),
+  KEY `kd_penyakit` (`kd_penyakit`),
+  KEY `status` (`status`),
+  CONSTRAINT `fk_cp_patient_reg` FOREIGN KEY (`no_rawat`) REFERENCES `reg_periksa` (`no_rawat`) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `fk_cp_patient_cp` FOREIGN KEY (`clinical_pathway_id`) REFERENCES `mlite_clinical_pathway` (`id`) ON UPDATE CASCADE,
+  CONSTRAINT `fk_cp_patient_penyakit` FOREIGN KEY (`kd_penyakit`) REFERENCES `penyakit` (`kd_penyakit`) ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC;
+
+
+CREATE TABLE `mlite_clinical_pathway_execution` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `clinical_pathway_patient_id` int(11) NOT NULL,
+  `clinical_pathway_activity_id` int(11) NOT NULL,
+  `hari_ke` int(11) NOT NULL,
+  `tanggal_rencana` date DEFAULT NULL,
+  `tanggal_realisasi` datetime DEFAULT NULL,
+  `status` enum('Planned','Completed','Missed','Variance') NOT NULL DEFAULT 'Planned',
+  `sumber_data` varchar(50) DEFAULT NULL,
+  `sumber_referensi` varchar(100) DEFAULT NULL,
+  `petugas` varchar(20) DEFAULT NULL,
+  `catatan` text,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `cp_exec_unique` (`clinical_pathway_patient_id`,`clinical_pathway_activity_id`,`hari_ke`),
+  KEY `clinical_pathway_activity_id` (`clinical_pathway_activity_id`),
+  KEY `status` (`status`),
+  KEY `tanggal_rencana` (`tanggal_rencana`),
+  CONSTRAINT `fk_cp_execution_patient` FOREIGN KEY (`clinical_pathway_patient_id`) REFERENCES `mlite_clinical_pathway_patient` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `fk_cp_execution_activity` FOREIGN KEY (`clinical_pathway_activity_id`) REFERENCES `mlite_clinical_pathway_activity` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC;
+
+
+CREATE TABLE `mlite_clinical_pathway_variance` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `clinical_pathway_patient_id` int(11) NOT NULL,
+  `clinical_pathway_execution_id` int(11) DEFAULT NULL,
+  `kategori_variance` enum('Diagnosis','LOS','Obat','Tindakan','Lab','Radiologi','Nutrisi','Edukasi','Outcome','Administrasi') NOT NULL,
+  `penyebab` varchar(255) DEFAULT NULL,
+  `deskripsi` text NOT NULL,
+  `severity` enum('Rendah','Sedang','Tinggi') NOT NULL DEFAULT 'Sedang',
+  `tanggal_variance` datetime NOT NULL,
+  `status_tindak_lanjut` enum('Open','Closed') NOT NULL DEFAULT 'Open',
+  PRIMARY KEY (`id`),
+  KEY `clinical_pathway_patient_id` (`clinical_pathway_patient_id`),
+  KEY `clinical_pathway_execution_id` (`clinical_pathway_execution_id`),
+  KEY `kategori_variance` (`kategori_variance`),
+  CONSTRAINT `fk_cp_variance_patient` FOREIGN KEY (`clinical_pathway_patient_id`) REFERENCES `mlite_clinical_pathway_patient` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `fk_cp_variance_execution` FOREIGN KEY (`clinical_pathway_execution_id`) REFERENCES `mlite_clinical_pathway_execution` (`id`) ON DELETE SET NULL ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC;
+
+
+CREATE TABLE `mlite_clinical_pathway_compliance` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `clinical_pathway_patient_id` int(11) NOT NULL,
+  `planned_activity` int(11) NOT NULL DEFAULT 0,
+  `completed_activity` int(11) NOT NULL DEFAULT 0,
+  `missed_activity` int(11) NOT NULL DEFAULT 0,
+  `compliance_percentage` decimal(5,2) NOT NULL DEFAULT 0.00,
+  `kategori_kepatuhan` enum('Sangat Patuh','Patuh','Kurang Patuh','Tidak Patuh') NOT NULL DEFAULT 'Tidak Patuh',
+  `last_calculated_at` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `clinical_pathway_patient_id` (`clinical_pathway_patient_id`),
+  CONSTRAINT `fk_cp_compliance_patient` FOREIGN KEY (`clinical_pathway_patient_id`) REFERENCES `mlite_clinical_pathway_patient` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC;
+
+
+CREATE TABLE `mlite_clinical_pathway_audit` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `clinical_pathway_patient_id` int(11) DEFAULT NULL,
+  `clinical_pathway_id` int(11) DEFAULT NULL,
+  `aksi` varchar(100) NOT NULL,
+  `referensi` varchar(100) DEFAULT NULL,
+  `deskripsi` text,
+  `user_aksi` varchar(50) DEFAULT NULL,
+  `created_at` datetime NOT NULL,
+  PRIMARY KEY (`id`),
+  KEY `clinical_pathway_patient_id` (`clinical_pathway_patient_id`),
+  KEY `clinical_pathway_id` (`clinical_pathway_id`),
+  KEY `aksi` (`aksi`),
+  CONSTRAINT `fk_cp_audit_patient` FOREIGN KEY (`clinical_pathway_patient_id`) REFERENCES `mlite_clinical_pathway_patient` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
+  CONSTRAINT `fk_cp_audit_cp` FOREIGN KEY (`clinical_pathway_id`) REFERENCES `mlite_clinical_pathway` (`id`) ON DELETE SET NULL ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC;
+
+
+CREATE TABLE `mlite_clinical_pathway_cppt_template` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `kd_penyakit` varchar(10) NOT NULL,
+  `ppra` varchar(100) NOT NULL,
+  `subjective` text NOT NULL,
+  `objective` text NOT NULL,
+  `assessment` text NOT NULL,
+  `plan` text NOT NULL,
+  `aktif` enum('Ya','Tidak') NOT NULL DEFAULT 'Ya',
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `cppt_template_kd_penyakit_ppra` (`kd_penyakit`,`ppra`),
+  KEY `cppt_template_aktif` (`aktif`),
+  CONSTRAINT `fk_cppt_template_penyakit` FOREIGN KEY (`kd_penyakit`) REFERENCES `penyakit` (`kd_penyakit`) ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC;
 
 
@@ -2760,7 +3009,7 @@ CREATE TABLE `mlite_sertisign_webhook` (
   PRIMARY KEY (`id`),
   KEY `transaction_idx` (`transaction_id`),
   KEY `status_idx` (`status`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC;
 
 
 CREATE TABLE `mlite_mapping_snomed_icd` (
@@ -2797,7 +3046,7 @@ CREATE TABLE `mlite_settings` (
   `value` TEXT NOT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `module` (`module`,`field`)
-) ENGINE=MyISAM AUTO_INCREMENT=217 DEFAULT CHARSET=utf8mb4;
+) ENGINE=MyISAM AUTO_INCREMENT=221 DEFAULT CHARSET=utf8mb4;
 
 
 INSERT INTO `mlite_settings` VALUES ("1","settings","logo","uploads/settings/logo.png"),
@@ -2833,7 +3082,7 @@ INSERT INTO `mlite_settings` VALUES ("1","settings","logo","uploads/settings/log
 ("31","settings","admin_mode","complex"),
 ("32","settings","input_kasir","tidak"),
 ("33","settings","editor","wysiwyg"),
-("34","settings","version","6.3.1"),
+("34","settings","version","6.3.4"),
 ("35","settings","update_check",""),
 ("36","settings","update_changelog",""),
 ("37","settings","update_version","0"),
@@ -2999,7 +3248,6 @@ INSERT INTO `mlite_settings` VALUES ("1","settings","logo","uploads/settings/log
 ("201","satu_sehat","praktisiapotek",""),
 ("202","satu_sehat","praktisilab",""),
 ("203","satu_sehat","praktisirad",""),
-("204","satu_sehat","api_openai",""),
 ("205","sertisign","api_host","https://api-stag.sertisign.id/"),
 ("206","sertisign","api_key",""),
 ("207","veronisa","username",""),
@@ -3013,7 +3261,9 @@ INSERT INTO `mlite_settings` VALUES ("1","settings","logo","uploads/settings/log
 ("215","settings","login_otp", "tidak"),
 ("216","keuangan","akun_debet_kas","1101"),
 ("217","bpjs_emr","kecamatan",""),
-("218","satu_sehat","imaging","");
+("218","satu_sehat","imaging",""),
+("219","farmasi","pajak_obat_persen","0"),
+("220","settings","billing_parsial","false");
 
 
 CREATE TABLE `mlite_subrekening` (
@@ -3025,6 +3275,14 @@ CREATE TABLE `mlite_subrekening` (
   CONSTRAINT `mlite_subrekening_ibfk_2` FOREIGN KEY (`kd_rek2`) REFERENCES `mlite_rekening` (`kd_rek`) ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC;
 
+
+CREATE TABLE `mlite_snomed` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `kode` varchar(20) NOT NULL,
+  `istilah` text NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `kode` (`kode`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC;
 
 CREATE TABLE `mlite_surat_rujukan` (
   `id` int NOT NULL AUTO_INCREMENT,

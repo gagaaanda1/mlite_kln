@@ -105,8 +105,8 @@ define('BASIC_MODULES', json_encode([
     10 => 'wagateway'
 ]));
 
-// Developer mode
-define('DEV_MODE', env('DEVMODE') ?: 'true');
+// Developer mode, mendukung `DEV_MODE` dan key lama `DEVMODE` di .env
+define('DEV_MODE', filter_var(env('DEV_MODE', env('DEVMODE', true)), FILTER_VALIDATE_BOOLEAN));
 
 define('JWT_SECRET', 'mlite_secret_key_change_me');
 
