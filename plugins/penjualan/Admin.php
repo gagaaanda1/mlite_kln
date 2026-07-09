@@ -16,8 +16,9 @@ class Admin extends AdminModule
             'Kelola'   => 'manage',
             'Penjualan' => 'index',
             'Order Baru' => 'order',
-            'Barang Jualan' => 'barang',
-            // 'Laporan' => 'laporan',
+            // 'Penjualan Obat Luar' => 'obatluar',
+            // 'Barang Jualan' => 'barang',
+            'Laporan' => 'laporan',
             // 'Pengaturan' => 'settings'
         ];
     }
@@ -27,11 +28,23 @@ class Admin extends AdminModule
       $sub_modules = [
         ['name' => 'Penjualan', 'url' => url([ADMIN, 'penjualan', 'index']), 'icon' => 'money', 'desc' => 'Data Penjualan'],
         ['name' => 'Order Baru', 'url' => url([ADMIN, 'penjualan', 'order']), 'icon' => 'cart-plus', 'desc' => 'Data Penjualan'],
-        ['name' => 'Barang Jualan', 'url' => url([ADMIN, 'penjualan', 'barang']), 'icon' => 'money', 'desc' => 'Data Barang Jualan'],
-        // ['name' => 'Laporan', 'url' => url([ADMIN, 'penjualan', 'laporan']), 'icon' => 'money', 'desc' => 'Laporan Penjualan'],
+        // ['name' => 'Penjualan Obat Luar', 'url' => url([ADMIN, 'penjualan', 'obatluar']), 'icon' => 'cart-plus', 'desc' => 'Order Penjualan Obat Luar'],
+        // ['name' => 'Barang Jualan', 'url' => url([ADMIN, 'penjualan', 'barang']), 'icon' => 'money', 'desc' => 'Data Barang Jualan'],
+        ['name' => 'Laporan', 'url' => url([ADMIN, 'penjualan', 'laporan']), 'icon' => 'money', 'desc' => 'Laporan Penjualan'],
         // ['name' => 'Pengaturan', 'url' => url([ADMIN, 'penjualan', 'settings']), 'icon' => 'money', 'desc' => 'Pengaturan Penjualan']
       ];
       return $this->draw('manage.html', ['sub_modules' => $sub_modules]);
+    }
+
+    private function _getStokBangsal($jenis = 'umum')
+    {
+        if ($jenis === 'obat_luar') {
+            $stok = $this->settings->get('farmasi.obat_luar_stok');
+            if (!empty($stok) && $stok !== '-') {
+                return $stok;
+            }
+        }
+        return $this->settings->get('farmasi.obatluar');
     }
 
     public function getIndex()
@@ -76,7 +89,7 @@ class Admin extends AdminModule
         'stok' => 'gudangbarang.stok', 
         'harga' => 'databarang.dasar'
       ])
-      ->where('kd_bangsal', $this->settings->get('farmasi.deporalan'))
+      ->where('kd_bangsal', $this->settings->get('farmasi.obatluar'))
       ->toArray();
       $barang = $this->db('mlite_penjualan_barang')
       ->select([
@@ -99,7 +112,7 @@ class Admin extends AdminModule
           'stok' => 'gudangbarang.stok', 
           'harga' => 'databarang.dasar'
         ])
-        ->where('kd_bangsal', $this->settings->get('farmasi.deporalan'))
+        ->where('kd_bangsal', $this->settings->get('farmasi.obatluar'))
         ->toArray();        
         return $this->draw('barang.html', ['barang' => $this->db('mlite_penjualan_barang')->toArray(), 'obat' => $obat]);
     }
@@ -140,10 +153,24 @@ class Admin extends AdminModule
 
     public function postSimpanPenjualan()
     {
+        if (empty($_POST['id_barang'])) {
+            echo 'ERROR_BARANG';
+            exit();
+        }
+        if (empty($_POST['jumlah']) || !is_numeric($_POST['jumlah']) || intval($_POST['jumlah']) <= 0) {
+            echo 'ERROR_JUMLAH';
+            exit();
+        }
+
         $barang = $this->db('mlite_penjualan_barang')->select(['harga' => 'harga'])->where('id', $_POST['id_barang'])->oneArray();
         if(!$barang) {
           $barang = $this->db('databarang')->select(['harga' => 'dasar'])->where('kode_brng', $_POST['id_barang'])->oneArray();
         }
+        if (empty($barang['harga'])) {
+            echo 'ERROR_HARGA';
+            exit();
+        }
+
         $harga_total = $barang['harga'] * $_POST['jumlah'];
         if(isset($_POST['id']) && $_POST['id'] !='') {
             $detail = $this->db('mlite_penjualan_detail')
@@ -164,8 +191,8 @@ class Admin extends AdminModule
                 if($mlite_penjualan_barang) {
                   $this->db('mlite_penjualan_barang')->where('id', $_POST['id_barang'])->update(['stok' => $mlite_penjualan_barang['stok'] - $_POST['jumlah']]);
                 } else {
-                  $gudangbarang = $this->db('gudangbarang')->where('kode_brng', $_POST['id_barang'])->where('kd_bangsal', $this->settings->get('farmasi.deporalan'))->oneArray();
-                  $this->db('gudangbarang')->where('kode_brng', $_POST['id_barang'])->where('kd_bangsal', $this->settings->get('farmasi.deporalan'))->update(['stok' => $gudangbarang['stok'] - $_POST['jumlah']]);
+                  $gudangbarang = $this->db('gudangbarang')->where('kode_brng', $_POST['id_barang'])->where('kd_bangsal', $this->settings->get('farmasi.obatluar'))->oneArray();
+                  $this->db('gudangbarang')->where('kode_brng', $_POST['id_barang'])->where('kd_bangsal', $this->settings->get('farmasi.obatluar'))->update(['stok' => $gudangbarang['stok'] - $_POST['jumlah']]);
                   $this->db('riwayat_barang_medis')
                     ->save([
                       'kode_brng' => $_POST['id_barang'],
@@ -177,7 +204,7 @@ class Admin extends AdminModule
                       'tanggal' => date('Y-m-d'),
                       'jam' => date('H:i:s'),
                       'petugas' => $this->core->getUserInfo('fullname', null, true),
-                      'kd_bangsal' => $this->settings->get('farmasi.deporalan'),
+                      'kd_bangsal' => $this->settings->get('farmasi.obatluar'),
                       'status' => 'Simpan',
                       'no_batch' => $gudangbarang['no_batch'],
                       'no_faktur' => $gudangbarang['no_faktur'],
@@ -217,8 +244,8 @@ class Admin extends AdminModule
                     if($mlite_penjualan_barang) {
                       $this->db('mlite_penjualan_barang')->where('id', $_POST['id_barang'])->update(['stok' => $mlite_penjualan_barang['stok'] - $_POST['jumlah']]);
                     } else {
-                      $gudangbarang = $this->db('gudangbarang')->where('kode_brng', $_POST['id_barang'])->where('kd_bangsal', $this->settings->get('farmasi.deporalan'))->oneArray();
-                      $this->db('gudangbarang')->where('kode_brng', $_POST['id_barang'])->where('kd_bangsal', $this->settings->get('farmasi.deporalan'))->update(['stok' => $gudangbarang['stok'] - $_POST['jumlah']]);
+                      $gudangbarang = $this->db('gudangbarang')->where('kode_brng', $_POST['id_barang'])->where('kd_bangsal', $this->settings->get('farmasi.obatluar'))->oneArray();
+                      $this->db('gudangbarang')->where('kode_brng', $_POST['id_barang'])->where('kd_bangsal', $this->settings->get('farmasi.obatluar'))->update(['stok' => $gudangbarang['stok'] - $_POST['jumlah']]);
                       $this->db('riwayat_barang_medis')
                         ->save([
                           'kode_brng' => $_POST['id_barang'],
@@ -230,7 +257,7 @@ class Admin extends AdminModule
                           'tanggal' => date('Y-m-d'),
                           'jam' => date('H:i:s'),
                           'petugas' => $this->core->getUserInfo('fullname', null, true),
-                          'kd_bangsal' => $this->settings->get('farmasi.deporalan'),
+                          'kd_bangsal' => $this->settings->get('farmasi.obatluar'),
                           'status' => 'Simpan',
                           'no_batch' => $gudangbarang['no_batch'],
                           'no_faktur' => $gudangbarang['no_faktur'],
