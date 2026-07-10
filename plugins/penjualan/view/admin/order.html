@@ -7,15 +7,12 @@
         </div>
         <div class="panel-body">
           <div class="form-horizontal" id="form_penjualan">
-            <input type="hidden" name="id" value="{?=isset_or($id_penjualan)?}">
+            <input type="hidden" name="id" value="{?=empty($id_penjualan) ? '' : $id_penjualan ?}">
             <input type="hidden" name="jam" value="{?=date('H:i:s')?}">
             <div class="form-group">
               <label for="" class="col-sm-3 control-label">ID Penjualan</label>
               <div class="col-sm-4">
-                <div class="input-group" style="width: 100%">
-                  <input type="text" id="id" name="id" placeholder="ID" class="form-control" value="{$id_penjualan}" {if: !empty($mlite_penjualan_barang.id)}disabled{/if}>
-                  <span class="input-group-addon"><input type="checkbox" name="manual" id="norm_manual"></span>
-                </div>
+                <input type="text" id="id_penjualan_tampil" class="form-control" value="#{?=isset_or($id_penjualan_tampil)?}" readonly>
               </div>
               <label for="" class="col-sm-1 control-label">Tanggal</label>
               <div class="col-sm-4">
@@ -55,8 +52,6 @@
                 <select class="form-control" id="barang" name="id_barang">
                   <option value="">Select</option>
                   {loop: $barang}
-                  <option value="{$value.id}" data-subtitle="{$value.harga}" data-right="{$value.stok}">
-                    {$value.nama_barang}</option>
                   <option value="{?=isset_or($value.id)?}" data-subtitle="{?=isset_or($value.harga)?}" data-right="{?=isset_or($value.stok)?}">{?=isset_or($value.nama_barang)?}</option>
                   {/loop}
                 </select>
@@ -85,7 +80,7 @@
     <div class="col-md-6">
       <div class="panel panel-default">
         <div class="panel-heading">
-          <h3 class="panel-title">Rincian Penjualan</h3>
+          <h3 class="panel-title">Rincian Penjualan <small id="rincian_id_penjualan_label" style="font-weight:normal;">{if: $id_penjualan}(ID Penjualan #{?=isset_or($id_penjualan)?}){/if}</small></h3>
         </div>
         <div class="panel-body">
           <div class="table-responsive no-margin" id="rincian_penjualan">
@@ -93,7 +88,7 @@
               <thead>
                 <tr>
                   <th width="20px;">No.</th>
-                  <th width="20px;">ID</th>
+                  <th width="20px;">ID Item</th>
                   <th>Nama Barang</th>
                   <th>Jumlah</th>
                   <th>Harga</th>
@@ -103,24 +98,14 @@
               <tbody>
                 {loop: $rincian_penjualan}
                 <tr>
-                  <th width="20px;">No.</th>
-                  <td>{$value.id}</td>
-                  <td>{$value.nama_barang}</td>
-                  <td>{$value.jumlah}</td>
-                  <td>{$value.harga}</td>
-                  <td><button class="btn btn-xs btn-danger hapus_rincian_penjualan" data-id="{$value.id}"><i
-                        class="fa fa-trash"></i></button></td>
+                  <td>{?=isset_or($value.no)?}</td>
+                  <td>{?=isset_or($value.id)?}</td>
+                  <td>{?=isset_or($value.nama_barang)?}</td>
+                  <td>{?=isset_or($value.jumlah)?}</td>
+                  <td>{?=isset_or($value.harga)?}</td>
+                  <td><button class="btn btn-xs btn-danger hapus_rincian_penjualan" data-id="{?=isset_or($value.id)?}"><i class="fa fa-trash"></i></button></td>
                 </tr>
                 {/loop}
-                  {loop: $rincian_penjualan}
-                  <tr>
-                      <td>{?=isset_or($value.no)?}</td>
-                      <td>{?=isset_or($value.nama_barang)?}</td>
-                      <td>{?=isset_or($value.jumlah)?}</td>
-                      <td>{?=isset_or($value.harga)?}</td>
-                      <td><button class="btn btn-xs btn-danger hapus_rincian_penjualan" data-id="{?=isset_or($value.id)?}"><i class="fa fa-trash"></i></button></td>
-                  </tr>
-                  {/loop}
               </tbody>
             </table>
           </div>
@@ -187,14 +172,14 @@
                 </div>
               </div>
               <div class="pull-right">
-                <button type="button" name="button" class="btn btn-success" id="simpan_billing_penjualan"><span
-                    class="fa fa-save"></span><span class="hidden-xs"> Simpan</span></button>
+                <button type="button" name="button" class="btn btn-success" id="bayar_billing_penjualan"><span
+                    class="fa fa-money"></span><span class="hidden-xs"> Bayar</span></button>
                 <button type="button" name="button" class="btn btn-primary" id="cetak_billing_kecil_penjualan"><span
                     class="fa fa-file-o"></span><span class="hidden-xs"> Nota</span></button>
                 <button type="button" name="button" class="btn btn-info" id="cetak_billing_penjualan"><span
                     class="fa fa-file"></span><span class="hidden-xs"> Invoice</span></button>
-                <a href="{?=url([ADMIN, 'penjualan', 'order'])?}" class="btn btn-warning"><span
-                    class="fa fa-check"></span><span class="hidden-xs"> Selesai</span></a>
+                <button type="button" name="button" class="btn btn-warning" id="selesai_billing_penjualan"><span
+                    class="fa fa-check"></span><span class="hidden-xs"> Selesai</span></button>
               </div>
             </div>
           </div>
@@ -240,7 +225,7 @@
     var nomor_telepon = $('input:text[name=nomor_telepon]').val();
     var email = $('input:text[name=email]').val();
     var tanggal = $('input:text[name=tanggal]').val();
-    var jam = $('input:text[name=jam]').val();
+    var jam = $('input:hidden[name=jam]').val();
     var id_barang = $('#barang').val();
     var nama_barang = $('#barang option:selected').text();
     var jumlah = $('input:text[name=jumlah]').val();
@@ -268,24 +253,24 @@
       jumlah: jumlah,
       keterangan: keterangan
     }, function (data) {
-      // console.log(data);
-      $('input:hidden[name=id]').val(data);
-      // tampilkan data
+      var id_penjualan_baru = $.trim(data);
+      $('input:hidden[name=id]').val(id_penjualan_baru);
+      $('#id_penjualan_tampil').val('#' + id_penjualan_baru);
+      $('#rincian_id_penjualan_label')
+          .text('(ID Penjualan #' + id_penjualan_baru + ')');
+
       var url = baseURL + '/penjualan/rincianpenjualan?t=' + mlite.token;
-      $.post(url, {
-        id_penjualan: data,
-      }, function (data) {
-        // console.log(data);
-        // tampilkan data
-        $("#rincian_penjualan").html(data).show();
+      $.post(url,{
+          id:id_penjualan_baru
+      },function(data){
+          $("#rincian_penjualan").html(data);
       });
-      var url = baseURL + '/penjualan/formrincianpenjualan?t=' + mlite.token;
-      $.post(url, {
-        id_penjualan: data,
-      }, function (data) {
-        // console.log(data);
-        // tampilkan data
-        $("#form_rincian_penjualan").html(data).show();
+
+      url = baseURL + '/penjualan/formrincianpenjualan?t=' + mlite.token;
+      $.post(url,{
+          id:id_penjualan_baru
+      },function(data){
+          $("#form_rincian_penjualan").html(data);
       });
     });
   });
@@ -308,7 +293,10 @@
     });
   });
 
-  $("#form_rincian_penjualan").on("click", "#simpan_billing_penjualan", function (event) {
+  // Tombol BAYAR: hanya bisa dipakai jika pembayaran sudah lunas (jumlah_bayar >= jumlah_harus_bayar).
+  // Setelah berhasil disimpan dengan status "Sudah Bayar", form otomatis reset ke Order Baru
+  // dengan ID Penjualan berikutnya.
+  $("#form_rincian_penjualan").on("click", "#bayar_billing_penjualan", function (event) {
     var baseURL = mlite.url + '/' + mlite.admin;
     event.preventDefault();
     var id = $('input:hidden[name=id]').val();
@@ -317,46 +305,100 @@
     var jumlah_harus_bayar = $('input:text[name=jumlah_harus_bayar]').val();
     var jumlah_bayar = $('input:text[name=jumlah_bayar]').val();
     var tanggal = $('#tanggal').val();
-    var jam = $('#jam').val();
+    var jam = $('input:hidden[name=jam]').val();
+    var keterangan_val = $('#keterangan').val();
 
-    // alert(id + ' - ' + jumlah_total + ' - ' + potongan_faktur + ' - ' + jumlah_harus_bayar + ' - ' + jumlah_bayar + ' - ' + tanggal + ' - ' + jam);
+    if (!id) {
+      bootbox.alert('Silahkan masukkan minimal 1 rincian barang terlebih dahulu.');
+      return;
+    }
 
     if (potongan_faktur == "") {
-      alert("potongan belum diisi ");
+      bootbox.alert("Potongan belum diisi.");
       $('input:text[name=potongan_faktur]').focus();
       return;
     }
 
-    var keterangan_val = $('#keterangan').val();
-    if (keterangan_val != 'Tunai' && Number(jumlah_bayar) < Number(jumlah_harus_bayar)) {
-      alert("Jumlah bayar masih kurang ! ");
+    if (keterangan_val == 'Belum Bayar') {
+      bootbox.alert('Cara bayar tidak boleh "Belum Bayar" saat menekan tombol Bayar. Pilih Tunai / Kurang Bayar, atau gunakan tombol Selesai jika belum dibayar.');
+      return;
+    }
+
+    if (Number(jumlah_bayar) < Number(jumlah_harus_bayar)) {
+      bootbox.alert("Jumlah bayar masih kurang, pembayaran belum bisa diselesaikan!");
       $('input:text[name=jumlah_bayar]').focus();
       return;
     }
 
     // tampilkan dialog konfirmasi
-    bootbox.confirm("Apakah data faktur sudah sesuai?", function (result) {
-      // ketika ditekan tombol ok
-      if (result) {
-        // mengirimkan perintah penghapusan
-        var url = baseURL + '/penjualan/simpanbilling?t=' + mlite.token;
-        $.post(url, {
-          id_penjualan: id,
-          jumlah_total: jumlah_total,
-          potongan: potongan_faktur,
-          tanggal: tanggal,
-          jam: jam,
-          jumlah_harus_bayar: jumlah_harus_bayar,
-          jumlah_bayar: jumlah_bayar
-        }, function (data) {
-          $('#notif').html("<div class=\"alert alert-success alert-dismissible fade in\" role=\"alert\" style=\"border-radius:0px;margin-top:-15px;\">" +
-            "Data rincian penjualan telah disimpan!" +
-            "<button type=\"button\" class=\"close\" data-dismiss=\"alert\" aria-label=\"Close\">&times;</button>" +
-            "</div>").show();
-        });
-      }
-    });
+    bootbox.confirm("Apakah data faktur sudah sesuai dan ingin menyelesaikan pembayaran?", function (result) {
+      if (!result) { return; }
 
+      var url = baseURL + '/penjualan/simpanbilling?t=' + mlite.token;
+      $.post(url, {
+        id_penjualan: id,
+        jumlah_total: jumlah_total,
+        potongan: potongan_faktur,
+        tanggal: tanggal,
+        jam: jam,
+        jumlah_harus_bayar: jumlah_harus_bayar,
+        jumlah_bayar: jumlah_bayar,
+        keterangan: keterangan_val
+      }, function (data) {
+        var res = {};
+        try { res = JSON.parse(data); } catch (e) { res = {}; }
+
+        if (res.status == 'OK') {
+          bootbox.alert("Pembayaran berhasil disimpan. Melanjutkan ke Order Baru...", function () {
+            window.location.href = baseURL + '/penjualan/order';
+          });
+        } else {
+          bootbox.alert("Gagal menyimpan data pembayaran, silahkan coba lagi.");
+        }
+      });
+    });
+  });
+
+  // Tombol SELESAI: menyimpan data penjualan dengan status "Belum Bayar" tanpa syarat lunas,
+  // lalu tetap lanjut ke Order Baru dengan ID Penjualan berikutnya.
+  $("#form_rincian_penjualan").on("click", "#selesai_billing_penjualan", function (event) {
+    var baseURL = mlite.url + '/' + mlite.admin;
+    event.preventDefault();
+    var id = $('input:hidden[name=id]').val();
+
+    if (!id) {
+      // belum ada rincian barang yang disimpan, langsung ke order baru
+      window.location.href = baseURL + '/penjualan/order';
+      return;
+    }
+
+    var jumlah_total = $('input:text[name=jumlah_total]').val();
+    var potongan_faktur = $('input:text[name=potongan_faktur]').val();
+    var jumlah_harus_bayar = $('input:text[name=jumlah_harus_bayar]').val();
+    var jumlah_bayar = $('input:text[name=jumlah_bayar]').val();
+    var tanggal = $('#tanggal').val();
+    var jam = $('input:hidden[name=jam]').val();
+
+    if (potongan_faktur === "" || potongan_faktur === undefined) { potongan_faktur = 0; }
+    if (jumlah_bayar === "" || jumlah_bayar === undefined) { jumlah_bayar = 0; }
+
+    bootbox.confirm("Selesaikan order ini dengan status Belum Bayar?", function (result) {
+      if (!result) { return; }
+
+      var url = baseURL + '/penjualan/simpanbilling?t=' + mlite.token;
+      $.post(url, {
+        id_penjualan: id,
+        jumlah_total: jumlah_total,
+        potongan: potongan_faktur,
+        tanggal: tanggal,
+        jam: jam,
+        jumlah_harus_bayar: jumlah_harus_bayar,
+        jumlah_bayar: jumlah_bayar,
+        keterangan: 'Belum Bayar'
+      }, function (data) {
+        window.location.href = baseURL + '/penjualan/order';
+      });
+    });
   });
 
   // ketika inputbox potongan faktur diisi

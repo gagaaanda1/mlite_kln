@@ -33,19 +33,58 @@ class Admin extends AdminModule
     public function getIndex()
     {
         $this->_addHeaderFiles();
-        $rows = $this->db('mlite_penjualan')->toArray();
+
+        $tanggal_awal  = isset($_GET['tanggal_awal'])  ? $_GET['tanggal_awal']  : '';
+        $tanggal_akhir = isset($_GET['tanggal_akhir']) ? $_GET['tanggal_akhir'] : '';
+        $status_filter = isset($_GET['status'])        ? $_GET['status']        : '';
+
+        $rows = $this->db('mlite_penjualan')->desc('id')->toArray();
+
         $penjualan = [];
         $no = 1;
         foreach($rows as $row) {
-            $row['no'] = $no++;
-            $mlite_penjualan_billing = $this->db('mlite_penjualan_billing')->where('id_penjualan', $row['id'])->oneArray();
-            $row['total'] = 'Belum Bayar';
-            if(!empty($mlite_penjualan_billing['jumlah_bayar'])) {
-                $row['total'] = $mlite_penjualan_billing['jumlah_bayar'];
+
+            // filter tanggal (dari - sampai)
+            if ($tanggal_awal !== '' && $row['tanggal'] < $tanggal_awal) {
+                continue;
             }
+            if ($tanggal_akhir !== '' && $row['tanggal'] > $tanggal_akhir) {
+                continue;
+            }
+
+            $mlite_penjualan_billing = $this->db('mlite_penjualan_billing')->where('id_penjualan', $row['id'])->desc('id')->oneArray();
+
+            $row['total'] = 'Belum Bayar';
+            $row['keterangan_bayar'] = 'Belum Bayar';
+
+            if (!empty($mlite_penjualan_billing)) {
+                if (!empty($mlite_penjualan_billing['keterangan'])) {
+                    $row['keterangan_bayar'] = $mlite_penjualan_billing['keterangan'];
+                } elseif (!empty($mlite_penjualan_billing['jumlah_bayar'])) {
+                    $row['keterangan_bayar'] = 'Sudah Bayar';
+                }
+                if (!empty($mlite_penjualan_billing['jumlah_bayar'])) {
+                    $row['total'] = $mlite_penjualan_billing['jumlah_bayar'];
+                }
+            }
+
+            $row['status_bayar'] = ($row['keterangan_bayar'] === 'Belum Bayar') ? 'Belum Bayar' : 'Sudah Bayar';
+
+            // filter status bayar
+            if ($status_filter !== '' && $row['status_bayar'] !== $status_filter) {
+                continue;
+            }
+
+            $row['no'] = $no++;
             $penjualan[] = $row;
         }
-        return $this->draw('index.html', ['penjualan' => $penjualan]);
+
+        return $this->draw('index.html', [
+            'penjualan'     => $penjualan,
+            'tanggal_awal'  => htmlspecialchars($tanggal_awal),
+            'tanggal_akhir' => htmlspecialchars($tanggal_akhir),
+            'status_filter' => htmlspecialchars($status_filter),
+        ]);
     }
 
     public function getOrder($id_penjualan = '')
@@ -57,7 +96,6 @@ class Admin extends AdminModule
       if($id_penjualan) {
         $penjualan = $this->db('mlite_penjualan')->where('id', $id_penjualan)->oneArray();
         $rows = $this->db('mlite_penjualan_detail')->where('id_penjualan', $id_penjualan)->toArray();
-        // $rows = $this->db('mlite_penjualan_detail')->where('id_penjualan', $id_penjualan)->toArray();
         $no = 1;
         $total_tagihan = 0;
         foreach($rows as $row) {
@@ -66,6 +104,15 @@ class Admin extends AdminModule
           $rincian_penjualan[] = $row;
         }
       }
+
+      // ID Penjualan otomatis: kalau order baru (belum ada id), tampilkan preview nomor berikutnya
+      // (nomor sebenarnya baru dibuat di postSimpanPenjualan via auto increment, ini hanya preview)
+      $id_penjualan_tampil = $id_penjualan;
+      if (!$id_penjualan) {
+        $last = $this->db('mlite_penjualan')->desc('id')->toArray();
+        $id_penjualan_tampil = !empty($last[0]['id']) ? ($last[0]['id'] + 1) : 1;
+      }
+
       $obat = $this->db('gudangbarang')->join('databarang', 'databarang.kode_brng = gudangbarang.kode_brng')
       ->select([
         'id' => 'gudangbarang.kode_brng', 
@@ -83,7 +130,14 @@ class Admin extends AdminModule
         'harga' => 'harga'
       ])
       ->toArray();
-      return $this->draw('order.html', ['barang' => array_merge($barang, $obat), 'penjualan' => $penjualan, 'rincian_penjualan' => $rincian_penjualan, 'total_tagihan' => $total_tagihan, 'id_penjualan' => isset_or($id_penjualan, '')]);
+      return $this->draw('order.html', [
+        'barang' => array_merge($barang, $obat),
+        'penjualan' => $penjualan,
+        'rincian_penjualan' => $rincian_penjualan,
+        'total_tagihan' => $total_tagihan,
+        'id_penjualan' => isset_or($id_penjualan, ''),
+        'id_penjualan_tampil' => $id_penjualan_tampil,
+      ]);
     }
 
     public function getBarang()
@@ -190,11 +244,16 @@ class Admin extends AdminModule
                 'id_user' => $this->core->getUserInfo('username', null, true), 
                 'keterangan' => $_POST['keterangan']
             ]);
-            $lastInsertID = '122';
+            $last = $this->db('mlite_penjualan')
+                ->desc('id')
+                ->oneArray();
+
+            $lastInsertID = $last['id'];
+            // $lastInsertID = $this->db()->lastInsertId();
             if($penjualan) {
                 $detail = $this->db('mlite_penjualan_detail')
                 ->save([
-                    'id' => $lastInsertID, 
+                    'id_penjualan' => $lastInsertID, 
                     'id_barang' => $_POST['id_barang'], 
                     'nama_barang' => $_POST['nama_barang'], 
                     'harga' => $barang['harga'], 
@@ -244,7 +303,7 @@ class Admin extends AdminModule
 
     public function anyRincianPenjualan()
     {
-        $rows = $this->db('mlite_penjualan_detail')->where('id_penjualan', $_POST['id_penjualan'])->toArray();
+        $rows = $this->db('mlite_penjualan_detail')->where('id_penjualan', $_POST['id'])->toArray();
         $no = 1;
         $rincian_penjualan = [];
         foreach($rows as $row) {
@@ -257,7 +316,7 @@ class Admin extends AdminModule
 
     public function postFormRincianPenjualan()
     {
-        $rows = $this->db('mlite_penjualan_detail')->where('id', $_POST['id'])->toArray();
+        $rows = $this->db('mlite_penjualan_detail')->where('id_penjualan', $_POST['id'])->toArray();
         $form_rincian_penjualan = [];
         $total_tagihan = 0;
         foreach($rows as $row) {
@@ -271,47 +330,53 @@ class Admin extends AdminModule
 
     public function postSimpanBilling()
     {
-        if(isset($_POST['id_penjualan']) && $_POST['id_penjualan'] !=''){
-            if($this->db('mlite_penjualan_billing')->where('id_penjualan', $_POST['id_penjualan'])->oneArray()) {
-                $this->db('mlite_penjualan_billing')
-                ->where('id_penjualan', $_POST['id_penjualan'])
-                ->update([
-                    'jumlah_total' => $_POST['jumlah_total'], 
-                    'potongan' => $_POST['potongan'], 
-                    'jumlah_harus_bayar' => $_POST['jumlah_harus_bayar'], 
-                    'jumlah_bayar' => $_POST['jumlah_bayar'], 
-                    'tanggal' => $_POST['tanggal'], 
-                    'jam' => $_POST['jam'], 
-                    'id_user' => $this->core->getUserInfo('username', null, true)
-                ]);        
-            } else {
-                $this->db('mlite_penjualan_billing')
-                ->save([
-                    'id_penjualan' => $_POST['id_penjualan'], 
-                    'jumlah_total' => $_POST['jumlah_total'], 
-                    'potongan' => $_POST['potongan'], 
-                    'jumlah_harus_bayar' => $_POST['jumlah_harus_bayar'], 
-                    'jumlah_bayar' => $_POST['jumlah_bayar'], 
-                    'tanggal' => $_POST['tanggal'], 
-                    'jam' => $_POST['jam'], 
-                    'id_user' => $this->core->getUserInfo('username', null, true)
-                ]);        
-            }
-        } else {
-            $this->db('mlite_penjualan_billing')
-            ->save([
-                'id_penjualan' => $_POST['id_penjualan'], 
-                'jumlah_total' => $_POST['jumlah_total'], 
-                'potongan' => $_POST['potongan'], 
-                'jumlah_harus_bayar' => $_POST['jumlah_harus_bayar'], 
-                'jumlah_bayar' => $_POST['jumlah_bayar'], 
-                'tanggal' => $_POST['tanggal'], 
-                'jam' => $_POST['jam'], 
-                'id_user' => $this->core->getUserInfo('username', null, true)
-            ]);    
-        }
-        exit();
+        $id_penjualan       = isset($_POST['id_penjualan']) ? $_POST['id_penjualan'] : '';
+        $jumlah_total       = isset($_POST['jumlah_total']) ? $_POST['jumlah_total'] : 0;
+        $potongan           = isset($_POST['potongan']) ? $_POST['potongan'] : 0;
+        $jumlah_harus_bayar = isset($_POST['jumlah_harus_bayar']) ? $_POST['jumlah_harus_bayar'] : 0;
+        $jumlah_bayar       = isset($_POST['jumlah_bayar']) ? $_POST['jumlah_bayar'] : 0;
+        $tanggal            = !empty($_POST['tanggal']) ? $_POST['tanggal'] : date('Y-m-d');
+        $jam                = !empty($_POST['jam']) ? $_POST['jam'] : date('H:i:s');
+        // 'keterangan' merangkap sebagai status bayar: 'Belum Bayar' = belum lunas,
+        // selain itu ('Tunai' / 'Kurang Bayar') dianggap Sudah Bayar
+        $keterangan         = isset($_POST['keterangan']) && $_POST['keterangan'] !== '' ? $_POST['keterangan'] : 'Belum Bayar';
 
+        if ($id_penjualan === '') {
+            echo json_encode(['status' => 'FAILED', 'message' => 'id_penjualan kosong']);
+            exit();
+        }
+
+        $data = [
+            'id_penjualan'       => $id_penjualan,
+            'jumlah_total'       => $jumlah_total,
+            'potongan'           => $potongan,
+            'jumlah_harus_bayar' => $jumlah_harus_bayar,
+            'jumlah_bayar'       => $jumlah_bayar,
+            'keterangan'         => $keterangan,
+            'tanggal'            => $tanggal,
+            'jam'                => $jam,
+            'id_user'            => $this->core->getUserInfo('username', null, true)
+        ];
+
+        $existing = $this->db('mlite_penjualan_billing')->where('id_penjualan', $id_penjualan)->oneArray();
+
+        if ($existing) {
+            $ok = $this->db('mlite_penjualan_billing')->where('id_penjualan', $id_penjualan)->update($data);
+        } else {
+            $ok = $this->db('mlite_penjualan_billing')->save($data);
+        }
+
+        // hitung ID penjualan berikutnya, dipakai front-end untuk lanjut ke order baru
+        $last = $this->db('mlite_penjualan')->desc('id')->toArray();
+        $next_id_penjualan = !empty($last[0]['id']) ? ($last[0]['id'] + 1) : 1;
+
+        echo json_encode([
+            'status'            => $ok ? 'OK' : 'FAILED',
+            'keterangan'        => $keterangan,
+            'status_bayar'      => ($keterangan === 'Belum Bayar') ? 'Belum Bayar' : 'Sudah Bayar',
+            'next_id_penjualan' => $next_id_penjualan,
+        ]);
+        exit();
     }
 
     public function postDelete($id = '')
@@ -378,7 +443,7 @@ class Admin extends AdminModule
                 }
 
                 $pembeli = $this->db('mlite_penjualan')
-                    ->where('id', $id)
+                    ->where('id', $id_penjualan)
                     ->oneArray();
 
                 /* ===== QR CODE ===== */
