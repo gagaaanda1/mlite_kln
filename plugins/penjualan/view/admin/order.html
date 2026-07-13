@@ -88,7 +88,6 @@
               <thead>
                 <tr>
                   <th width="20px;">No.</th>
-                  <th width="20px;">ID Item</th>
                   <th>Nama Barang</th>
                   <th>Jumlah</th>
                   <th>Harga</th>
@@ -99,7 +98,6 @@
                 {loop: $rincian_penjualan}
                 <tr>
                   <td>{?=isset_or($value.no)?}</td>
-                  <td>{?=isset_or($value.id)?}</td>
                   <td>{?=isset_or($value.nama_barang)?}</td>
                   <td>{?=isset_or($value.jumlah)?}</td>
                   <td>{?=isset_or($value.harga)?}</td>
@@ -255,9 +253,9 @@
     }, function (data) {
       var id_penjualan_baru = $.trim(data);
       $('input:hidden[name=id]').val(id_penjualan_baru);
-      $('#id_penjualan_tampil').val('#' + id_penjualan_baru);
+      $('#id_penjualan_tampil').val(id_penjualan_baru);
       $('#rincian_id_penjualan_label')
-          .text('(ID Penjualan #' + id_penjualan_baru + ')');
+          .text('(ID Penjualan ' + id_penjualan_baru + ')');
 
       var url = baseURL + '/penjualan/rincianpenjualan?t=' + mlite.token;
       $.post(url,{
@@ -349,12 +347,42 @@
         try { res = JSON.parse(data); } catch (e) { res = {}; }
 
         if (res.status == 'OK') {
-          bootbox.alert("Pembayaran berhasil disimpan. Melanjutkan ke Order Baru...", function () {
-            window.location.href = baseURL + '/penjualan/order';
-          });
-        } else {
-          bootbox.alert("Gagal menyimpan data pembayaran, silahkan coba lagi.");
+
+            bootbox.alert({
+                title: "Pembayaran Berhasil",
+                message: "<center><h4>Pembayaran berhasil disimpan.</h4><br>Resi akan dicetak.</center>",
+                callback: function () {
+
+                    // Cetak nota kecil (thermal)
+                    var printWindow = window.open(
+                        baseURL + '/penjualan/faktur?show=kecil&id_penjualan=' + id + '&t=' + mlite.token,
+                        '_blank'
+                    );
+
+                    // Setelah halaman nota selesai dimuat
+                    printWindow.onload = function () {
+
+                        printWindow.focus();
+                        printWindow.print();
+
+                        // Tutup nota setelah selesai
+                        setTimeout(function () {
+                            printWindow.close();
+
+                            // Kembali ke Order Baru
+                            window.location.href = baseURL + '/penjualan/order?t=' + mlite.token;
+
+                        }, 1000);
+
+                    };
+
+                }
+            });
+
         }
+        else {
+            bootbox.alert("Gagal menyimpan data pembayaran, silakan coba lagi.");
+        } 
       });
     });
   });
@@ -368,7 +396,7 @@
 
     if (!id) {
       // belum ada rincian barang yang disimpan, langsung ke order baru
-      window.location.href = baseURL + '/penjualan/order';
+      window.location.href = baseURL + '/penjualan/order?t=' + mlite.token
       return;
     }
 
@@ -396,7 +424,7 @@
         jumlah_bayar: jumlah_bayar,
         keterangan: 'Belum Bayar'
       }, function (data) {
-        window.location.href = baseURL + '/penjualan/order';
+        window.location.href = baseURL + '/penjualan/order?t=' + mlite.token;
       });
     });
   });
@@ -477,29 +505,6 @@
         });
       } else {
         bootbox.alert("Data penjualan belum disimpan. Silahkan simpan dulu sebelum mencetak?");
-      }
-    });
-  });
-
-  // ketika tombol antrian ditekan
-  $("#form_rincian_penjualan").on("click", "#cetak_billing_kecil_penjualan", function (event) {
-    var baseURL = mlite.url + '/' + mlite.admin;
-    event.preventDefault();
-    var url = baseURL + '/penjualan/faktur?t=' + mlite.token;
-    var id_penjualan = $('input:hidden[name=id]').val();
-    $.post(url, {
-      id_penjualan: id_penjualan,
-    }, function (data) {
-      // tampilkan data
-      if (data == 'OK') {
-        bootbox.confirm("Apakah data penjualan sudah sesuai? Jika berbeda, silahkan simpan dulu sebelum mencetak!", function (result) {
-          // ketika ditekan tombol ok
-          if (result) {
-            window.open(baseURL + '/penjualan/faktur?show=kecil&id_penjualan=' + id_penjualan + '&t=' + mlite.token);
-          }
-        });
-      } else {
-        bootbox.alert("Data penjualan belum disimpan. Silahkan simpan dulu sebelum mencetak!");
       }
     });
   });

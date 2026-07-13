@@ -1,32 +1,4 @@
 <div class="panel panel-default">
-  <div class="panel-heading">
-    <h3 class="panel-title">Filter Penjualan</h3>
-  </div>
-  <div class="panel-body">
-    <form class="form-inline" method="get" action="{?=url([ADMIN,'penjualan','index'])?}">
-      <div class="form-group" style="margin-right:10px;">
-        <label for="tanggal_awal" style="margin-right:5px;">Tanggal</label>
-        <input type="text" class="form-control tanggal" id="tanggal_awal" name="tanggal_awal" placeholder="Dari tanggal" value="{?=isset_or($tanggal_awal)?}" autocomplete="off">
-      </div>
-      <div class="form-group" style="margin-right:10px;">
-        <label for="tanggal_akhir" style="margin-right:5px;">s/d</label>
-        <input type="text" class="form-control tanggal" id="tanggal_akhir" name="tanggal_akhir" placeholder="Sampai tanggal" value="{?=isset_or($tanggal_akhir)?}" autocomplete="off">
-      </div>
-      <div class="form-group" style="margin-right:10px;">
-        <label for="status" style="margin-right:5px;">Status Bayar</label>
-        <select class="form-control" id="status" name="status">
-          <option value="">Semua</option>
-          <option value="Sudah Bayar" {?=isset_or($status_filter) == 'Sudah Bayar' ? 'selected' : ''?}>Sudah Bayar</option>
-          <option value="Belum Bayar" {?=isset_or($status_filter) == 'Belum Bayar' ? 'selected' : ''?}>Belum Bayar</option>
-        </select>
-      </div>
-      <button type="submit" class="btn btn-primary"><i class="fa fa-filter"></i> Filter</button>
-      <a href="{?=url([ADMIN,'penjualan','index'])?}" class="btn btn-default"><i class="fa fa-refresh"></i> Reset</a>
-    </form>
-  </div>
-</div>
-
-<div class="panel panel-default">
     <div class="panel-body">
       <div class="table-responsive no-margin">
         <table class="table table-stripped dataTables" width="100%">
