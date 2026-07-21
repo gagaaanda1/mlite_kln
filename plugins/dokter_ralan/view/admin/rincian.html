@@ -4,6 +4,7 @@
     <li role="presentation"><a href="#tindakan" aria-controls="home" role="tab" data-toggle="tab">Tindakan</a></li>
     <li role="presentation"><a href="#lab" aria-controls="lab" role="tab" data-toggle="tab">Laboratorium</a></li>
     <li role="presentation"><a href="#rad" aria-controls="rad" role="tab" data-toggle="tab">Radiologi</a></li>
+    <li role="presentation"><a href="#kasir" aria-controls="kasir" role="tab" data-toggle="tab">Kasir</a></li>
 </ul>
 
 <div class="tab-content">
@@ -319,6 +320,96 @@
         </table>
       </div>
     </div>
+    <div role="tabpanel" class="tab-pane fade in" id="kasir">
+    <div class="kasir-header">
+        <i class="fa fa-credit-card"></i> Ringkasan Kasir
+    </div>
+    <div class="row kasir-row">
+        <div class="col-md-4 col-sm-6">
+            <div class="kasir-card">
+                <div class="icon bg-blue">
+                    <i class="fa fa-medkit"></i>
+                </div>
+                <div class="content">
+                    <h4>Total Harga Obat</h4>
+                    <small>{?= isset_or($jumlah_obat)?} Item</small>
+                    <div class="price">
+                        Rp. <?= number_format($jumlah_total_obat,2,',','.') ?>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 col-sm-6">
+            <div class="kasir-card">
+                <div class="icon bg-green">
+                    <i class="fa fa-user-md"></i>
+                </div>
+                <div class="content">
+                    <h4>Tindakan Dokter</h4>
+                    <small>{?= isset_or($jumlah_tindakan_dokter)?} Item</small>
+                    <div class="price">
+                        Rp. <?= number_format($jumlah_total_tindakan_dokter,2,',','.') ?>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 col-sm-6">
+            <div class="kasir-card">
+                <div class="icon bg-orange">
+                    <i class="fa fa-flask"></i>
+                </div>
+                <div class="content">
+                    <h4>Laboratorium</h4>
+                    <small>{?= isset_or($jumlah_item_laboratorium)?} Item</small>
+
+                    <div class="price">
+                        Rp. <?= number_format($jumlah_total_lab,2,',','.') ?>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4 col-sm-6">
+            <div class="kasir-card">
+                <div class="icon bg-red">
+                    <i class="fa fa-hospital-o"></i>
+                </div>
+                <div class="content">
+                    <h4>Radiologi</h4>
+                    <small>{?= isset_or($jumlah_item_radiologi)?} Item</small>
+                    <div class="price">
+                        Rp. <?= number_format($jumlah_total_rad,2,',','.') ?>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 col-sm-6">
+            <div class="kasir-card">
+                <div class="icon bg-purple">
+                    <i class="fa fa-money"></i>
+                </div>
+                <div class="content">
+                    <h4>Biaya Lain-lain</h4>
+                    <small>Pendaftaran</small>
+                    <div class="price">
+                        Rp. <?= number_format($jumlah_biaya_lain_lain,2,',','.') ?>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-12 col-sm-6">
+            <div class="kasir-total">
+                <div class="left">
+                    <i class="fa fa-money"></i>
+                    Total Kasir
+                </div>
+                <div class="right">
+                    Rp. <?= number_format($jumlah_total_kasir,2,',','.') ?>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 </div>
 <!-- Modal -->
 <div class="modal fade" id="detailModal" tabindex="-1" role="dialog">

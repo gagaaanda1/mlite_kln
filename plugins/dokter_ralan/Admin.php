@@ -802,12 +802,14 @@ class Admin extends AdminModule
       });
       $resep = [];
       $jumlah_total_resep = 0;
+      $jumlah_obat = 0;
       foreach ($rows as $row) {
         $row['nomor'] = $i++;
         $row['resep_dokter'] = $this->db('resep_dokter')->join('databarang', 'databarang.kode_brng=resep_dokter.kode_brng')->where('no_resep', $row['no_resep'])->toArray();
         foreach ($row['resep_dokter'] as $value) {
           $value['ralan'] = $value['jml'] * $value['dasar'];
           $jumlah_total_resep += floatval($value['ralan']);
+          $jumlah_obat += floatval($value['jml']);
         }
         $resep[] = $row;
       }
@@ -831,9 +833,19 @@ class Admin extends AdminModule
         foreach ($row['resep_dokter_racikan_detail'] as $value) {
           $value['ralan'] = $value['jml'] * $value['dasar'];
           $jumlah_total_resep_racikan += floatval($value['ralan']);
+          $jumlah_obat += floatval($value['jml']);
         }
         $resep_racikan[] = $row;
       }
+
+      $jumlah_total_obat = $jumlah_total_resep + $jumlah_total_resep_racikan;
+      $jumlah_tindakan_dokter = count($rawat_jl_dr);
+      $jumlah_total_tindakan_dokter = 0;
+      $biaya_lain_lain = 0;
+      foreach ($rawat_jl_dr as $row) {
+        $jumlah_total_tindakan_dokter += floatval($row['biaya_rawat']);
+      }
+      $jumlah_total_kasir = $jumlah_total_obat + $jumlah_total_tindakan_dokter + $jumlah_total_lab + $jumlah_total_rad + $biaya_lain_lain;
 
       /*
       $rows_laboratorium = $this->db('permintaan_lab')->join('permintaan_pemeriksaan_lab', 'permintaan_pemeriksaan_lab.noorder=permintaan_lab.noorder')->where('no_rawat', $_POST['no_rawat'])->toArray();
@@ -858,6 +870,8 @@ class Admin extends AdminModule
         ->where('permintaan_lab.status', 'ralan')
         ->toArray();
       $laboratorium = [];
+      $jumlah_total_lab = 0;
+      $jumlah_item_laboratorium = 0;
       foreach ($rows_laboratorium as $row) {
         $rows2 = $this->db('permintaan_pemeriksaan_lab')
           ->join('jns_perawatan_lab', 'jns_perawatan_lab.kd_jenis_prw=permintaan_pemeriksaan_lab.kd_jenis_prw')
@@ -874,6 +888,8 @@ class Admin extends AdminModule
             $row2['status'] = $row2['status'];
             $row2['kelas'] = $row2['kelas'];
             $row2['kategori'] = $row2['kategori'];
+            $jumlah_total_lab += floatval($row2['total_byr']);
+            $jumlah_item_laboratorium += 1;
             $rows3 = $this->db('permintaan_detail_permintaan_lab')->where('noorder', $row2['noorder'])->where('kd_jenis_prw', $row2['kd_jenis_prw'])->toArray();
             $row2['permintaan_detail_permintaan_lab'] = [];
             foreach ($rows3 as $row3) {
@@ -891,6 +907,7 @@ class Admin extends AdminModule
         ->where('permintaan_radiologi.status', 'ralan')
         ->toArray();
       $jumlah_total_rad = 0;
+      $jumlah_item_radiologi = 0;
       $radiologi = [];
 
       if($rows_radiologi) {
@@ -900,11 +917,16 @@ class Admin extends AdminModule
           $row['kelas'] = $jns_perawatan['kelas'];
           $row['total_byr'] = $jns_perawatan['total_byr'];
           $jumlah_total_rad += $jns_perawatan['total_byr'];
+          $jumlah_item_radiologi += 1;
           $radiologi[] = $row;
         }
       }
 
       $reg_periksa = $this->db('reg_periksa')->where('no_rawat', $_POST['no_rawat'])->oneArray();
+      if (!empty($reg_periksa['biaya_reg'])) {
+        $biaya_lain_lain = floatval($reg_periksa['biaya_reg']);
+      }
+      $jumlah_total_kasir = $jumlah_total_obat + $jumlah_total_tindakan_dokter + $jumlah_total_lab + $jumlah_total_rad + $biaya_lain_lain;
       $rows_data_resep = $this->db('resep_obat')
       ->join('reg_periksa', 'reg_periksa.no_rawat=resep_obat.no_rawat')
       ->where('resep_obat.kd_dokter', $this->core->getUserInfo('username', null, true))
@@ -945,8 +967,16 @@ class Admin extends AdminModule
         'jumlah_total' => $jumlah_total,
         'jumlah_total_resep' => $jumlah_total_resep,
         'jumlah_total_resep_racikan' => $jumlah_total_resep_racikan,
-        //'jumlah_total_lab' => $jumlah_total_lab,
+        'jumlah_total_obat' => $jumlah_total_obat,
+        'jumlah_obat' => $jumlah_obat,
+        'jumlah_tindakan_dokter' => $jumlah_tindakan_dokter,
+        'jumlah_total_tindakan_dokter' => $jumlah_total_tindakan_dokter,
+        'jumlah_total_lab' => $jumlah_total_lab,
+        'jumlah_item_laboratorium' => $jumlah_item_laboratorium,
         'jumlah_total_rad' => $jumlah_total_rad,
+        'jumlah_item_radiologi' => $jumlah_item_radiologi,
+        'jumlah_biaya_lain_lain' => $biaya_lain_lain,
+        'jumlah_total_kasir' => $jumlah_total_kasir,
         'no_rawat' => htmlspecialchars($_POST['no_rawat'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8')
       ]);
       exit();

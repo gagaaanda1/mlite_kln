@@ -50,11 +50,11 @@ if (DBDRIVER == 'sqlite') {
     $db_name = '';
     $db_port = '';
 } else {
-    $db_host = env('MYSQLHOST') ?: 'localhost';
-    $db_user = env('MYSQLUSER') ?: 'root';
+    $db_host = env('MYSQLHOST') ?: '';
+    $db_user = env('MYSQLUSER') ?: '';
     $db_pass = env('MYSQLPASSWORD') ?: '';
-    $db_name = env('MYSQLDATABASE') ?: 'mlite_db';
-    $db_port = env('MYSQLPORT') ?: '3306';
+    $db_name = env('MYSQLDATABASE') ?: '';
+    $db_port = env('MYSQLPORT') ?: '';
 }
 
 define('DBHOST', $db_host);

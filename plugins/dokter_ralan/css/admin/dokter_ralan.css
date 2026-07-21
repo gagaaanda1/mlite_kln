@@ -126,3 +126,110 @@
   width: 50%;
   text-align: center;
 }
+
+.kasir-header{
+    background:#2c3e50;
+    color:#fff;
+    padding:15px 20px;
+    font-size:20px;
+    font-weight:bold;
+    border-radius:6px;
+    margin-bottom:20px;
+}
+
+.kasir-row{
+    margin-top:10px;
+}
+
+.kasir-card{
+    background:#fff;
+    border-radius:10px;
+    border:1px solid #e5e5e5;
+    box-shadow:0 3px 10px rgba(0,0,0,.08);
+    padding:18px;
+    margin-bottom:20px;
+    display:flex;
+    align-items:center;
+    transition:.3s;
+}
+
+.kasir-card:hover{
+    transform:translateY(-3px);
+    box-shadow:0 8px 18px rgba(0,0,0,.15);
+}
+
+.kasir-card .icon{
+    width:60px;
+    height:60px;
+    border-radius:50%;
+    color:#fff;
+    text-align:center;
+    line-height:60px;
+    font-size:24px;
+    margin-right:15px;
+}
+
+.bg-blue{
+    background:#3498db;
+}
+
+.bg-green{
+    background:#2ecc71;
+}
+
+.bg-orange{
+    background:#f39c12;
+}
+
+.bg-red{
+    background:#e74c3c;
+}
+
+.bg-purple{
+    background:#605ca8;
+    color:#fff;
+}
+
+.kasir-card h4{
+    margin:0;
+    font-size:16px;
+    font-weight:bold;
+}
+
+.kasir-card small{
+    color:#888;
+    display:block;
+    margin-top:5px;
+}
+
+.kasir-card .price{
+    margin-top:8px;
+    font-size:22px;
+    font-weight:bold;
+    color:#2c3e50;
+}
+
+.kasir-total{
+    background:linear-gradient(135deg,#34495e,#2c3e50);
+    color:#fff;
+    border-radius:18px;
+    padding:25px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    box-shadow:0 5px 15px rgba(0,0,0,.2);
+}
+
+.kasir-total .left{
+    font-size:22px;
+    font-weight:bold;
+}
+
+.kasir-total .left i{
+    margin-right:10px;
+}
+
+.kasir-total .right{
+    font-size:32px;
+    font-weight:bold;
+}
