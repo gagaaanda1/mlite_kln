@@ -19,8 +19,381 @@ class Admin extends AdminModule
         'Outcome'
     ];
 
+    private static $_sqliteUdfInjected = false;
+
+    protected function _ensureSqliteCompatibility()
+    {
+        if (!self::$_sqliteUdfInjected && $this->_sqlIsSqlite()) {
+            try {
+                $pdo = method_exists($this, 'pdo') ? $this->pdo() : (isset($this->db) ? $this->db()->pdo() : null);
+                if (!$pdo) return;
+                if (method_exists($pdo, 'sqliteCreateFunction')) {
+                    $pdo->sqliteCreateFunction('NOW', function () {
+                        return date('Y-m-d H:i:s');
+                    }, 0);
+                    $pdo->sqliteCreateFunction('CURDATE', function () {
+                        return date('Y-m-d');
+                    }, 0);
+                    $pdo->sqliteCreateFunction('CONCAT', function (...$args) {
+                        $out = '';
+                        foreach ($args as $a) {
+                            if ($a === null) continue;
+                            $out .= (string) $a;
+                        }
+                        return $out;
+                    });
+                    $pdo->sqliteCreateFunction('CONCAT_WS', function ($sep, ...$args) {
+                        $sep = (string) $sep;
+                        $parts = [];
+                        foreach ($args as $a) {
+                            if ($a === null || trim((string)$a) === '') continue;
+                            $parts[] = (string) $a;
+                        }
+                        return implode($sep, $parts);
+                    });
+                    $pdo->sqliteCreateFunction('DATEDIFF', function ($akhir, $awal) {
+                        $ta = is_string($akhir) ? strtotime($akhir) : (is_numeric($akhir) ? $akhir : 0);
+                        $tw = is_string($awal) ? strtotime($awal) : (is_numeric($awal) ? $awal : 0);
+                        if (!$ta || !$tw) return 0;
+                        return (int) round(($ta - $tw) / 86400);
+                    }, 2);
+                    $pdo->sqliteCreateFunction('DATE_FORMAT', function ($expr, $fmt) {
+                        if ($expr === null || $expr === '') return '';
+                        $t = is_string($expr) ? @strtotime($expr) : (is_numeric($expr) ? (int)$expr : 0);
+                        if (!$t) return '';
+                        $map = [
+                            '%Y' => 'Y', '%y' => 'y', '%m' => 'm', '%c' => 'n',
+                            '%d' => 'd', '%e' => 'j', '%H' => 'H', '%h' => 'h',
+                            '%i' => 'i', '%s' => 's', '%p' => 'A', '%M' => 'F',
+                            '%b' => 'M', '%W' => 'l', '%w' => 'w',
+                        ];
+                        $out = '';
+                        $len = strlen($fmt);
+                        for ($i = 0; $i < $len; $i++) {
+                            $ch = $fmt[$i];
+                            if ($ch === '%' && isset($fmt[$i + 1]) && isset($map[$fmt[$i] . $fmt[$i + 1]])) {
+                                $out .= date($map[$fmt[$i] . $fmt[$i + 1]], $t);
+                                $i++;
+                            } else {
+                                $out .= $ch;
+                            }
+                        }
+                        return $out;
+                    }, 2);
+                    $pdo->sqliteCreateFunction('DATE_SUB', function ($dateExpr, $intervalStr) {
+                        if ($dateExpr === null || $dateExpr === '') return '';
+                        $intervalStr = trim((string) $intervalStr);
+                        if (!preg_match('/^INTERVAL\s+(-?\d+)\s+(YEAR|MONTH|DAY|HOUR|MINUTE|SECOND)\s*$/i', $intervalStr, $m)) {
+                            return $dateExpr;
+                        }
+                        $num = (int) $m[1];
+                        $unit = strtoupper($m[2]);
+                        $mapUnit = ['YEAR' => 'year', 'MONTH' => 'month', 'DAY' => 'day',
+                                    'HOUR' => 'hour', 'MINUTE' => 'minute', 'SECOND' => 'second'];
+                        $phpUnit = $mapUnit[$unit] ?? 'day';
+                        if (preg_match('/^\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}(:\d{2})?$/', $dateExpr)) {
+                            return date('Y-m-d H:i:s', strtotime("{$dateExpr} -{$num} {$phpUnit}"));
+                        }
+                        if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $dateExpr)) {
+                            return date('Y-m-d', strtotime("{$dateExpr} -{$num} {$phpUnit}"));
+                        }
+                        return $dateExpr;
+                    }, 2);
+                    $pdo->sqliteCreateFunction('DATE_ADD', function ($dateExpr, $intervalStr) {
+                        if ($dateExpr === null || $dateExpr === '') return '';
+                        $intervalStr = trim((string) $intervalStr);
+                        if (!preg_match('/^INTERVAL\s+(-?\d+)\s+(YEAR|MONTH|DAY|HOUR|MINUTE|SECOND)\s*$/i', $intervalStr, $m)) {
+                            return $dateExpr;
+                        }
+                        $num = (int) $m[1];
+                        $unit = strtoupper($m[2]);
+                        $mapUnit = ['YEAR' => 'year', 'MONTH' => 'month', 'DAY' => 'day',
+                                    'HOUR' => 'hour', 'MINUTE' => 'minute', 'SECOND' => 'second'];
+                        $phpUnit = $mapUnit[$unit] ?? 'day';
+                        if (preg_match('/^\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}(:\d{2})?$/', $dateExpr)) {
+                            return date('Y-m-d H:i:s', strtotime("{$dateExpr} +{$num} {$phpUnit}"));
+                        }
+                        if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $dateExpr)) {
+                            return date('Y-m-d', strtotime("{$dateExpr} +{$num} {$phpUnit}"));
+                        }
+                        return $dateExpr;
+                    }, 2);
+                    $pdo->sqliteCreateFunction('DATE', function ($d) {
+                        if (!$d) return '';
+                        if (preg_match('/^(\d{4}-\d{2}-\d{2})/', $d, $m)) return $m[1];
+                        $t = is_numeric($d) ? (int)$d : @strtotime($d);
+                        return $t ? date('Y-m-d', $t) : '';
+                    }, 1);
+                    $pdo->sqliteCreateFunction('IFNULL', function ($a, $b) {
+                        return ($a === null) ? $b : $a;
+                    }, 2);
+                    $pdo->sqliteCreateFunction('NULLIF', function ($a, $b) {
+                        return ((string)$a === (string)$b) ? null : $a;
+                    }, 2);
+                }
+            } catch (\Throwable $e) {
+                // ignore UDF register failure; methods already use fallbacks.
+            }
+            self::$_sqliteUdfInjected = true;
+        }
+    }
+
+    protected function _sqlIsSqlite()
+    {
+        static $cached = null;
+        if ($cached !== null) return $cached;
+        $cached = false;
+        if (defined('DBDRIVER') && DBDRIVER === 'sqlite') {
+            $cached = true;
+            return $cached;
+        }
+        try {
+            $pdo = method_exists($this, 'pdo') ? $this->pdo() : (isset($this->db) ? $this->db()->pdo() : null);
+            if ($pdo) {
+                $driverName = $pdo->getAttribute(PDO::ATTR_DRIVER_NAME);
+                if (is_string($driverName) && strtolower($driverName) === 'sqlite') {
+                    $cached = true;
+                    return $cached;
+                }
+            }
+        } catch (\Throwable $e) {
+        }
+        return $cached;
+    }
+
+    protected function _sqlToday()
+    {
+        return $this->_sqlIsSqlite() ? "date('now','localtime')" : 'CURDATE()';
+    }
+
+    protected function _sqlSubYears($exprTanggal, $jumlahTahun)
+    {
+        $n = (int) $jumlahTahun;
+        if ($this->_sqlIsSqlite()) {
+            return "date(({$exprTanggal}), '-{$n} year')";
+        }
+        return "DATE_SUB(({$exprTanggal}), INTERVAL {$n} YEAR)";
+    }
+
+    protected function _sqlDateDiffDays($exprAkhir, $exprAwal)
+    {
+        if ($this->_sqlIsSqlite()) {
+            return "julianday({$exprAkhir}) - julianday({$exprAwal})";
+        }
+        return "DATEDIFF({$exprAkhir}, {$exprAwal})";
+    }
+
+    protected function _sqlDateFormatYm($exprTanggal)
+    {
+        if ($this->_sqlIsSqlite()) {
+            return "strftime('%Y-%m', {$exprTanggal})";
+        }
+        return "DATE_FORMAT({$exprTanggal}, '%Y-%m')";
+    }
+
+    protected function _sqlNow()
+    {
+        return $this->_sqlIsSqlite() ? "datetime('now','localtime')" : 'NOW()';
+    }
+
+    protected function _sqlConcat(...$parts)
+    {
+        if ($this->_sqlIsSqlite()) {
+            return implode(' || ', $parts);
+        }
+        return 'CONCAT(' . implode(', ', $parts) . ')';
+    }
+
+    protected function _stripSqlComments($sql)
+    {
+        $sql = preg_replace('/\/\*.*?\*\//s', '', $sql);
+        $sql = preg_replace('/--.*$/m', '', $sql);
+        return $sql;
+    }
+
+    protected function _splitSqlStatements($sql)
+    {
+        $statements = [];
+        $len = strlen($sql);
+        $i = 0;
+        $cur = '';
+        $inSingle = false;
+        while ($i < $len) {
+            $ch = $sql[$i];
+            if ($ch === "'") {
+                $cur .= $ch;
+                if ($inSingle && isset($sql[$i + 1]) && $sql[$i + 1] === "'") {
+                    $cur .= "'";
+                    $i += 2;
+                    continue;
+                }
+                $inSingle = !$inSingle;
+                $i++;
+                continue;
+            }
+            if ($ch === ';' && !$inSingle) {
+                $trimmed = trim($cur);
+                if ($trimmed !== '') {
+                    $statements[] = $trimmed;
+                }
+                $cur = '';
+                $i++;
+                continue;
+            }
+            $cur .= $ch;
+            $i++;
+        }
+        $trimmed = trim($cur);
+        if ($trimmed !== '') {
+            $statements[] = $trimmed;
+        }
+        return $statements;
+    }
+
+    protected function _findMatchingParen($sql, $openPos)
+    {
+        $len = strlen($sql);
+        $depth = 1;
+        $i = $openPos + 1;
+        $inSingle = false;
+        while ($i < $len && $depth > 0) {
+            $ch = $sql[$i];
+            if ($ch === "'") {
+                if ($inSingle && isset($sql[$i + 1]) && $sql[$i + 1] === "'") {
+                    $i += 2;
+                    continue;
+                }
+                $inSingle = !$inSingle;
+                $i++;
+                continue;
+            }
+            if (!$inSingle) {
+                if ($ch === '(') {
+                    $depth++;
+                } elseif ($ch === ')') {
+                    $depth--;
+                    if ($depth === 0) {
+                        return $i;
+                    }
+                }
+            }
+            $i++;
+        }
+        return false;
+    }
+
+    protected function _quoteForSqlite($pdo, $value)
+    {
+        if ($value === null) {
+            return 'NULL';
+        }
+        if (is_int($value)) {
+            return (string) $value;
+        }
+        if (is_float($value)) {
+            return (string) $value;
+        }
+        if (is_bool($value)) {
+            return $value ? '1' : '0';
+        }
+        return $pdo->quote((string) $value);
+    }
+
+    protected function _interpolateSqliteVars($pdo, $sql, $vars)
+    {
+        return preg_replace_callback('/@([A-Za-z0-9_]+)/', function ($m) use ($pdo, $vars) {
+            $name = strtolower($m[1]);
+            if (!array_key_exists($name, $vars)) {
+                return 'NULL';
+            }
+            return $this->_quoteForSqlite($pdo, $vars[$name]);
+        }, $sql);
+    }
+
+    protected function _findTopLevelComma($str)
+    {
+        $len = strlen($str);
+        $depth = 0;
+        $inSingle = false;
+        for ($i = 0; $i < $len; $i++) {
+            $ch = $str[$i];
+            if ($ch === "'") {
+                if ($inSingle && isset($str[$i + 1]) && $str[$i + 1] === "'") {
+                    $i++;
+                    continue;
+                }
+                $inSingle = !$inSingle;
+                continue;
+            }
+            if (!$inSingle) {
+                if ($ch === '(') {
+                    $depth++;
+                } elseif ($ch === ')') {
+                    $depth--;
+                } elseif ($ch === ',' && $depth === 0) {
+                    return $i;
+                }
+            }
+        }
+        return false;
+    }
+
+    protected function _rewriteSqliteDateFunctions($sql)
+    {
+        $funcNames = ['DATE_ADD', 'DATE_SUB'];
+        $safety = 0;
+        do {
+            $changed = false;
+            foreach ($funcNames as $idx => $fname) {
+                $sign = ($idx === 0) ? '+' : '-';
+                $offset = 0;
+                while (preg_match('/\b' . $fname . '\s*\(/i', $sql, $m, PREG_OFFSET_CAPTURE, $offset)) {
+                    $openPos = $m[0][1] + strlen($m[0][0]) - 1;
+                    $closePos = $this->_findMatchingParen($sql, $openPos);
+                    if ($closePos === false) {
+                        $offset = $openPos + 1;
+                        continue;
+                    }
+                    $inner = substr($sql, $openPos + 1, $closePos - $openPos - 1);
+                    $commaPos = $this->_findTopLevelComma($inner);
+                    if ($commaPos === false) {
+                        $offset = $closePos + 1;
+                        continue;
+                    }
+                    $expr1 = trim(substr($inner, 0, $commaPos));
+                    $intervalPart = trim(substr($inner, $commaPos + 1));
+                    if (!preg_match('/^INTERVAL\s+(.+?)\s+(YEAR|MONTH|DAY|HOUR|MINUTE|SECOND)\s*$/is', $intervalPart, $im)) {
+                        $offset = $closePos + 1;
+                        continue;
+                    }
+                    $intervalExpr = trim($im[1]);
+                    $unit = strtolower($im[2]);
+                    $unitMap = [
+                        'year' => 'years', 'month' => 'months', 'day' => 'days',
+                        'hour' => 'hours', 'minute' => 'minutes', 'second' => 'seconds'
+                    ];
+                    $sqliteUnit = $unitMap[$unit] ?? $unit . 's';
+                    $replacement = "datetime({$expr1}, '{$sign}' || ({$intervalExpr}) || ' {$sqliteUnit}')";
+                    $funcStart = $m[0][1];
+                    $before = $sql;
+                    $sql = substr_replace($sql, $replacement, $funcStart, $closePos - $funcStart + 1);
+                    if ($before !== $sql) {
+                        $changed = true;
+                    }
+                    $offset = $funcStart + strlen($replacement);
+                }
+            }
+            $safety++;
+            if ($safety > 100) {
+                break;
+            }
+        } while ($changed);
+        return $sql;
+    }
+
     public function navigation()
     {
+        $this->_ensureSqliteCompatibility();
         return [
             'Dashboard' => 'manage',
             'Master CP' => 'master',
@@ -36,6 +409,7 @@ class Admin extends AdminModule
 
     public function getManage()
     {
+        $this->_ensureSqliteCompatibility();
         $this->_addHeaderFiles();
 
         return $this->draw('manage.html', [
@@ -289,6 +663,7 @@ class Admin extends AdminModule
 
     public function postGeneratetemplate()
     {
+        $this->_ensureSqliteCompatibility();
         $cpId = (int) ($_POST['clinical_pathway_id'] ?? 0);
         $icd = trim($_POST['icd'] ?? '');
         $result = $this->generateTemplateFromEvidence($cpId, $icd);
@@ -299,6 +674,7 @@ class Admin extends AdminModule
 
     public function postGeneratepatient()
     {
+        $this->_ensureSqliteCompatibility();
         $noRawat = trim($_POST['no_rawat'] ?? '');
         $result = $this->generateClinicalPathwayForPatient($noRawat);
 
@@ -558,12 +934,141 @@ class Admin extends AdminModule
             ];
         }
 
+        $this->_ensureSqliteCompatibility();
+        $pdo = $this->pdo();
+
+        if (!$this->_sqlIsSqlite()) {
+            try {
+                $cleanSql = $this->_stripSqlComments($sql);
+                $cleanSql = preg_replace('/\bSTART\s+TRANSACTION\s*;/i', ' ', $cleanSql);
+                $cleanSql = preg_replace('/\bBEGIN\s+(TRANSACTION|WORK)?\s*;/i', ' ', $cleanSql);
+                $cleanSql = preg_replace('/\bCOMMIT\s*;/i', ' ', $cleanSql);
+                $cleanSql = preg_replace('/\bROLLBACK\s*;/i', ' ', $cleanSql);
+                $cleanSql = preg_replace('/\bFROM\s+DUAL\b/i', ' ', $cleanSql);
+                $pdo->exec($cleanSql);
+                return [
+                    'status' => true,
+                    'message' => 'Seeder berhasil diimport: ' . $filename
+                ];
+            } catch (\Throwable $e) {
+                return [
+                    'status' => false,
+                    'message' => 'Import seeder gagal: ' . $e->getMessage()
+                ];
+            }
+        }
+
         try {
-            $this->pdo()->exec($sql);
+            $vars = [];
+            $sql = $this->_stripSqlComments($sql);
+
+            $sql = preg_replace('/\bSTART\s+TRANSACTION\s*;/i', ' ', $sql);
+            $sql = preg_replace('/\bBEGIN\s+(TRANSACTION|WORK)?\s*;/i', ' ', $sql);
+            $sql = preg_replace('/\bCOMMIT\s*;/i', ' ', $sql);
+            $sql = preg_replace('/\bROLLBACK\s*;/i', ' ', $sql);
+            $sql = preg_replace('/\bFROM\s+DUAL\b/i', ' ', $sql);
+            $sql = $this->_rewriteSqliteDateFunctions($sql);
+
+            $sql = preg_replace_callback(
+                '/UPDATE\s+(\w+)\s+a\s+INNER\s+JOIN\s+(\w+)\s+d\s+ON\s+d\.id\s*=\s*a\.clinical_pathway_day_id\s+SET\s+(.*?)\s+WHERE\s+d\.clinical_pathway_id\s+IN\s*\(([^)]+)\)\s*;/is',
+                function ($um) {
+                    $tblActivity = $um[1];
+                    $tblDay = $um[2];
+                    $setClauseRaw = $um[3];
+                    $inList = $um[4];
+
+                    $setClause = preg_replace('/^a\./m', '', $setClauseRaw);
+                    $setClause = preg_replace('/,\s*a\./', ', ', $setClause);
+                    $setClause = preg_replace('/\ba\.(\w+)/', '$1', $setClause);
+
+                    return "UPDATE {$tblActivity} SET {$setClause} "
+                         . "WHERE clinical_pathway_day_id IN ("
+                         . "SELECT id FROM {$tblDay} WHERE clinical_pathway_id IN ({$inList})"
+                         . ");";
+                },
+                $sql
+            );
+
+            $sql = preg_replace_callback(
+                '/UPDATE\s+(\w+)\s+e\s+INNER\s+JOIN\s+(\w+)\s+a\s+ON\s+(.+?)\s+SET\s+(.*?)\s+WHERE\s+(.*?)\s*;/is',
+                function ($um) {
+                    $tblE = $um[1];
+                    $tblA = $um[2];
+                    $onCond = $um[3];
+                    $setRaw = $um[4];
+                    $whereCond = $um[5];
+
+                    $setClause = preg_replace('/^e\./m', '', $setRaw);
+                    $setClause = preg_replace('/,\s*e\./', ', ', $setClause);
+                    $setClause = preg_replace('/\be\.(\w+)/', '$1', $setClause);
+
+                    return "UPDATE {$tblE} SET {$setClause} "
+                         . "WHERE id IN ("
+                         . "SELECT e.id FROM {$tblE} e "
+                         . "INNER JOIN {$tblA} a ON {$onCond} "
+                         . "WHERE {$whereCond}"
+                         . ");";
+                },
+                $sql
+            );
+
+            $statements = $this->_splitSqlStatements($sql);
+            $executed = 0;
+
+            foreach ($statements as $stmt) {
+                $trimmed = trim($stmt);
+                if (preg_match('/^\s*SET\s+@([A-Za-z0-9_]+)\s*=\s*(.+?)\s*;?\s*$/is', $trimmed, $sm)) {
+                    $varName = strtolower($sm[1]);
+                    $valueExpr = trim($sm[2]);
+                    $value = null;
+                    $ve = ltrim($valueExpr);
+                    if ($ve !== '' && $ve[0] === '(') {
+                        $cp = $this->_findMatchingParen($valueExpr, 0);
+                        if ($cp !== false) {
+                            $inner = trim(substr($valueExpr, 1, $cp - 1));
+                            if (stripos($inner, 'SELECT') === 0) {
+                                $interpolated = $this->_interpolateSqliteVars($pdo, $inner, $vars);
+                                $st = $pdo->query($interpolated);
+                                if ($st) {
+                                    $row = $st->fetch(\PDO::FETCH_NUM);
+                                    $value = $row ? $row[0] : null;
+                                }
+                            } else {
+                                $interpolated = $this->_interpolateSqliteVars($pdo, 'SELECT ' . $inner, $vars);
+                                $st = $pdo->query($interpolated);
+                                if ($st) {
+                                    $row = $st->fetch(\PDO::FETCH_NUM);
+                                    $value = $row ? $row[0] : null;
+                                }
+                            }
+                        }
+                    } else {
+                        $interpolated = $this->_interpolateSqliteVars($pdo, 'SELECT ' . $valueExpr, $vars);
+                        $st = $pdo->query($interpolated);
+                        if ($st) {
+                            $row = $st->fetch(\PDO::FETCH_NUM);
+                            $value = $row ? $row[0] : null;
+                        }
+                    }
+                    $vars[$varName] = $value;
+                    continue;
+                }
+
+                $interpolated = $this->_interpolateSqliteVars($pdo, $stmt, $vars);
+                try {
+                    $pdo->exec($interpolated);
+                    $executed++;
+                } catch (\Throwable $stmtE) {
+                    $preview = substr($interpolated, 0, 300);
+                    throw new \RuntimeException(
+                        'Statement gagal (' . $stmtE->getMessage() . '): ' . $preview
+                    );
+                }
+            }
 
             return [
                 'status' => true,
-                'message' => 'Seeder berhasil diimport: ' . $filename
+                'message' => 'Seeder berhasil diimport: ' . $filename . ' (' . $executed . ' pernyataan SQL)'
             ];
         } catch (\Throwable $e) {
             return [
@@ -995,11 +1500,13 @@ class Admin extends AdminModule
 
     protected function getTopDiagnosisOptions($limit = 100)
     {
+        $today = $this->_sqlToday();
+        $threeYearsAgo = $this->_sqlSubYears($today, 3);
         $sql = "SELECT dp.kd_penyakit, py.nm_penyakit, COUNT(*) AS jumlah
                 FROM diagnosa_pasien dp
                 INNER JOIN penyakit py ON py.kd_penyakit = dp.kd_penyakit
                 INNER JOIN reg_periksa rp ON rp.no_rawat = dp.no_rawat
-                WHERE rp.tgl_registrasi >= DATE_SUB(CURDATE(), INTERVAL 3 YEAR)
+                WHERE rp.tgl_registrasi >= {$threeYearsAgo}
                 GROUP BY dp.kd_penyakit, py.nm_penyakit
                 ORDER BY jumlah DESC, dp.kd_penyakit ASC
                 LIMIT " . (int) $limit;
@@ -1027,17 +1534,24 @@ class Admin extends AdminModule
 
     protected function getCaseProfile($icd)
     {
+        if ($icd === '') {
+            return [];
+        }
+        $today = $this->_sqlToday();
+        $threeYearsAgo = $this->_sqlSubYears($today, 3);
+        $exprKeluarHariIni = "COALESCE(ki.tgl_keluar, {$today})";
+        $diffLos = $this->_sqlDateDiffDays($exprKeluarHariIni, 'rp.tgl_registrasi');
         $sql = "SELECT COUNT(DISTINCT dp.no_rawat) AS total_kasus,
-                       ROUND(AVG(IFNULL(DATEDIFF(COALESCE(ki.tgl_keluar, CURDATE()), rp.tgl_registrasi), 0)), 2) AS avg_los,
-                       MIN(IFNULL(DATEDIFF(COALESCE(ki.tgl_keluar, CURDATE()), rp.tgl_registrasi), 0)) AS min_los,
-                       MAX(IFNULL(DATEDIFF(COALESCE(ki.tgl_keluar, CURDATE()), rp.tgl_registrasi), 0)) AS max_los,
+                       ROUND(AVG(IFNULL({$diffLos}, 0)), 2) AS avg_los,
+                       MIN(IFNULL({$diffLos}, 0)) AS min_los,
+                       MAX(IFNULL({$diffLos}, 0)) AS max_los,
                        SUM(CASE WHEN rp.stts = 'Meninggal' THEN 1 ELSE 0 END) AS meninggal,
                        SUM(CASE WHEN rp.stts = 'Pulang Paksa' THEN 1 ELSE 0 END) AS pulang_paksa
                 FROM diagnosa_pasien dp
                 INNER JOIN reg_periksa rp ON rp.no_rawat = dp.no_rawat
                 LEFT JOIN kamar_inap ki ON ki.no_rawat = rp.no_rawat
                 WHERE dp.kd_penyakit = :icd
-                  AND rp.tgl_registrasi >= DATE_SUB(CURDATE(), INTERVAL 3 YEAR)";
+                  AND rp.tgl_registrasi >= {$threeYearsAgo}";
 
         $stmt = $this->pdo()->prepare($sql);
         $stmt->execute([':icd' => $icd]);
@@ -1047,13 +1561,16 @@ class Admin extends AdminModule
 
     protected function getMonthlyTrend($icd)
     {
-        $sql = "SELECT DATE_FORMAT(rp.tgl_registrasi, '%Y-%m') AS periode,
+        $today = $this->_sqlToday();
+        $threeYearsAgo = $this->_sqlSubYears($today, 3);
+        $fmt = $this->_sqlDateFormatYm('rp.tgl_registrasi');
+        $sql = "SELECT {$fmt} AS periode,
                        COUNT(DISTINCT dp.no_rawat) AS jumlah
                 FROM diagnosa_pasien dp
                 INNER JOIN reg_periksa rp ON rp.no_rawat = dp.no_rawat
                 WHERE dp.kd_penyakit = :icd
-                  AND rp.tgl_registrasi >= DATE_SUB(CURDATE(), INTERVAL 3 YEAR)
-                GROUP BY DATE_FORMAT(rp.tgl_registrasi, '%Y-%m')
+                  AND rp.tgl_registrasi >= {$threeYearsAgo}
+                GROUP BY {$fmt}
                 ORDER BY periode ASC";
 
         $stmt = $this->pdo()->prepare($sql);
@@ -1066,11 +1583,14 @@ class Admin extends AdminModule
     {
         return $this->getEvidenceCategoryRows(
             $icd,
-            "periksa_lab p
-             INNER JOIN jns_perawatan_lab j ON j.kd_jenis_prw = p.kd_jenis_prw",
-            "p.kd_jenis_prw",
-            "j.nm_perawatan",
-            (int) $limit
+            "periksa_lab",
+            "periksa_lab.kd_jenis_prw",
+            "jns_perawatan_lab.nm_perawatan",
+            (int) $limit,
+            [
+                ['INNER JOIN', 'jns_perawatan_lab', 'jns_perawatan_lab.kd_jenis_prw = periksa_lab.kd_jenis_prw']
+            ],
+            "periksa_lab.no_rawat = dp.no_rawat"
         );
     }
 
@@ -1078,11 +1598,14 @@ class Admin extends AdminModule
     {
         return $this->getEvidenceCategoryRows(
             $icd,
-            "periksa_radiologi p
-             INNER JOIN jns_perawatan_radiologi j ON j.kd_jenis_prw = p.kd_jenis_prw",
-            "p.kd_jenis_prw",
-            "j.nm_perawatan",
-            (int) $limit
+            "periksa_radiologi",
+            "periksa_radiologi.kd_jenis_prw",
+            "jns_perawatan_radiologi.nm_perawatan",
+            (int) $limit,
+            [
+                ['INNER JOIN', 'jns_perawatan_radiologi', 'jns_perawatan_radiologi.kd_jenis_prw = periksa_radiologi.kd_jenis_prw']
+            ],
+            "periksa_radiologi.no_rawat = dp.no_rawat"
         );
     }
 
@@ -1090,13 +1613,15 @@ class Admin extends AdminModule
     {
         return $this->getEvidenceCategoryRows(
             $icd,
-            "resep_obat ro
-             INNER JOIN resep_dokter rd ON rd.no_resep = ro.no_resep
-             INNER JOIN databarang db ON db.kode_brng = rd.kode_brng",
-            "rd.kode_brng",
-            "db.nama_brng",
+            "resep_obat",
+            "resep_dokter.kode_brng",
+            "databarang.nama_brng",
             (int) $limit,
-            "ro.no_rawat = dp.no_rawat"
+            [
+                ['INNER JOIN', 'resep_dokter', 'resep_dokter.no_resep = resep_obat.no_resep'],
+                ['INNER JOIN', 'databarang', 'databarang.kode_brng = resep_dokter.kode_brng']
+            ],
+            "resep_obat.no_rawat = dp.no_rawat"
         );
     }
 
@@ -1104,27 +1629,40 @@ class Admin extends AdminModule
     {
         return $this->getEvidenceCategoryRows(
             $icd,
-            "prosedur_pasien pp
-             INNER JOIN icd9 i9 ON i9.kode = pp.kode",
-            "pp.kode",
-            "i9.deskripsi_panjang",
+            "prosedur_pasien",
+            "prosedur_pasien.kode",
+            "icd9.deskripsi_panjang",
             (int) $limit,
-            "pp.no_rawat = dp.no_rawat"
+            [
+                ['INNER JOIN', 'icd9', 'icd9.kode = prosedur_pasien.kode']
+            ],
+            "prosedur_pasien.no_rawat = dp.no_rawat"
         );
     }
 
-    protected function getEvidenceCategoryRows($icd, $fromClause, $codeField, $nameField, $limit = 10, $relation = 'p.no_rawat = dp.no_rawat')
+    protected function getEvidenceCategoryRows($icd, $baseTable, $codeField, $nameField, $limit = 10, $joins = [], $relation = '')
     {
         $totalPatients = max(1, $this->getTotalCasesByDiagnosis($icd));
+        $today = $this->_sqlToday();
+        $threeYearsAgo = $this->_sqlSubYears($today, 3);
+
+        $joinSQL = '';
+        foreach ($joins as $j) {
+            if (!is_array($j) || count($j) < 3) continue;
+            [$type, $table, $on] = $j;
+            $joinSQL .= " {$type} {$table} ON {$on}";
+        }
+
         $sql = "SELECT {$codeField} AS kode,
                        {$nameField} AS aktivitas,
                        COUNT(*) AS frekuensi,
                        ROUND((COUNT(*) / :total_patients) * 100, 2) AS persentase
                 FROM diagnosa_pasien dp
-                INNER JOIN {$fromClause} ON {$relation}
                 INNER JOIN reg_periksa rp ON rp.no_rawat = dp.no_rawat
+                INNER JOIN {$baseTable} ON " . ($relation ?: "{$baseTable}.no_rawat = dp.no_rawat") . "
+                {$joinSQL}
                 WHERE dp.kd_penyakit = :icd
-                  AND rp.tgl_registrasi >= DATE_SUB(CURDATE(), INTERVAL 3 YEAR)
+                  AND rp.tgl_registrasi >= {$threeYearsAgo}
                 GROUP BY {$codeField}, {$nameField}
                 ORDER BY frekuensi DESC, aktivitas ASC
                 LIMIT " . (int) $limit;
@@ -1146,11 +1684,13 @@ class Admin extends AdminModule
 
     protected function getOutcomeSummary($icd)
     {
+        $today = $this->_sqlToday();
+        $threeYearsAgo = $this->_sqlSubYears($today, 3);
         $sql = "SELECT rp.stts AS outcome, COUNT(*) AS jumlah
                 FROM diagnosa_pasien dp
                 INNER JOIN reg_periksa rp ON rp.no_rawat = dp.no_rawat
                 WHERE dp.kd_penyakit = :icd
-                  AND rp.tgl_registrasi >= DATE_SUB(CURDATE(), INTERVAL 3 YEAR)
+                  AND rp.tgl_registrasi >= {$threeYearsAgo}
                 GROUP BY rp.stts
                 ORDER BY jumlah DESC";
 
@@ -1191,12 +1731,14 @@ class Admin extends AdminModule
 
     protected function getTotalCasesByDiagnosis($icd)
     {
+        $today = $this->_sqlToday();
+        $threeYearsAgo = $this->_sqlSubYears($today, 3);
         $stmt = $this->pdo()->prepare(
             "SELECT COUNT(DISTINCT dp.no_rawat) AS total_pasien
              FROM diagnosa_pasien dp
              INNER JOIN reg_periksa rp ON rp.no_rawat = dp.no_rawat
              WHERE dp.kd_penyakit = ?
-               AND rp.tgl_registrasi >= DATE_SUB(CURDATE(), INTERVAL 3 YEAR)"
+               AND rp.tgl_registrasi >= {$threeYearsAgo}"
         );
         $stmt->execute([$icd]);
         $row = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -2117,8 +2659,9 @@ class Admin extends AdminModule
         $nama = trim($activity['item_nama'] ?? '');
 
         if ($kode !== '') {
+            $sqlNow = $this->_sqlNow();
             $actual = $this->fetchSingleActual(
-                "SELECT NOW() AS tanggal_realisasi, kode AS sumber_referensi
+                "SELECT {$sqlNow} AS tanggal_realisasi, kode AS sumber_referensi
                  FROM prosedur_pasien
                  WHERE no_rawat = ? AND kode = ? AND status = ?
                  LIMIT 1",

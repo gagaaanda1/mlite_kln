@@ -73,12 +73,41 @@ class Admin extends AdminModule
     $agama = array('ISLAM', 'KRISTEN', 'PROTESTAN', 'HINDU', 'BUDHA', 'KONGHUCU', 'KEPERCAYAAN');
     $pnd = array('TS', 'TK', 'SD', 'SMP', 'SMA', 'SLTA/SEDERAJAT', 'D1', 'D2', 'D3', 'D4', 'S1', 'S2', 'S3', '-');
     $keluarga = array('AYAH', 'IBU', 'ISTRI', 'SUAMI', 'SAUDARA', 'ANAK');
+    $propinsi = $this->db('propinsi')->asc('kd_prop')->toArray();
+    $isSqlite = defined('DBDRIVER') && DBDRIVER == 'sqlite';
+    $__filterKabByKdProp = function($kd_p) use ($isSqlite) {
+      $kd_p = (string)$kd_p;
+      if ($isSqlite) {
+        return $this->db()->pdo()->query("SELECT kd_kab, nm_kab FROM kabupaten WHERE SUBSTR(CAST(kd_kab AS TEXT), 1, " . strlen($kd_p) . ") = " . $this->db()->pdo()->quote($kd_p) . " ORDER BY CAST(kd_kab AS INTEGER)")->fetchAll(\PDO::FETCH_ASSOC);
+      } else {
+        return $this->db()->pdo()->query("SELECT kd_kab, nm_kab FROM kabupaten WHERE LEFT(CAST(kd_kab AS CHAR), " . strlen($kd_p) . ") = " . $this->db()->pdo()->quote($kd_p) . " ORDER BY CAST(kd_kab AS UNSIGNED)")->fetchAll(\PDO::FETCH_ASSOC);
+      }
+    };
+    $__filterKecByKdKab = function($kd_k) use ($isSqlite) {
+      $kd_k = (string)$kd_k;
+      if ($isSqlite) {
+        return $this->db()->pdo()->query("SELECT kd_kec, nm_kec FROM kecamatan WHERE SUBSTR(CAST(kd_kec AS TEXT), 1, " . strlen($kd_k) . ") = " . $this->db()->pdo()->quote($kd_k) . " ORDER BY CAST(kd_kec AS INTEGER)")->fetchAll(\PDO::FETCH_ASSOC);
+      } else {
+        return $this->db()->pdo()->query("SELECT kd_kec, nm_kec FROM kecamatan WHERE LEFT(CAST(kd_kec AS CHAR), " . strlen($kd_k) . ") = " . $this->db()->pdo()->quote($kd_k) . " ORDER BY CAST(kd_kec AS UNSIGNED)")->fetchAll(\PDO::FETCH_ASSOC);
+      }
+    };
+    $__filterKelByKdKec = function($kd_k) use ($isSqlite) {
+      $kd_k = (string)$kd_k;
+      if ($isSqlite) {
+        return $this->db()->pdo()->query("SELECT kd_kel, nm_kel FROM kelurahan WHERE SUBSTR(CAST(kd_kel AS TEXT), 1, " . strlen($kd_k) . ") = " . $this->db()->pdo()->quote($kd_k) . " ORDER BY kd_kel")->fetchAll(\PDO::FETCH_ASSOC);
+      } else {
+        return $this->db()->pdo()->query("SELECT kd_kel, nm_kel FROM kelurahan WHERE LEFT(CAST(kd_kel AS CHAR), " . strlen($kd_k) . ") = " . $this->db()->pdo()->quote($kd_k) . " ORDER BY kd_kel")->fetchAll(\PDO::FETCH_ASSOC);
+      }
+    };
     if (isset($_POST['no_rkm_medis'])) {
       $pasien = $this->db('pasien')->where('no_rkm_medis', $_POST['no_rkm_medis'])->oneArray();
       $pasien['propinsi'] = $this->db('propinsi')->where('kd_prop', $pasien['kd_prop'])->oneArray();
       $pasien['kabupaten'] = $this->db('kabupaten')->where('kd_kab', $pasien['kd_kab'])->oneArray();
       $pasien['kecamatan'] = $this->db('kecamatan')->where('kd_kec', $pasien['kd_kec'])->oneArray();
       $pasien['kelurahan'] = $this->db('kelurahan')->where('kd_kel', $pasien['kd_kel'])->oneArray();
+      $kabupaten = $__filterKabByKdProp($pasien['kd_prop']);
+      $kecamatan = $__filterKecByKdKab($pasien['kd_kab']);
+      $kelurahan = $__filterKelByKdKec($pasien['kd_kec']);
       echo $this->draw('form.html', [
         'pasien' => htmlspecialchars_array($pasien),
         'penjab' => htmlspecialchars_array($penjab),
@@ -86,6 +115,10 @@ class Admin extends AdminModule
         'agama' => htmlspecialchars_array($agama),
         'pnd' => htmlspecialchars_array($pnd),
         'keluarga' => htmlspecialchars_array($keluarga),
+        'propinsi' => htmlspecialchars_array($propinsi),
+        'kabupaten' => htmlspecialchars_array($kabupaten),
+        'kecamatan' => htmlspecialchars_array($kecamatan),
+        'kelurahan' => htmlspecialchars_array($kelurahan),
         'no_rkm_medis_baru' => htmlspecialchars($this->core->setNoRM(), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'),
         'waapitoken' => htmlspecialchars($this->settings->get('wagateway.token'), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'),
         'waapiphonenumber' => htmlspecialchars($this->settings->get('wagateway.phonenumber'), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'),
@@ -117,9 +150,9 @@ class Admin extends AdminModule
         'namakeluarga' => '-',
         'kd_pj' => '',
         'no_peserta' => '',
-        'kd_kel' => '1',
-        'kd_kec' => '1',
-        'kd_kab' => '1',
+        'kd_kel' => '',
+        'kd_kec' => '',
+        'kd_kab' => '',
         'pekerjaanpj' => '',
         'alamatpj' => '',
         'kelurahanpj' => '',
@@ -131,13 +164,16 @@ class Admin extends AdminModule
         'cacat_fisik' => '',
         'email' => '-',
         'nip' => '',
-        'kd_prop' => '1',
+        'kd_prop' => '',
         'propinsipj' => '',
         'propinsi' => ['nm_prop' => '-'],
         'kabupaten' => ['nm_kab' => '-'],
         'kecamatan' => ['nm_kec' => '-'],
         'kelurahan' => ['nm_kel' => '-']
       ];
+      $kabupaten = [];
+      $kecamatan = [];
+      $kelurahan = [];
       echo $this->draw('form.html', [
         'pasien' => $pasien,
         'penjab' => $penjab,
@@ -145,6 +181,10 @@ class Admin extends AdminModule
         'agama' => $agama,
         'pnd' => $pnd,
         'keluarga' => $keluarga,
+        'propinsi' => $propinsi,
+        'kabupaten' => $kabupaten,
+        'kecamatan' => $kecamatan,
+        'kelurahan' => $kelurahan,
         'no_rkm_medis_baru' => $this->core->setNoRM(),
         'waapitoken' => $this->settings->get('wagateway.token'),
         'waapiphonenumber' => $this->settings->get('wagateway.phonenumber'),
@@ -162,6 +202,140 @@ class Admin extends AdminModule
   {
     echo $this->core->setNoRM();
     exit();
+  }
+
+  private function _isSafeUrl($url) {
+      $parsed = parse_url($url);
+      if (!$parsed || !isset($parsed['scheme'])) {
+          return false;
+      }
+      $scheme = strtolower($parsed['scheme']);
+      if ($scheme !== 'https' && $scheme !== 'http') {
+          return false;
+      }
+      $host = $parsed['host'] ?? '';
+      if ($host === '' || $host === 'localhost' || $host === '127.0.0.1') {
+          return $scheme === 'http' || $scheme === 'https';
+      }
+      if ($scheme === 'https') {
+          return true;
+      }
+      $ips = gethostbynamel($host);
+      if (!$ips) {
+          return false;
+      }
+      foreach ($ips as $ip) {
+          if (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE)) {
+              return true;
+          }
+      }
+      return false;
+  }
+
+  public function postKirimwa()
+  {
+      header('Content-Type: application/json; charset=utf-8');
+
+      $waapitoken = (string)$this->settings->get('wagateway.token');
+      $waapiphonenumber = (string)$this->settings->get('wagateway.phonenumber');
+      $waapiserver = (string)$this->settings->get('wagateway.server');
+
+      if ($waapitoken === '' || $waapiphonenumber === '' || $waapiserver === '') {
+          echo json_encode([
+              'status' => false,
+              'msg' => 'Pengaturan WhatsApp Gateway belum lengkap (token/nomor/server). Silakan atur terlebih dahulu di Pengaturan WA Gateway.'
+          ]);
+          exit();
+      }
+
+      $number = trim((string)($_POST['number'] ?? ''));
+      $message = (string)($_POST['message'] ?? '');
+
+      if ($number === '') {
+          echo json_encode(['status' => false, 'msg' => 'Nomor WhatsApp tujuan tidak boleh kosong.']);
+          exit();
+      }
+      if (trim($message) === '') {
+          echo json_encode(['status' => false, 'msg' => 'Isi pesan tidak boleh kosong.']);
+          exit();
+      }
+
+      $url = rtrim($waapiserver, '/') . '/wagateway/kirimpesan';
+
+      if (!$this->_isSafeUrl($url)) {
+          echo json_encode([
+              'status' => false,
+              'msg' => 'URL WA Gateway tidak valid atau tidak aman ('.$url.').'
+          ]);
+          exit();
+      }
+
+      $scheme = strtolower(parse_url($url, PHP_URL_SCHEME) ?? 'https');
+
+      try {
+          $curlHandle = curl_init();
+          curl_setopt($curlHandle, CURLOPT_URL, $url);
+          if ($scheme === 'https') {
+              curl_setopt($curlHandle, CURLOPT_PROTOCOLS, CURLPROTO_HTTPS);
+              curl_setopt($curlHandle, CURLOPT_REDIR_PROTOCOLS, CURLPROTO_HTTPS);
+              curl_setopt($curlHandle, CURLOPT_SSL_VERIFYPEER, true);
+          } else {
+              curl_setopt($curlHandle, CURLOPT_PROTOCOLS, CURLPROTO_HTTP | CURLPROTO_HTTPS);
+              curl_setopt($curlHandle, CURLOPT_REDIR_PROTOCOLS, CURLPROTO_HTTP | CURLPROTO_HTTPS);
+              curl_setopt($curlHandle, CURLOPT_SSL_VERIFYPEER, false);
+          }
+          curl_setopt($curlHandle, CURLOPT_FOLLOWLOCATION, false);
+          curl_setopt($curlHandle, CURLOPT_POSTFIELDS, http_build_query([
+              'type' => 'text',
+              'sender' => $waapiphonenumber,
+              'number' => $number,
+              'message' => $message,
+              'api_key' => $waapitoken
+          ]));
+          curl_setopt($curlHandle, CURLOPT_HEADER, 0);
+          curl_setopt($curlHandle, CURLOPT_RETURNTRANSFER, 1);
+          curl_setopt($curlHandle, CURLOPT_TIMEOUT, 30);
+          curl_setopt($curlHandle, CURLOPT_POST, 1);
+
+          $response = curl_exec($curlHandle);
+          $httpCode = curl_getinfo($curlHandle, CURLINFO_HTTP_CODE);
+          $curlError = curl_error($curlHandle);
+          curl_close($curlHandle);
+
+          if ($response === false || $response === '') {
+              echo json_encode([
+                  'status' => false,
+                  'msg' => 'Gagal terhubung ke WA Gateway. ' . ($curlError ? 'Curl error: ' . $curlError : 'Respons kosong.')
+              ]);
+              exit();
+          }
+
+          $decoded = json_decode($response, true);
+          if (!is_array($decoded)) {
+              $preview = mb_substr($response, 0, 200);
+              echo json_encode([
+                  'status' => false,
+                  'msg' => 'Respons WA Gateway tidak valid (bukan JSON). HTTP ' . $httpCode . '. Preview: ' . $preview
+              ]);
+              exit();
+          }
+
+          $status = $decoded['status'] ?? false;
+          $isSuccess = ($status === true || $status === 'true' || $status === 1 || $status === '1');
+          $pesan = (string)($decoded['msg'] ?? $decoded['message'] ?? ($isSuccess ? 'Pesan berhasil dikirim.' : 'Pesan gagal dikirim.'));
+
+          echo json_encode([
+              'status' => $isSuccess,
+              'msg' => $pesan,
+              'raw' => $decoded
+          ]);
+      } catch (\Throwable $e) {
+          echo json_encode([
+              'status' => false,
+              'msg' => 'Kesalahan sistem saat mengirim WA: ' . $e->getMessage()
+          ]);
+      }
+      exit();
   }
 
   public function postSave()
@@ -1225,14 +1399,57 @@ class Admin extends AdminModule
   public function anyWilayah()
   {
     $show = isset($_GET['show']) ? $_GET['show'] : "";
+    $isSqlite = defined('DBDRIVER') && DBDRIVER == 'sqlite';
     switch ($show) {
       default:
+        break;
+      case "listkabupaten":
+        $kd_prop = isset_or($_REQUEST['kd_prop']) ? $_REQUEST['kd_prop'] : (isset_or($_POST['kd_prop']) ? $_POST['kd_prop'] : "");
+        $out = [];
+        if ($kd_prop !== "") {
+          if ($isSqlite) {
+            $rows = $this->db()->pdo()->query("SELECT kd_kab, nm_kab FROM kabupaten WHERE SUBSTR(CAST(kd_kab AS TEXT), 1, " . strlen($kd_prop) . ") = " . $this->db()->pdo()->quote($kd_prop) . " ORDER BY CAST(kd_kab AS INTEGER)")->fetchAll(\PDO::FETCH_ASSOC);
+          } else {
+            $rows = $this->db()->pdo()->query("SELECT kd_kab, nm_kab FROM kabupaten WHERE LEFT(CAST(kd_kab AS CHAR), " . strlen($kd_prop) . ") = " . $this->db()->pdo()->quote($kd_prop) . " ORDER BY CAST(kd_kab AS UNSIGNED)")->fetchAll(\PDO::FETCH_ASSOC);
+          }
+          foreach ($rows as $r) $out[] = ['kd' => $r['kd_kab'], 'nm' => $r['nm_kab']];
+        }
+        header('Content-Type: application/json');
+        echo json_encode($out);
+        break;
+      case "listkecamatan":
+        $kd_kab = isset_or($_REQUEST['kd_kab']) ? $_REQUEST['kd_kab'] : (isset_or($_POST['kd_kab']) ? $_POST['kd_kab'] : "");
+        $out = [];
+        if ($kd_kab !== "") {
+          if ($isSqlite) {
+            $rows = $this->db()->pdo()->query("SELECT kd_kec, nm_kec FROM kecamatan WHERE SUBSTR(CAST(kd_kec AS TEXT), 1, " . strlen($kd_kab) . ") = " . $this->db()->pdo()->quote($kd_kab) . " ORDER BY CAST(kd_kec AS INTEGER)")->fetchAll(\PDO::FETCH_ASSOC);
+          } else {
+            $rows = $this->db()->pdo()->query("SELECT kd_kec, nm_kec FROM kecamatan WHERE LEFT(CAST(kd_kec AS CHAR), " . strlen($kd_kab) . ") = " . $this->db()->pdo()->quote($kd_kab) . " ORDER BY CAST(kd_kec AS UNSIGNED)")->fetchAll(\PDO::FETCH_ASSOC);
+          }
+          foreach ($rows as $r) $out[] = ['kd' => $r['kd_kec'], 'nm' => $r['nm_kec']];
+        }
+        header('Content-Type: application/json');
+        echo json_encode($out);
+        break;
+      case "listkelurahan":
+        $kd_kec = isset_or($_REQUEST['kd_kec']) ? $_REQUEST['kd_kec'] : (isset_or($_POST['kd_kec']) ? $_POST['kd_kec'] : "");
+        $out = [];
+        if ($kd_kec !== "") {
+          if ($isSqlite) {
+            $rows = $this->db()->pdo()->query("SELECT kd_kel, nm_kel FROM kelurahan WHERE SUBSTR(CAST(kd_kel AS TEXT), 1, " . strlen($kd_kec) . ") = " . $this->db()->pdo()->quote($kd_kec) . " ORDER BY kd_kel")->fetchAll(\PDO::FETCH_ASSOC);
+          } else {
+            $rows = $this->db()->pdo()->query("SELECT kd_kel, nm_kel FROM kelurahan WHERE LEFT(CAST(kd_kel AS CHAR), " . strlen($kd_kec) . ") = " . $this->db()->pdo()->quote($kd_kec) . " ORDER BY kd_kel")->fetchAll(\PDO::FETCH_ASSOC);
+          }
+          foreach ($rows as $r) $out[] = ['kd' => $r['kd_kel'], 'nm' => $r['nm_kel']];
+        }
+        header('Content-Type: application/json');
+        echo json_encode($out);
         break;
       case "caripropinsi":
         if (isset($_POST["query"])) {
           $output = '';
           $key = "%" . $_POST["query"] . "%";
-          $rows = $this->db('propinsi')->like('nm_prop', $key)->asc('kd_prop')->limit(10)->toArray();
+          $rows = $this->db('propinsi')->like('nm_prop', $key)->asc('kd_prop')->limit(50)->toArray();
           $output = '';
           if (count($rows)) {
             foreach ($rows as $row) {
@@ -1246,7 +1463,7 @@ class Admin extends AdminModule
         if (isset($_POST["query"])) {
           $output = '';
           $key = "%" . $_POST["query"] . "%";
-          $rows = $this->db('kabupaten')->like('nm_kab', $key)->asc('kd_kab')->limit(10)->toArray();
+          $rows = $this->db('kabupaten')->like('nm_kab', $key)->asc('kd_kab')->limit(50)->toArray();
           $output = '';
           if (count($rows)) {
             foreach ($rows as $row) {
@@ -1260,7 +1477,7 @@ class Admin extends AdminModule
         if (isset($_POST["query"])) {
           $output = '';
           $key = "%" . $_POST["query"] . "%";
-          $rows = $this->db('kecamatan')->like('nm_kec', $key)->asc('kd_kec')->limit(10)->toArray();
+          $rows = $this->db('kecamatan')->like('nm_kec', $key)->asc('kd_kec')->limit(50)->toArray();
           $output = '';
           if (count($rows)) {
             foreach ($rows as $row) {
@@ -1274,7 +1491,7 @@ class Admin extends AdminModule
         if (isset($_POST["query"])) {
           $output = '';
           $key = "%" . $_POST["query"] . "%";
-          $rows = $this->db('kelurahan')->like('nm_kel', $key)->asc('kd_kel')->limit(10)->toArray();
+          $rows = $this->db('kelurahan')->like('nm_kel', $key)->asc('kd_kel')->limit(50)->toArray();
           $output = '';
           if (count($rows)) {
             foreach ($rows as $row) {
