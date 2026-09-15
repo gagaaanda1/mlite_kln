@@ -103,7 +103,6 @@ $(document).ready(function () {
                         html += '  </div>';
                         html += '  <div class="pacs-details-actions">';
                         html += '    <button class="btn btn-view-pacs" data-url="' + d.view_url + '" title="View PACS"><i class="fa fa-eye"></i></button>';
-                        html += '    <button class="btn btn-view-ohif" data-url="' + d.ohif_url + '" title="View Standalone OHIF"><i class="fa fa-tv"></i></button>';
                         html += '    <button class="btn btn-download-pacs" data-id="' + d.id + '" title="Download"><i class="fa fa-download"></i></button>';
                         html += '    <button class="btn btn-danger-delete" data-id="' + d.id + '" title="Delete"><i class="fa fa-trash"></i></button>';
                         html += '    <button class="btn btn-send-satusehat" data-id="' + d.id + '" title="Send to Satu Sehat"><i class="fa fa-cloud-upload"></i></button>';
@@ -183,7 +182,7 @@ $(document).ready(function () {
         }
     });
 
-    $(document).on('click', '.btn-view-pacs, .btn-view-ohif', function (e) {
+    $(document).on('click', '.btn-view-pacs', function (e) {
         e.preventDefault();
         var url = $(this).data('url');
         $('#viewerIframe').attr('src', url);
@@ -231,7 +230,89 @@ $(document).ready(function () {
         });
     });
 
+    // ========== Fullscreen Modal Viewer ==========
+    function toggleViewerFullscreen(modalEl) {
+        modalEl = modalEl && modalEl.length ? modalEl : $('#viewerModal');
+        if (!modalEl.length) return;
+        var isFs = modalEl.hasClass('modal-fullscreen');
+        if (isFs) {
+            modalEl.removeClass('modal-fullscreen');
+            $('body').removeClass('modal-viewer-fullscreen-open');
+        } else {
+            modalEl.addClass('modal-fullscreen');
+            $('body').addClass('modal-viewer-fullscreen-open');
+            // trigger resize pada iframe agar viewer Cornerstone menyesuaikan canvas
+            try {
+                var ifr = document.getElementById('viewerIframe');
+                if (ifr && ifr.contentWindow && typeof ifr.contentWindow.dispatchEvent === 'function') {
+                    ifr.contentWindow.dispatchEvent(new Event('resize'));
+                }
+            } catch(err) {}
+        }
+        // Kirim state ke iframe supaya tombol di toolbar viewer berubah expand/compress
+        try {
+            var ifr2 = document.getElementById('viewerIframe');
+            if (ifr2 && ifr2.contentWindow && typeof ifr2.contentWindow.postMessage === 'function') {
+                ifr2.contentWindow.postMessage({
+                    type: 'mini_pacs_fullscreen_state',
+                    active: !isFs
+                }, '*');
+            }
+        } catch(err) {}
+        // Update label/icon tombol fullscreen di header modal parent
+        modalEl.find('.btn-toggle-fullscreen').each(function () {
+            var btn = $(this);
+            var ic = btn.find('i.fa');
+            if (!isFs) {
+                ic.removeClass('fa-expand').addClass('fa-compress');
+                btn.contents().last()[0].nodeValue = ' Keluar Layar Penuh';
+                btn.attr('title', 'Keluar Layar Penuh (Tekan F di dalam viewer)');
+            } else {
+                ic.removeClass('fa-compress').addClass('fa-expand');
+                btn.contents().last()[0].nodeValue = ' Layar Penuh';
+                btn.attr('title', 'Fullscreen (Tekan F di dalam viewer)');
+            }
+        });
+    }
+
+    // Tombol fullscreen di header modal parent
+    $(document).on('click', '.btn-toggle-fullscreen[data-target="#viewerModal"]', function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        toggleViewerFullscreen($('#viewerModal'));
+    });
+
+    // Listener postMessage dari iframe viewer (trigger dari tombol F atau toolbar di viewer)
+    window.addEventListener('message', function (ev) {
+        var data = ev && ev.data ? ev.data : {};
+        if (data && data.type === 'mini_pacs_toggle_fullscreen') {
+            toggleViewerFullscreen($('#viewerModal'));
+        }
+    });
+
+    // Shortcut di parent window: F = toggle fullscreen (jika modal terbuka)
+    $(document).on('keydown', function (e) {
+        if (!$('#viewerModal').hasClass('in') && !$('#viewerModal').is(':visible')) return;
+        if ((e.key === 'f' || e.key === 'F') && !e.ctrlKey && !e.altKey && !e.metaKey) {
+            var tag = (e.target && e.target.tagName ? e.target.tagName : '').toUpperCase();
+            if (tag !== 'INPUT' && tag !== 'TEXTAREA' && tag !== 'SELECT' && tag !== 'IFRAME') {
+                toggleViewerFullscreen($('#viewerModal'));
+                e.preventDefault();
+            }
+        }
+    });
+
+    // Reset fullscreen ketika modal ditutup
     $('#viewerModal').on('hidden.bs.modal', function () {
+        if ($(this).hasClass('modal-fullscreen')) {
+            $(this).removeClass('modal-fullscreen');
+            $('body').removeClass('modal-viewer-fullscreen-open');
+            $(this).find('.btn-toggle-fullscreen').each(function () {
+                var btn = $(this);
+                btn.find('i.fa').removeClass('fa-compress').addClass('fa-expand');
+                btn.contents().last()[0].nodeValue = ' Layar Penuh';
+            });
+        }
         $('#viewerIframe').attr('src', '');
     });
 });

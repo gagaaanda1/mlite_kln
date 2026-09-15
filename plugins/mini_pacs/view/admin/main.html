@@ -349,6 +349,35 @@
     ::-webkit-scrollbar-thumb:hover {
       background: var(--primary-color);
     }
+
+    /* Fullscreen Mini PACS Viewer Modal */
+    #viewerModal.modal-fullscreen,
+    #viewerModal.modal-fullscreen .modal-dialog.modal-dialog-fullscreen {
+      width: 100vw !important;
+      max-width: 100vw !important;
+      height: 100vh !important;
+      max-height: 100vh !important;
+      margin: 0 !important;
+      padding: 0 !important;
+    }
+    #viewerModal.modal-fullscreen .modal-dialog-fullscreen {
+      position: fixed !important;
+      top: 0 !important;
+      left: 0 !important;
+      right: 0 !important;
+      bottom: 0 !important;
+    }
+    #viewerModal.modal-fullscreen .modal-content {
+      border: 0 !important;
+      border-radius: 0 !important;
+      height: 100vh !important;
+    }
+    #viewerModal.modal-fullscreen .modal-body {
+      height: calc(100vh - 60px) !important;
+    }
+    body.modal-viewer-fullscreen-open {
+      overflow: hidden !important;
+    }
   </style>
 </head>
 
@@ -559,18 +588,24 @@
 
   <!-- Modal Viewer -->
   <div class="modal fade" id="viewerModal" tabindex="-1" role="dialog" aria-labelledby="viewerModalLabel">
-    <div class="modal-dialog modal-lg" role="document" style="width: 95vw; height: 95vh; margin: 2.5vh auto;">
+    <div class="modal-dialog modal-lg modal-dialog-fullscreen" role="document" style="width: 95vw; height: 95vh; margin: 2.5vh auto;">
       <div class="modal-content" style="height: 100%;">
         <div class="modal-header" style="height: 60px; padding: 15px 25px;">
           <button type="button" class="close" data-dismiss="modal" aria-label="Close">
             <span aria-hidden="true">&times;</span>
+          </button>
+          <button type="button" class="btn btn-default btn-xs btn-toggle-fullscreen pull-right"
+                  data-target="#viewerModal"
+                  title="Fullscreen (Tekan F di dalam viewer)"
+                  style="margin-right: 18px; margin-top: 4px;">
+            <i class="fa fa-expand"></i> Layar Penuh
           </button>
           <h4 class="modal-title" id="viewerModalLabel">
             <i class="fa fa-tv text-primary"></i> Mini PACS DICOM Viewer
           </h4>
         </div>
         <div class="modal-body" style="height: calc(100% - 60px); padding: 0;">
-          <iframe id="viewerIframe" src="" style="width: 100%; height: 100%; border: none;"></iframe>
+          <iframe id="viewerIframe" src="" style="width: 100%; height: 100%; border: none; display: block;"></iframe>
         </div>
       </div>
     </div>
