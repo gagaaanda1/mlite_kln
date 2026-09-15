@@ -2382,13 +2382,6 @@ class Admin extends AdminModule
                     if(data && data.type === 'mini_pacs_fullscreen_state') {
                         var el = document.getElementById('btnToggleFullscreen');
                         if(!el) return;
-                        if(data.active) {
-                            el.innerHTML = '<i class=\"fa fa-compress\"></i> Keluar Layar Penuh';
-                            el.title = 'Keluar Layar Penuh (F)';
-                        } else {
-                            el.innerHTML = '<i class=\"fa fa-expand\"></i> Layar Penuh';
-                            el.title = 'Layar Penuh Modal (F)';
-                        }
                     }
                 });
             }
