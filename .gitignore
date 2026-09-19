@@ -74,3 +74,4 @@ themes/atilamedika
 api/
 docker/.env
 mobile-react/node_modules/.package-lock.json
+import_mysql_to_sqlite.py
