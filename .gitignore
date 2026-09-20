@@ -63,7 +63,9 @@ docker/nginx/conf.d/*
 docker/dns/dnsmasq.log
 docker/www/*
 
-# .env
+.env
+.env.local
+.env.*.local
 logs/
 config.php
 #workerman.php

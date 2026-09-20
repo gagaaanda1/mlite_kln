@@ -283,7 +283,7 @@ class Admin extends AdminModule
             $template_file = MODULES.'/esignature/view/admin/templates/'.($ref_type == 'resep' ? 'resep' : $ref_type).'.html';
             $html = $this->tpl->draw($template_file, true);
         } else {
-            // Original generic logic
+            // Original generic logic + FALLBACK OTOMATIS GENERATE KONTEN ERM JIKA FILE TIDAK ADA
             $html = '
             <style>
                 body { font-family: sans-serif; }
@@ -292,8 +292,14 @@ class Admin extends AdminModule
                 .signature-box { border: 1px solid #ccc; padding: 10px; display: inline-block; width: 45%; margin: 5px; vertical-align: top; }
                 .footer { border-top: 1px solid #ccc; margin-top: 10px; padding-top: 10px; font-size: 0.8em; color: #666; }
                 table td, table th { padding: 5px; }
-                .tbl_form { border-collapse: collapse; }
-                .tbl_form td { border: 1px solid #000; }
+                .tbl_form { border-collapse: collapse; width: 100%; }
+                .tbl_form td { border: 1px solid #000; padding: 6px 8px; vertical-align: top; }
+                .tbl_form td.label { width: 25%; background: #f5f5f5; font-weight: bold; }
+                .tbl_form td.value { width: 75%; }
+                .section-title { font-size: 1.1em; font-weight: bold; margin: 18px 0 8px; padding: 6px 10px; background: #eef3fb; border-left: 4px solid #2a6ebb; color: #1e3a5f; }
+                .meta-info { color: #666; font-size: 0.9em; font-style: italic; }
+                h1.title-hospital { font-size: 22px; text-align: center; margin: 0 0 3px; }
+                .sub-hospital { text-align: center; font-size: 12px; color: #555; margin: 0 0 10px; }
             </style>
             
             <div class="content">';
@@ -307,8 +313,16 @@ class Admin extends AdminModule
                 $rawContent = preg_replace('/<div class="modal-footer">.*?<\/div>/s', '', $rawContent);
                 $rawContent = preg_replace('/<a.*?class="btn.*?>.*?<\/a>/s', '', $rawContent);
                 $html .= $rawContent;
+            } elseif (method_exists($this, '_buildFallbackErmPdfContent') && $this->_isNoRawatConverted($ref_type, $ref_id)) {
+                // === FALLBACK UTAMA: Auto-generate KONTEN ERM PDF dari Database ===
+                $fallback = $this->_buildFallbackErmPdfContent($ref_id);
+                if (!empty($fallback)) {
+                    $html .= $fallback;
+                } else {
+                    $html .= '<p class="meta-info">Data rekam medis untuk kunjungan ini sedang dalam proses pemutakhiran. Lampiran di bawah ini memuat tanda tangan elektronik yang sah dan dapat diverifikasi.</p>';
+                }
             } else {
-                $html .= '<p>Konten tidak ditemukan.</p>';
+                $html .= '<p class="meta-info">Konten dokumen untuk ref_type=<b>'.htmlspecialchars($ref_type).'</b> / ref_id=<b>'.htmlspecialchars($ref_id).'</b> belum di-upload. Tanda tangan elektronik yang terlampir di bawah ini tetap berlaku dan dapat diverifikasi sesuai UU ITE No 11 Tahun 2008.</p>';
             }
 
             $html .= '</div>
@@ -316,7 +330,20 @@ class Admin extends AdminModule
             <h3>Tanda Tangan Elektronik:</h3>
             <div style="width: 100%;">';
 
-            foreach ($signatures as $sig) {
+            // === DEDUPLIKASI SIGNATURE: 1 (nama, jabatan) = 1 tampilan TERBARU ===
+            // Masalah: dr. Ataaka Muhammad bisa menandatangani dokumen yang sama BERULANG KALI
+            // (setiap klik "bubuhkan tanda tangan" tambah 1 row DB). Loop semua signatures
+            // menyebabkan QR Code TAMPIL 13 KALI (duplikat). Solusi: ambil TERBARU per
+            // kombinasi (signer_name + '|' + signer_role).
+            $uniqueSigs = [];
+            foreach ($signatures as $s) {
+                $sigKey = trim(($s['signer_name'] ?? '')) . '|' . trim(($s['signer_role'] ?? ''));
+                $uniqueSigs[$sigKey] = $s; // overwrite otomatis = simpan YANG TERBARU (urutan id ASC)
+            }
+            // Kembalikan ke array numerik agar mudah di-loop
+            $signaturesToRender = array_values($uniqueSigs);
+
+            foreach ($signaturesToRender as $sig) {
                 $path = WEBAPPS_PATH . '/berkas/esignature/' . $sig['signature_path'];
                 $verifyUrl = url(['esignature', 'verify', $sig['signature_hash']]);
 
@@ -382,5 +409,251 @@ class Admin extends AdminModule
 
         $mpdf->Output($fileName, 'I');
         exit;
+    }
+
+    /**
+     * Detector: Apakah ($ref_type, $ref_id) adalah rujukan ke no_rawat format convertNorawat()
+     * (numeric 12-16 digit = Ymd + counter 6 digit, contoh: 20260901000001)
+     */
+    private function _isNoRawatConverted($ref_type, $ref_id)
+    {
+        if ($ref_type !== 'pdf') {
+            return false;
+        }
+        if (!is_string($ref_id) || strlen($ref_id) < 12 || strlen($ref_id) > 18) {
+            return false;
+        }
+        if (!ctype_digit($ref_id)) {
+            return false;
+        }
+        $no_rawat = @revertNoRawat($ref_id);
+        if (empty($no_rawat)) {
+            return false;
+        }
+        $row = $this->db('reg_periksa')->where('no_rawat', $no_rawat)->oneArray();
+        return !empty($row);
+    }
+
+    /**
+     * FALLBACK GENERATOR KONTEN PDF ERM OTOMATIS DARI DATABASE
+     * Digunakan ketika file admin/tmp/<ref_type>.html TIDAK ADA (pesan "Konten tidak ditemukan" lama).
+     * Hasil HTML = identitas RS → Identitas Pasien → Riwayat Perawatan →  Diagnosis → Tindakan → Resep → Lab → Radiologi → Resume
+     * Mengembalikan string HTML untuk disisipkan ke $html sebelum block tanda tangan.
+     */
+    private function _buildFallbackErmPdfContent($ref_id_converted)
+    {
+        $no_rawat = @revertNoRawat($ref_id_converted);
+        if (empty($no_rawat)) {
+            return '';
+        }
+        $reg = $this->db('reg_periksa')
+            ->join('pasien', 'pasien.no_rkm_medis=reg_periksa.no_rkm_medis')
+            ->join('dokter', 'dokter.kd_dokter=reg_periksa.kd_dokter')
+            ->join('poliklinik', 'poliklinik.kd_poli=reg_periksa.kd_poli')
+            ->join('penjab', 'penjab.kd_pj=reg_periksa.kd_pj')
+            ->where('no_rawat', $no_rawat)
+            ->oneArray();
+        if (empty($reg)) {
+            return '';
+        }
+
+        $settings_rs = $this->settings('settings');
+        $nama_rs = htmlspecialchars($settings_rs['nama_instansi'] ?? 'Rumah Sakit', ENT_QUOTES, 'UTF-8');
+        $alamat_rs = htmlspecialchars($settings_rs['alamat_instansi'] ?? '', ENT_QUOTES, 'UTF-8');
+        $telp_rs = htmlspecialchars(trim(($settings_rs['kota_instansi'] ?? '').' · Telp. '.($settings_rs['telp_instansi'] ?? '')), ENT_QUOTES, 'UTF-8');
+
+        $e = function ($v, $alt='-') use (&$reg) {
+            $val = $reg[$v] ?? null;
+            return htmlspecialchars($val !== null && $val !== '' ? $val : $alt, ENT_QUOTES, 'UTF-8');
+        };
+        $tgl_periksa = $e('tgl_registrasi').' '.($reg['jam_reg'] ?? '00:00');
+        $umur = '';
+        if (!empty($reg['tgl_lahir'])) {
+            $lahir = \DateTime::createFromFormat('Y-m-d', $reg['tgl_lahir']) ?: null;
+            if ($lahir) {
+                $today = new \DateTime(isset($reg['tgl_registrasi']) ? $reg['tgl_registrasi'] : 'now');
+                $diff = $today->diff($lahir);
+                $umur = trim($diff->y.' Thn '.$diff->m.' Bln '.$diff->d.' Hr');
+            }
+        }
+
+        // --- Data diagnosis, tindakan, resep, lab, radiologi ---
+        $rows_dx = $this->db('diagnosa_pasien')
+            ->join('penyakit', 'penyakit.kd_penyakit=diagnosa_pasien.kd_penyakit')
+            ->where('no_rawat', $no_rawat)
+            ->asc('prioritas')
+            ->toArray();
+        $rows_tindakan = $this->db('prosedur_pasien')
+            ->join('icd9', 'icd9.kode=prosedur_pasien.kode')
+            ->where('no_rawat', $no_rawat)
+            ->asc('prioritas')
+            ->toArray();
+        if (empty($rows_tindakan)) {
+            $rows_tindakan = $this->db('rawat_jl_dr')
+                ->join('jns_perawatan', 'jns_perawatan.kd_jenis_prw=rawat_jl_dr.kd_jenis_prw')
+                ->join('dokter', 'dokter.kd_dokter=rawat_jl_dr.kd_dokter')
+                ->where('no_rawat', $no_rawat)
+                ->toArray();
+        }
+        $rows_resep = [];
+        $resep = $this->db('resep_obat')->where('no_rawat', $no_rawat)->oneArray();
+        if (!empty($resep)) {
+            $rows_resep = $this->db('resep_dokter')
+                ->join('databarang', 'databarang.kode_brng=resep_dokter.kode_brng')
+                ->where('no_resep', $resep['no_resep'])
+                ->toArray();
+        }
+        $rows_lab = $this->db('periksa_lab')
+            ->join('jns_perawatan_lab', 'jns_perawatan_lab.kd_jenis_prw=periksa_lab.kd_jenis_prw')
+            ->where('no_rawat', $no_rawat)
+            ->toArray();
+        $rows_rad = $this->db('periksa_radiologi')
+            ->join('jns_perawatan_radiologi', 'jns_perawatan_radiologi.kd_jenis_prw=periksa_radiologi.kd_jenis_prw')
+            ->where('no_rawat', $no_rawat)
+            ->toArray();
+        $pemeriksaan_ralan = $this->db('pemeriksaan_ralan')->where('no_rawat', $no_rawat)->oneArray() ?? [];
+        $resume = $this->db('resume_pasien')->where('no_rawat', $no_rawat)->oneArray() ?? [];
+
+        $tdSection = function ($lbl, $val) {
+            $lblHtml = htmlspecialchars($lbl, ENT_QUOTES, 'UTF-8');
+            $valHtml = $val === '' || $val === null ? '-' : $val;
+            if (!is_string($valHtml)) { $valHtml = (string)$valHtml; }
+            if (strpos($valHtml, '<') === false) {
+                $valHtml = htmlspecialchars($valHtml, ENT_QUOTES, 'UTF-8');
+            }
+            return '<tr><td class="label">'.$lblHtml.'</td><td class="value">'.$valHtml.'</td></tr>';
+        };
+        $sec = function ($t) { return '<div class="section-title">'.htmlspecialchars($t, ENT_QUOTES, 'UTF-8').'</div>'; };
+
+        $html5 = '<h1 class="title-hospital">'.$nama_rs.'</h1>';
+        $html5 .= '<div class="sub-hospital">'.($alamat_rs ? rtrim($alamat_rs, '.').' · ' : '').$telp_rs.'</div>';
+        $html5 .= '<hr>';
+        $html5 .= '<div style="display:table;width:100%;"><div style="display:table-cell;width:70%;"><b style="font-size:16px;">Rekam Medis Rawat Jalan</b></div>';
+        $html5 .= '<div style="display:table-cell;width:30%;text-align:right;">Tanggal Cetak: <b>'.htmlspecialchars(dateIndonesia(date('Y-m-d')).' '.date('H:i')).'</b></div></div>';
+
+        $html5 .= $sec('1. Identitas Pasien & Kunjungan');
+        $html5 .= '<table class="tbl_form"><tbody>';
+        $html5 .= $tdSection('No. Rawat', $e('no_rawat'));
+        $html5 .= $tdSection('No. Rekam Medis', $e('no_rkm_medis'));
+        $html5 .= $tdSection('Nama Pasien', $e('nm_pasien'));
+        $html5 .= $tdSection('No. Identitas (KTP/BPJS)', ($e('no_ktp', '-').' · No. BPJS: '.$e('no_peserta', '-')));
+        $html5 .= $tdSection('Jenis Kelamin / Umur', ($e('jk', '-').' / '.($umur ?: '-')));
+        $html5 .= $tdSection('Tempat, Tgl. Lahir', ($e('tempat_lahir').', '.($e('tgl_lahir')?dateIndonesia($e('tgl_lahir')):'-')));
+        $html5 .= $tdSection('Alamat Lengkap', ($e('alamat').' RT/RW '.($reg['rt'] ?? '00').'/'.($reg['rw'] ?? '00').' · Kel. '.$e('nm_kel').' · Kec. '.$e('nm_kec').' · '.$e('nm_kab').' · '.$e('nm_prop')));
+        $html5 .= $tdSection('Pekerjaan / Pendidikan / Agama / Suku', ($e('pekerjaan').' / '.$e('pnd').' / '.$e('agama').' / '.$e('suku')));
+        $html5 .= $tdSection('Nama Orang Tua / Keluarga / PJ', ($e('nama_ibu').' · '.$e('namakeluarga').' / '.$e('png_jawab')));
+        $html5 .= $tdSection('Bahasa / Status / HP', ($e('bahasa').' · '.$e('stts_nikah').' · HP: '.$e('no_tlp')));
+        $html5 .= '</tbody></table>';
+
+        $html5 .= $sec('2. Data Kunjungan Poliklinik & DPJP');
+        $html5 .= '<table class="tbl_form"><tbody>';
+        $html5 .= $tdSection('Tanggal & Jam Registrasi', $tgl_periksa);
+        $html5 .= $tdSection('Poliklinik Tujuan', $e('nm_poli'));
+        $html5 .= $tdSection('Cara Bayar / Penjamin', $e('png_jawab'));
+        $html5 .= $tdSection('DPJP / Dokter Pemeriksa', $e('nm_dokter').($e('no_ijn_praktek', '') !== '-' && trim($e('no_ijn_praktek','')) !== '' ? ' (SIP: '.$e('no_ijn_praktek').')' : ''));
+        $html5 .= $tdSection('Status Lanjut Kunjungan', $e('status_lanjut'));
+        $html5 .= '</tbody></table>';
+
+        if (!empty($pemeriksaan_ralan) || !empty($resume['keluhan_utama'])) {
+            $html5 .= $sec('3. Anamnesa & Pemeriksaan Fisik');
+            $html5 .= '<table class="tbl_form"><tbody>';
+            $keluhan = $resume['keluhan_utama'] ?? ($pemeriksaan_ralan['keluhan_utama'] ?? '');
+            $html5 .= $tdSection('Keluhan Utama', $keluhan);
+            $rps = $resume['rps'] ?? '';
+            $alergi = $pemeriksaan_ralan['alergi'] ?? '-';
+            $html5 .= $tdSection('Riwayat Penyakit Sekarang / Alergi', $rps.' · Alergi: '.$alergi);
+            $tensi = $pemeriksaan_ralan['tensi'] ?? '-';
+            $nadi = $pemeriksaan_ralan['nadi'] ?? '-';
+            $respirasi = $pemeriksaan_ralan['respirasi'] ?? '-';
+            $suhu = $pemeriksaan_ralan['suhu'] ?? '-';
+            $berat = $pemeriksaan_ralan['berat'] ?? '-';
+            $tinggi = $pemeriksaan_ralan['tinggi'] ?? '-';
+            $tandaVital = $tensi.' mmHg · Nadi: '.$nadi.'/mnt · RR: '.$respirasi.'/mnt · Suhu: '.$suhu.' C · BB: '.$berat.' Kg · TB: '.$tinggi.' Cm';
+            $html5 .= $tdSection('Tanda Vital (TD / Nadi / RR / Suhu / BB / TB)', $tandaVital);
+            $kesadaran = $pemeriksaan_ralan['kesadaran'] ?? '-';
+            $gcs = $pemeriksaan_ralan['gcs'] ?? '-';
+            $html5 .= $tdSection('Kesadaran / GCS', $kesadaran.' · GCS: '.$gcs);
+            $h2t = $pemeriksaan_ralan['pemeriksaan'] ?? ($resume['pemeriksaan_fisik'] ?? '');
+            $html5 .= $tdSection('Pemeriksaan Fisik Head-to-Toe / Status Lokalis', $h2t);
+            $html5 .= '</tbody></table>';
+        }
+
+        if (!empty($rows_dx)) {
+            $html5 .= $sec('4. Diagnosis (ICD-10)');
+            $html5 .= '<table class="tbl_form"><thead style="background:#eef3fb;"><tr><th style="border:1px solid #000;width:8%;padding:5px;">Prioritas</th><th style="border:1px solid #000;width:22%;padding:5px;">Kode ICD-10</th><th style="border:1px solid #000;width:70%;padding:5px;">Nama Diagnosis</th></tr></thead><tbody>';
+            foreach ($rows_dx as $dx) {
+                $html5 .= '<tr><td style="border:1px solid #000;padding:5px;">'.htmlspecialchars($dx['prioritas'] ?? ($dx['status_penyakit'] ?? '-'), ENT_QUOTES, 'UTF-8').'</td>';
+                $html5 .= '<td style="border:1px solid #000;padding:5px;font-weight:bold;">'.htmlspecialchars($dx['kd_penyakit'] ?? '', ENT_QUOTES, 'UTF-8').'</td>';
+                $html5 .= '<td style="border:1px solid #000;padding:5px;">'.htmlspecialchars($dx['nm_penyakit'] ?? '', ENT_QUOTES, 'UTF-8').'</td></tr>';
+            }
+            $html5 .= '</tbody></table>';
+        }
+        if (!empty($rows_tindakan)) {
+            $html5 .= $sec('5. Tindakan Medis & Prosedur (ICD-9 CM)');
+            $html5 .= '<table class="tbl_form"><thead style="background:#eef3fb;"><tr><th style="border:1px solid #000;width:8%;padding:5px;">No</th><th style="border:1px solid #000;width:22%;padding:5px;">Kode ICD-9 / Jenis</th><th style="border:1px solid #000;width:55%;padding:5px;">Nama Tindakan / Prosedur</th><th style="border:1px solid #000;width:15%;padding:5px;">Petugas</th></tr></thead><tbody>';
+            $i = 0;
+            foreach ($rows_tindakan as $tx) {
+                $i++;
+                $kd = $tx['kode'] ?? ($tx['kd_jenis_prw'] ?? '');
+                $nm = $tx['deskripsi_panjang'] ?? ($tx['deskripsi_pendek'] ?? ($tx['nama_perawatan'] ?? ''));
+                $pet = $tx['nm_dokter'] ?? ($tx['nip'] ?? '-');
+                $html5 .= '<tr><td style="border:1px solid #000;padding:5px;">'.$i.'</td>';
+                $html5 .= '<td style="border:1px solid #000;padding:5px;font-weight:bold;">'.htmlspecialchars($kd, ENT_QUOTES, 'UTF-8').'</td>';
+                $html5 .= '<td style="border:1px solid #000;padding:5px;">'.htmlspecialchars($nm, ENT_QUOTES, 'UTF-8').'</td>';
+                $html5 .= '<td style="border:1px solid #000;padding:5px;">'.htmlspecialchars($pet, ENT_QUOTES, 'UTF-8').'</td></tr>';
+            }
+            $html5 .= '</tbody></table>';
+        }
+        if (!empty($rows_resep)) {
+            $html5 .= $sec('6. Peresepan Obat & Racikan');
+            $html5 .= '<table class="tbl_form"><thead style="background:#eef3fb;"><tr><th style="border:1px solid #000;width:8%;padding:5px;">No</th><th style="border:1px solid #000;width:44%;padding:5px;">Nama Obat</th><th style="border:1px solid #000;width:12%;padding:5px;">Jumlah</th><th style="border:1px solid #000;width:36%;padding:5px;">Aturan Pakai</th></tr></thead><tbody>';
+            $i = 0;
+            foreach ($rows_resep as $rx) {
+                $i++;
+                $nama = $rx['nama_brng'] ?? '';
+                $jml = ($rx['jml'] ?? '0').' '.($rx['kode_sat'] ?? ($rx['satuan'] ?? ''));
+                $aturan = $rx['aturan_pakai'] ?? '';
+                $html5 .= '<tr><td style="border:1px solid #000;padding:5px;">'.$i.'</td>';
+                $html5 .= '<td style="border:1px solid #000;padding:5px;">'.htmlspecialchars($nama, ENT_QUOTES, 'UTF-8').'</td>';
+                $html5 .= '<td style="border:1px solid #000;padding:5px;">'.htmlspecialchars($jml, ENT_QUOTES, 'UTF-8').'</td>';
+                $html5 .= '<td style="border:1px solid #000;padding:5px;">'.htmlspecialchars($aturan, ENT_QUOTES, 'UTF-8').'</td></tr>';
+            }
+            $html5 .= '</tbody></table>';
+        }
+        if (!empty($rows_lab)) {
+            $html5 .= $sec('7. Hasil Pemeriksaan Laboratorium');
+            $html5 .= '<table class="tbl_form"><thead style="background:#eef3fb;"><tr><th style="border:1px solid #000;width:30%;padding:5px;">Pemeriksaan Lab</th><th style="border:1px solid #000;width:15%;padding:5px;">Tgl/Jam</th><th style="border:1px solid #000;width:25%;padding:5px;">Hasil</th><th style="border:1px solid #000;width:15%;padding:5px;">Satuan</th><th style="border:1px solid #000;width:15%;padding:5px;">Nilai Rujukan</th></tr></thead><tbody>';
+            foreach ($rows_lab as $lb) {
+                $html5 .= '<tr><td style="border:1px solid #000;padding:5px;">'.htmlspecialchars(($lb['nm_perawatan'] ?? $lb['jenis_perawatan'] ?? ''), ENT_QUOTES, 'UTF-8').'</td>';
+                $html5 .= '<td style="border:1px solid #000;padding:5px;">'.htmlspecialchars(($lb['tgl_periksa'] ?? '-').' '.($lb['jam'] ?? ''), ENT_QUOTES, 'UTF-8').'</td>';
+                $html5 .= '<td style="border:1px solid #000;padding:5px;font-weight:bold;">'.htmlspecialchars($lb['nilai_normal'] ?? ($lb['hasil'] ?? '-'), ENT_QUOTES, 'UTF-8').'</td>';
+                $html5 .= '<td style="border:1px solid #000;padding:5px;">'.htmlspecialchars($lb['satuan'] ?? '', ENT_QUOTES, 'UTF-8').'</td>';
+                $html5 .= '<td style="border:1px solid #000;padding:5px;">'.htmlspecialchars($lb['nilai_rujukan'] ?? '', ENT_QUOTES, 'UTF-8').'</td></tr>';
+            }
+            $html5 .= '</tbody></table>';
+        }
+        if (!empty($rows_rad)) {
+            $html5 .= $sec('8. Hasil Pemeriksaan Radiologi');
+            $html5 .= '<table class="tbl_form"><thead style="background:#eef3fb;"><tr><th style="border:1px solid #000;width:30%;padding:5px;">Pemeriksaan Radiologi</th><th style="border:1px solid #000;width:18%;padding:5px;">Tgl/Jam</th><th style="border:1px solid #000;width:52%;padding:5px;">Hasil / Kesan</th></tr></thead><tbody>';
+            foreach ($rows_rad as $rd) {
+                $html5 .= '<tr><td style="border:1px solid #000;padding:5px;">'.htmlspecialchars(($rd['nm_perawatan'] ?? $rd['jenis_perawatan'] ?? ''), ENT_QUOTES, 'UTF-8').'</td>';
+                $html5 .= '<td style="border:1px solid #000;padding:5px;">'.htmlspecialchars(($rd['tgl_periksa'] ?? '-').' '.($rd['jam'] ?? ''), ENT_QUOTES, 'UTF-8').'</td>';
+                $hasil_rad = $this->db('hasil_radiologi')->where('no_rawat', $no_rawat)->where('tgl_periksa', $rd['tgl_periksa'] ?? null)->where('jam', $rd['jam'] ?? null)->oneArray();
+                $kesan = $hasil_rad['kesan'] ?? ($hasil_rad['hasil'] ?? '-');
+                $html5 .= '<td style="border:1px solid #000;padding:5px;">'.htmlspecialchars($kesan, ENT_QUOTES, 'UTF-8').'</td></tr>';
+            }
+            $html5 .= '</tbody></table>';
+        }
+        if (!empty($resume) || !empty($reg['hubungi'])) {
+            $html5 .= $sec('9. Resume Medis, Instruksi Pulang & Tindak Lanjut');
+            $html5 .= '<table class="tbl_form"><tbody>';
+            $html5 .= $tdSection('Diagnosa Akhir / Ringkasan Klinis', ($resume['diagnosa_akhir'] ?? ($resume['keluhan_utama'] ?? '')));
+            $html5 .= $tdSection('Terapi / Pengobatan yang Diberikan', ($resume['pengobatan'] ?? ($resume['therapy'] ?? '')));
+            $html5 .= $tdSection('Instruksi / Konseling / Diet / Edukasi Pasien', ($resume['konseling'] ?? ($reg['hubungi'] ?? '')));
+            $html5 .= $tdSection('Prognosis & Tindak Lanjut Kontrol Kembali', ($resume['prognosa'] ?? ($resume['rencana_tindak_lanjut'] ?? '-')));
+            $html5 .= '</tbody></table>';
+        }
+
+        return $html5;
     }
 }
