@@ -159,7 +159,170 @@ class Admin extends AdminModule
                  throw new \Exception("Database save failed");
             }
 
-            echo json_encode(['status' => 'success', 'hash' => $hash]);
+            // === AUTO GENERATE PDF + INSERT berkas_digital_perawatan ===
+            // Setelah proses simpan TANDA TANGAN BERHASIL, LANGSUNG generate PDF dokumen final
+            // dan insert ke berkas_digital_perawatan, agar data langsung TERSEDIA dan BISA DIPANGGIL
+            // di Folder Berkas Rawat (plugin pasien: /admin/pasien/folder/<no_rkm_medis>)
+            // TANPA perlu user buka endpoint PDF dulu.
+            try {
+                $berkasDigitalError = '';
+                $auto_gen_ok = false;
+                $pdf_no_rawat_slash = null;
+                if (!empty($ref_type) && !empty($ref_id)) {
+                    if (($ref_type === 'pdf' || $ref_type === 'resep' || in_array($ref_type, ['surat.sakit','surat.rujukan','surat.sehat']))) {
+                        if (is_string($ref_id) && ctype_digit($ref_id) && strlen($ref_id) >= 12) {
+                            $rv = @revertNoRawat($ref_id);
+                            if (!empty($rv)) {
+                                $cek = $this->db('reg_periksa')->where('no_rawat', $rv)->oneArray();
+                                if (!empty($cek)) $pdf_no_rawat_slash = $rv;
+                            }
+                        }
+                    }
+                    // Surat types: ref_id = sudah convertNorawat 14 digit
+                    if ($pdf_no_rawat_slash === null && in_array($ref_type, ['surat.sakit','surat.rujukan','surat.sehat'])) {
+                        $rv = @revertNoRawat($ref_id);
+                        if (!empty($rv)) {
+                            $cek = $this->db('reg_periksa')->where('no_rawat', $rv)->oneArray();
+                            if (!empty($cek)) $pdf_no_rawat_slash = $rv;
+                        }
+                    }
+                    // Resep: ref_id = no_resep string alfanum, cek resep_obat untuk ambil no_rawat
+                    if ($pdf_no_rawat_slash === null && $ref_type === 'resep') {
+                        $resep = $this->db('resep_obat')->where('no_resep', $ref_id)->oneArray();
+                        if (!empty($resep['no_rawat'])) $pdf_no_rawat_slash = $resep['no_rawat'];
+                    }
+                }
+                if ($pdf_no_rawat_slash !== null) {
+                    // Generate PDF dengan memanggil getGeneratePdf via output buffer capture (JANGAN exit!)
+                    // Wrap try-catch dan suppress exit via exception handler agar script L398 tidak terminate
+                    $pdfSaved = false;
+                    $pdfLokasiFile = '';
+                    try {
+                        $kode_bd = (string)$this->settings('esignature', 'kode_berkasdigital');
+                        if ($kode_bd === '' || $kode_bd === null) $kode_bd = 'DIG001';
+                        $cekKode = $this->db('master_berkas_digital')->where('kode', $kode_bd)->oneArray();
+                        if (empty($cekKode)) {
+                            $fb = $this->db('master_berkas_digital')->limit(1)->oneArray();
+                            $kode_bd = $fb['kode'] ?? 'DIG001';
+                        }
+                        $uploadDir = WEBAPPS_PATH . '/berkasrawat/pages/upload/';
+                        if (!file_exists($uploadDir)) {
+                            @mkdir($uploadDir, 0777, true);
+                        }
+                        // Nama file PDF unique:
+                        $timeSuffix = date('YmdHis');
+                        $uniq = substr(md5($hash . microtime(true)), 0, 6);
+                        $fname = 'doc_' . $ref_id . '_' . $timeSuffix . $uniq . '.pdf';
+                        $fpath = $uploadDir . $fname;
+
+                        // Build HTML dokumen signed (sama seperti getGeneratePdf else branch, TANPA exit)
+                        $signaturesForPdf = $this->db('mlite_esignatures')
+                            ->where('ref_type', $ref_type)
+                            ->where('ref_id', $ref_id)
+                            ->toArray();
+                        $dedupe = [];
+                        foreach ($signaturesForPdf as $s) {
+                            $kk = trim($s['signer_name'] ?? '') . '|' . trim($s['signer_role'] ?? '');
+                            $dedupe[$kk] = $s;
+                        }
+                        $listSigs = array_values($dedupe);
+
+                        // Build HTML konten
+                        $htmlDoc = '<style>
+                          body { font-family: sans-serif; }
+                          .content { margin-bottom: 30px; }
+                          .signature-box { border: 1px solid #ccc; padding: 10px; display: inline-block; width: 45%; margin: 5px; vertical-align: top; }
+                          .section-title { font-size: 1.1em; font-weight: bold; margin: 18px 0 8px; padding: 6px 10px; background: #eef3fb; border-left: 4px solid #2a6ebb; color: #1e3a5f; }
+                          .tbl_form { border-collapse: collapse; width: 100%; }
+                          .tbl_form td { border: 1px solid #000; padding: 6px 8px; vertical-align: top; }
+                          .tbl_form td.label { width: 25%; background: #f5f5f5; font-weight: bold; }
+                          .tbl_form td.value { width: 75%; }
+                          .meta-info { color: #666; font-size: 0.9em; font-style: italic; }
+                          h1.title-hospital { font-size: 22px; text-align: center; margin: 0 0 3px; }
+                          .sub-hospital { text-align: center; font-size: 12px; color: #555; margin: 0 0 10px; }
+                        </style><div class="content">';
+                        $contentFile = WEBAPPS_PATH . '/../admin/tmp/'.$ref_type.'.html';
+                        if (file_exists($contentFile)) {
+                            $rawContent = file_get_contents($contentFile);
+                            $rawContent = preg_replace('/<del>.*?<\/del>/s', '', $rawContent);
+                            $rawContent = preg_replace('/<div class="modal-header">.*?<\/div>/s', '', $rawContent);
+                            $rawContent = preg_replace('/<div class="modal-footer">.*?<\/div>/s', '', $rawContent);
+                            $rawContent = preg_replace('/<a.*?class="btn.*?>.*?<\/a>/s', '', $rawContent);
+                            $htmlDoc .= $rawContent;
+                        } elseif (method_exists($this, '_buildFallbackErmPdfContent') && $this->_isNoRawatConverted($ref_type, $ref_id)) {
+                            $fallback = $this->_buildFallbackErmPdfContent($ref_id);
+                            if (!empty($fallback)) {
+                                $htmlDoc .= $fallback;
+                            } else {
+                                $htmlDoc .= '<p class="meta-info">Data rekam medis untuk kunjungan ini sedang dalam proses pemutakhiran. Lampiran di bawah ini memuat tanda tangan elektronik yang sah dan dapat diverifikasi.</p>';
+                            }
+                        } else {
+                            $htmlDoc .= '<p class="meta-info">Konten dokumen untuk ref_type=<b>'.htmlspecialchars($ref_type,ENT_QUOTES,'UTF-8').'</b> / ref_id=<b>'.htmlspecialchars($ref_id,ENT_QUOTES,'UTF-8').'</b> belum di-upload. Tanda tangan elektronik yang terlampir di bawah ini tetap berlaku dan dapat diverifikasi sesuai UU ITE No 11 Tahun 2008.</p>';
+                        }
+                        $htmlDoc .= '</div><div class="signer"><h3>Tanda Tangan Elektronik:</h3><div style="width:100%;">';
+                        foreach ($listSigs as $sig) {
+                            $path = WEBAPPS_PATH . '/berkas/esignature/' . $sig['signature_path'];
+                            $vurl = url(['esignature','verify',$sig['signature_hash']]);
+                            if (file_exists($path)) {
+                                $htmlDoc .= '<div class="signature-box"><table width="100%"><tr>';
+                                $htmlDoc .= '<td width="60%" align="center"><img src="'.$path.'" height="60" /><br><strong>'.$sig['signer_name'].'</strong><br><small>'.$sig['signer_role'].'</small><br><small>'.date('d-m-Y H:i', strtotime($sig['signed_at'])).'</small></td>';
+                                $htmlDoc .= '<td width="40%" align="center"><barcode code="'.$vurl.'" type="QR" class="barcode" size="0.7" error="M" disableborder="1" /><br><small>Verify</small></td>';
+                                $htmlDoc .= '</tr></table></div>';
+                            }
+                        }
+                        $htmlDoc .= '</div></div>';
+
+                        // Generate PDF via mPDF
+                        if (class_exists('Mpdf\\Mpdf')) {
+                            $mpdfLocal = new \Mpdf\Mpdf([
+                                'mode' => 'utf-8', 'format' => 'A4',
+                                'margin_top' => 15, 'margin_bottom' => 15,
+                                'margin_left' => 20, 'margin_right' => 20
+                            ]);
+                            $mpdfLocal->shrink_tables_to_fit = 1;
+                            $mpdfLocal->use_kwt = true;
+                            $mpdfLocal->WriteHTML($htmlDoc);
+                            $mpdfLocal->SetHTMLFooter('<p style="font-size:8px;color:#888;">Dokumen ini resmi dan telah ditandatangani secara elektronik sesuai UU ITE No 11 Tahun 2008.</p>
+<div class="footer"><table width="100%"><tr><td width="50%">Dicetak pada: '.date('d-m-Y H:i').'</td><td width="50%" align="right">Halaman {PAGENO} dari {nbpg}</td></tr></table></div>');
+                            $mpdfLocal->Output($fpath, 'F');
+                            if (file_exists($fpath) && filesize($fpath) > 0) {
+                                $pdfSaved = true;
+                                $pdfLokasiFile = 'pages/upload/' . $fname;
+                            }
+                        } // end mPDF exists
+                    } catch (\Throwable $e) {
+                        $berkasDigitalError = 'PDF generation error: ' . $e->getMessage();
+                    }
+
+                    // Insert ke berkas_digital_perawatan JIKA PDF saved DAN kode_bd valid DAN no_rawat_slash ada
+                    if ($pdfSaved && !empty($pdfLokasiFile)) {
+                        $dup = $this->db('berkas_digital_perawatan')
+                            ->where('no_rawat', $pdf_no_rawat_slash)
+                            ->where('kode', $kode_bd)
+                            ->where('lokasi_file', $pdfLokasiFile)
+                            ->count();
+                        if ($dup == 0) {
+                            $insertBd = $this->db('berkas_digital_perawatan')->save([
+                                'no_rawat'    => $pdf_no_rawat_slash,
+                                'kode'        => $kode_bd,
+                                'lokasi_file' => $pdfLokasiFile
+                            ]);
+                            if ($insertBd) $auto_gen_ok = true;
+                        } else {
+                            $auto_gen_ok = true; // sudah ada dianggap OK
+                        }
+                    }
+                } // end pdf_no_rawat_slash tidak null
+            } catch (\Throwable $e) {
+                // Error berkas digital TIDAK BOLEH menyebabkan postSaveSignature response JSON gagal!
+                // Tetap return status success signature, karena tanda tangan SUDAH tersimpan di mlite_esignatures.
+                $berkasDigitalError = isset($berkasDigitalError) ? $berkasDigitalError . ' | ' . $e->getMessage() : $e->getMessage();
+            }
+
+            $resp = ['status' => 'success', 'hash' => $hash];
+            if (isset($auto_gen_ok) && $auto_gen_ok) $resp['berkas_digital'] = 'auto_saved';
+            if (!empty($berkasDigitalError)) $resp['berkas_digital_warning'] = $berkasDigitalError;
+            echo json_encode($resp);
 
         } catch (\Exception $e) {
             http_response_code(500);
@@ -399,12 +562,58 @@ class Admin extends AdminModule
 
         $mpdf->Output($filePath, 'F');
 
+        // === INSERT KE berkas_digital_perawatan ===
+        // Data dari insert ini AKAN MUNCUL di Folder Berkas Rawat (plugin pasien getFolder L619)
+        // Join dengan master_berkas_digital via kolom `kode`. Kalau kode KOSONG, join GAGAL = row HILANG di UI!
         if (file_exists($filePath)) {
-            $this->db('berkas_digital_perawatan')->save([
-                'no_rawat' => (isset($no_rawat) ? $no_rawat : revertNoRawat($ref_id)),
-                'kode' => $this->settings('esignature', 'kode_berkasdigital'),
-                'lokasi_file' => 'pages/upload/' . $fileName
-            ]);
+            // 1. Cari no_rawat format slash (pastikan valid di reg_periksa)
+            $no_rawat_bd = null;
+            if (!empty($no_rawat)) {
+                $no_rawat_bd = $no_rawat;
+            } elseif ($ref_type === 'pdf' || $ref_type === 'resep') {
+                if (is_string($ref_id) && ctype_digit($ref_id) && strlen($ref_id) >= 12) {
+                    $revert = @revertNoRawat($ref_id);
+                    if (!empty($revert)) {
+                        $cekReg = $this->db('reg_periksa')->where('no_rawat', $revert)->oneArray();
+                        if (!empty($cekReg)) {
+                            $no_rawat_bd = $revert;
+                        }
+                    }
+                }
+            }
+            // 2. Kode berkas digital: DEFAULT 'DIG001' JIKA settings KOSONG (sesuai 1-satunya row master_berkas_digital)
+            $kode_bd = (string)$this->settings('esignature', 'kode_berkasdigital');
+            if ($kode_bd === '' || $kode_bd === null) {
+                $kode_bd = 'DIG001';
+                // Opsional: auto-seed settings agar user bisa lihat di Pengaturan Esignature nilainya benar
+                $cekMaster = $this->db('master_berkas_digital')->where('kode', 'DIG001')->oneArray();
+                if (!empty($cekMaster)) {
+                    // $this->settings('esignature', 'kode_berkasdigital', 'DIG001'); // uncomment jika mau seed permanent
+                }
+            }
+            // 3. Double check kode_bd ADA di master_berkas_digital (untuk FK constraint, terutama SQLite strict FK)
+            $cekKode = $this->db('master_berkas_digital')->where('kode', $kode_bd)->oneArray();
+            if (empty($cekKode)) {
+                // Fallback ke master pertama (biasanya DIG001 - Berkas Digital) agar INSERT tidak gagal FK
+                $fallback = $this->db('master_berkas_digital')->limit(1)->oneArray();
+                $kode_bd = $fallback['kode'] ?? 'DIG001';
+            }
+            $lokasi_bd = 'pages/upload/' . $fileName;
+            if (!empty($no_rawat_bd) && !empty($kode_bd) && !empty($lokasi_bd)) {
+                // Cek duplikat (PK triple no_rawat, kode, lokasi_file) - mencegah constraint PK violation
+                $dup = $this->db('berkas_digital_perawatan')
+                    ->where('no_rawat', $no_rawat_bd)
+                    ->where('kode', $kode_bd)
+                    ->where('lokasi_file', $lokasi_bd)
+                    ->count();
+                if ($dup == 0) {
+                    $this->db('berkas_digital_perawatan')->save([
+                        'no_rawat'    => $no_rawat_bd,
+                        'kode'        => $kode_bd,
+                        'lokasi_file' => $lokasi_bd
+                    ]);
+                }
+            }
         }
 
         $mpdf->Output($fileName, 'I');
