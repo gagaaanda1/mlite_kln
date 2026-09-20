@@ -73,16 +73,11 @@ class Admin extends AdminModule
 
     public function getSign($ref_type, $ref_id)
     {
-        // $this->core->addJS(url('plugins/esignature/assets/signature_pad.min.js'));
-        // $this->core->addJS(url('plugins/esignature/assets/esignature.js'));
+        $signer_id = (string)$this->core->getUserInfo('username');
+        $signer_name = (string)$this->core->getUserInfo('fullname');
+        $raw_role = (string)($this->core->getUserInfo('role') ?? '');
+        $signer_role = $this->_resolveSignerRole($raw_role, $signer_name, $signer_id);
 
-        $signer_role = 'dokter'; // Default for admin/staff
-        $signer_id = $this->core->getUserInfo('username');
-        $signer_name = $this->core->getUserInfo('fullname');
-
-        // Logic to detect if patient (if this was a public portal or kiosk)
-        // For now, assume logged in user is signing
-        
         exit($this->draw('sign.html', [
             'ref_type' => $ref_type,
             'ref_id' => $ref_id,
@@ -137,12 +132,19 @@ class Admin extends AdminModule
 
             $hash = hash_file('sha256', $path);
 
+            $auth_id       = (string)$this->core->getUserInfo('username');
+            $auth_name     = (string)$this->core->getUserInfo('fullname');
+            $auth_rawrole  = (string)($this->core->getUserInfo('role') ?? '');
+            $signer_id     = !empty($auth_id)   ? $auth_id   : (string)($_POST['signer_id'] ?? 'unknown');
+            $signer_name   = !empty($auth_name) ? $auth_name : (string)($_POST['signer_name'] ?? 'unknown');
+            $signer_role   = $this->_resolveSignerRole($auth_rawrole, $signer_name, $signer_id);
+
             $save = $this->db('mlite_esignatures')->save([
                 'ref_type' => $ref_type,
                 'ref_id' => $ref_id,
-                'signer_role' => $_POST['signer_role'] ?? 'unknown',
-                'signer_id' => $_POST['signer_id'] ?? 'unknown',
-                'signer_name' => $_POST['signer_name'] ?? 'unknown',
+                'signer_role' => $signer_role,
+                'signer_id' => $signer_id,
+                'signer_name' => $signer_name,
                 'signature_path' => $filename,
                 'signature_hash' => $hash,
                 'signed_at' => date('Y-m-d H:i:s'),
@@ -618,6 +620,120 @@ class Admin extends AdminModule
 
         $mpdf->Output($fileName, 'I');
         exit;
+    }
+
+    /**
+     * RESOLVER signer_role DINAMIS (TIDAK hardcode 'dokter').
+     * Sumber: role user mlite_users (medis/admin/rekammedis/laboratorium/farmasi/paramedis/dll).
+     * Tambahan presisi: deteksi nama user prefix (drg. = Dokter Gigi, dr. Sp = Spesialis, dll).
+     *
+     * @param string $rawRole   role kolom mlite_users.role (mis. 'medis', 'admin', 'rekammedis', 'farmasi', 'laboratorium', 'paramedis', 'kasir', 'user')
+     * @param string $fullName  nama lengkap user (mis. 'drg. Nadya Fatimah Alzahra')
+     * @param string $username  username user (mis. 'DR0002' / 'FRM001')
+     * @return string           Display jabatan manusiawi (Dokter Gigi, Dokter Spesialis Penyakit Dalam, Farmasis, Rekam Medis, Perawat, dll)
+     */
+    private function _resolveSignerRole(string $rawRole, string $fullName, string $username = ''): string
+    {
+        $roleMap = [
+            'medis'        => 'Dokter',
+            'admin'        => 'Administrator',
+            'superadmin'   => 'Super Administrator',
+            'rekammedis'   => 'Petugas Rekam Medis',
+            'paramedis'    => 'Perawat / Bidan',
+            'perawat'      => 'Perawat',
+            'bidan'        => 'Bidan',
+            'farmasi'      => 'Farmasis',
+            'apoteker'     => 'Apoteker',
+            'laboratorium' => 'Petugas Laboratorium',
+            'lab'          => 'Petugas Laboratorium',
+            'radiologi'    => 'Petugas Radiologi',
+            'rad'          => 'Petugas Radiologi',
+            'kasir'        => 'Petugas Kasir',
+            'pendaftaran'  => 'Petugas Pendaftaran',
+            'user'         => 'Petugas',
+            ''             => 'Petugas',
+        ];
+
+        $role = trim(strtolower($rawRole));
+        $display = $roleMap[$role] ?? 'Petugas';
+
+        $name = trim($fullName);
+        if ($name !== '') {
+            if (stripos($name, 'drg.') === 0 || stripos($name, 'drg ') === 0) {
+                $display = 'Dokter Gigi';
+            } elseif (preg_match('/^dr\.[\s,]/i', $name)) {
+                if (preg_match('/,\s*Sp\b/i', $name) || preg_match('/\sSp\b/i', $name)) {
+                    $sp = '';
+                    if (preg_match('/Sp\b\.?\s*([A-Za-zÀ-ÿ\.\/ ]+?)(?:,|$)/u', $name, $m)) {
+                        $spExtract = trim($m[1], " \t\n\r\0\x0B,.");
+                        if ($spExtract !== '') {
+                            $sp = ' Sp.' . $spExtract;
+                        }
+                    }
+                    $display = 'Dokter Spesialis' . $sp;
+                } else {
+                    $display = 'Dokter Umum';
+                }
+            } elseif (preg_match('/(^|\s)apt\b\.?\s*/i', $name)) {
+                $display = 'Apoteker / Analis Farmasi';
+            } elseif (preg_match('/A\s*\.?\s*Md\b/i', $name)) {
+                if (stripos($name, 'Farm') !== false || stripos($username, 'FRM') === 0 || $role === 'farmasi') {
+                    $display = 'Analis Farmasi / A.Md.Farm';
+                } elseif (stripos($name, 'Kep') !== false) {
+                    $display = 'Perawat Ahli Madya (A.Md.Kep)';
+                } elseif (stripos($name, 'Kes') !== false) {
+                    $display = 'Tenaga Kesehatan Ahli Madya (A.Md.Kes)';
+                } else {
+                    $display = 'Ahli Madya (A.Md)';
+                }
+            } elseif (stripos($name, 'S.Kep') !== false || stripos($name, 'Ns.') === 0 || stripos($name, 'Ns ') === 0) {
+                $display = 'Perawat (S.Kep / Ns)';
+            } elseif (stripos($name, 'S.Farm') !== false || stripos($name, 'S.Farmasi') !== false) {
+                $display = 'Sarjana Farmasi (S.Farm)';
+            } elseif (stripos($name, 'S.Gz') !== false) {
+                $display = 'Ahli Gizi (S.Gz)';
+            } elseif (stripos($name, 'Bidan') !== false || stripos($name, 'S.Tr.Keb') !== false) {
+                $display = 'Bidan';
+            } elseif (preg_match('/S\s*\.\s*Kes\b/i', $name)) {
+                if (stripos($name, 'Fr.') !== false || stripos($name, 'Fisioter') !== false || preg_match('/\bFr\b/', $name)) {
+                    $display = 'Fisioterapis (S.Kes, Fr)';
+                } elseif ($role === 'medis') {
+                    $display = 'Tenaga Medis (S.Kes)';
+                } else {
+                    $display = 'Tenaga Kesehatan (S.Kes)';
+                }
+            } elseif (stripos($name, 'S. AP') !== false || stripos($name, 'S.AP') !== false || stripos($name, 'S.Ak') !== false) {
+                $display = 'Administrasi / Sarjana Terapan';
+            }
+        }
+
+        if ($role === 'farmasi' && $display === 'Farmasis' && (stripos($name, 'A.Md') !== false || stripos($name, 'Apt') !== false)) {
+            $display = 'Apoteker / Analis Farmasi';
+        }
+
+        if ($name !== '') {
+            if (preg_match('/^BD\d+/i', $username)) {
+                if (stripos($display, 'Madya') !== false || $display === 'Petugas') {
+                    $display = 'Bidan Ahli Madya';
+                }
+            }
+            if (preg_match('/^PR\d+/i', $username) && (stripos($name, 'Kep') !== false) && $display === 'Ahli Madya (A.Md)') {
+                $display = 'Perawat Ahli Madya (A.Md.Kep)';
+            }
+        }
+
+        if (($role === 'medis') &&
+            (stripos($display, 'Dokter') === false) &&
+            (stripos($display, 'Fisio') === false) &&
+            (stripos($display, 'Medis') === false) &&
+            (stripos($display, 'Kesehatan') === false)) {
+            $display = 'Tenaga Medis';
+        }
+        if (($role === 'paramedis') && $display === 'Petugas') {
+            $display = 'Perawat / Bidan';
+        }
+
+        return trim($display, " \t\n\r\0\x0B.");
     }
 
     /**
