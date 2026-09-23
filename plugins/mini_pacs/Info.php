@@ -2,7 +2,7 @@
 
 return [
     'name' => 'Mini PACS',
-    'description' => 'Menyimpan dan menampilkan DICOM metadata terintegrasi dengan OHIF Viewer.',
+    'description' => 'Menyimpan dan menampilkan DICOM metadata dengan Cornerstone Viewer Native (Zoom, WW/WL, Pan, Cine, Gallery) dan DICOM C-STORE Receiver.',
     'author' => 'Antigravity',
     'version' => '1.0',
     'category' => 'rekammedik',

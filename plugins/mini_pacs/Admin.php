@@ -91,7 +91,7 @@ class Admin extends AdminModule
 
         $series = $this->db('mlite_mini_pacs_series')->where('study_id', $id)->toArray();
         foreach ($series as &$s) {
-            $s['instances'] = $this->db('mlite_mini_pacs_instance')->where('series_id', $s['id'])->toArray();
+            $s['instances'] = $this->_getSortedInstancesBySeriesId($s['id']);
         }
         $this->assign['series'] = $series;
 
@@ -183,7 +183,6 @@ class Admin extends AdminModule
         $result = [];
         foreach ($data as $row) {
             $row['view_url'] = url([ADMIN, 'mini_pacs', 'viewer', $row['id']]);
-            $row['ohif_url'] = url([ADMIN, 'mini_pacs', 'ohif', $row['id']]);
             $row['ser_inst'] = $row['series_count'] . '/' . $row['instance_count'];
             $result[] = $row;
         }
@@ -300,7 +299,7 @@ class Admin extends AdminModule
             exit;
         }
 
-        $instances = $this->db('mlite_mini_pacs_instance')->where('series_id', $id)->toArray();
+        $instances = $this->_getSortedInstancesBySeriesId($id);
 
         echo json_encode([
             'status' => 'success',
@@ -416,7 +415,7 @@ class Admin extends AdminModule
 
         // Get series list
         foreach ($series as &$s) {
-            $instances = $this->db('mlite_mini_pacs_instance')->where('series_id', $s['id'])->toArray();
+            $instances = $this->_getSortedInstancesBySeriesId($s['id']);
             $s['instance_count'] = count($instances);
             $s['modality'] = $study['modality'];
             if (!empty($instances)) {
@@ -1808,37 +1807,6 @@ class Admin extends AdminModule
         exit();
     }
 
-    public function getOhif($studyId = null)
-    {
-        if ($studyId === 'viewer') {
-            $ohifHtml = file_get_contents(MODULES . '/mini_pacs/view/ohif/index.html');
-            // Ganti path JS ke URL absolut agar OHIF script selalu termuat
-            $ohifHtml = str_replace('./app-config.js', url('plugins/mini_pacs/view/ohif/app-config.js'), $ohifHtml);
-            $ohifHtml = str_replace('./index.umd.js', url('plugins/mini_pacs/view/ohif/index.umd.js'), $ohifHtml);
-            echo $ohifHtml;
-            exit();
-        }
-
-        if ($res = $this->_checkAccess()) {
-            return $res;
-        }
-
-        if (!$studyId) {
-            redirect(url([ADMIN, 'mini_pacs', 'manage']));
-        }
-        if ($this->_isMono()) {
-            $study = $this->db('mlite_mini_pacs_study')->where('id', $studyId)->oneArray();
-            if (!$study) {
-                redirect(url([ADMIN, 'mini_pacs', 'manage']));
-            }
-        }
-
-        $jsonUrl = url([ADMIN, 'api', 'mini_pacs', 'ohifjson', $studyId]);
-        $ohifUrl = url([ADMIN, 'mini_pacs', 'ohif', 'viewer']) . '&url=' . urlencode($jsonUrl);
-        redirect($ohifUrl);
-        exit();
-    }
-
     public function getJavascriptviewer($studyId)
     {
         header('Content-type: text/javascript');
@@ -1860,8 +1828,6 @@ class Admin extends AdminModule
                     // Wait, getJavascriptviewer needs actual instance URLs.
                 }
             }
-            // Actually, I should use apiOhifJson or similar if I want full data.
-            // Or I can just proxy getJavascriptviewer call itself.
             $response = $this->_remoteCall('GET', '/admin/api/mini_pacs/javascriptviewer/' . $studyId);
             echo $response;
             exit();
@@ -1872,16 +1838,19 @@ class Admin extends AdminModule
         $series = $this->db('mlite_mini_pacs_series')->where('study_id', $studyId)->toArray();
         $studyData = [];
         foreach ($series as $s) {
-            $instances = $this->db('mlite_mini_pacs_instance')->where('series_id', $s['id'])->toArray();
-            $instanceIds = [];
+            $instances = $this->_getSortedInstancesBySeriesId($s['id']);
+            $instanceList = [];
             foreach ($instances as $ins) {
-                // Return URL points to our apiDicomFile method
-                $instanceIds[] = url([ADMIN, 'api', 'mini_pacs', 'dicomfile', $ins['id']]);
+                $instanceList[] = [
+                    'id'      => intval($ins['id']),
+                    'url'     => url([ADMIN, 'api', 'mini_pacs', 'dicomfile', $ins['id']]),
+                    'jpg_url' => url([ADMIN, 'api', 'mini_pacs', 'instancejpg', $ins['id']])
+                ];
             }
             $studyData[] = [
                 'series_id' => $s['id'],
                 'description' => $s['series_description'] ?: 'Series ' . $s['id'],
-                'instances' => $instanceIds
+                'instances' => $instanceList
             ];
         }
 
@@ -1902,7 +1871,217 @@ class Admin extends AdminModule
             var dicomImageElement = document.getElementById('dicomImage');
             var currentSeriesIndex = 0;
 
+            // ========= Gallery View (CT 20-slice per slide) =========
+            var GALLERY_PER_PAGE = 20;
+            var galleryMode = false;
+            var galleryPage = 0;
+            var currentSeriesModality = '';
+
+            function setGalleryButtonVisibility() {
+                var btn = document.getElementById('galleryToggle');
+                if(!btn) return;
+                var series = studyData[currentSeriesIndex];
+                var enable = (currentSeriesModality === 'CT') && (series && series.instances.length >= 2);
+                btn.style.display = enable ? '' : 'none';
+                if(!enable && galleryMode) toggleGalleryMode();
+            }
+
+            function detectModalityFromFirstImage(callback) {
+                var series = studyData[currentSeriesIndex];
+                if(!series || !series.instances || series.instances.length === 0) {
+                    currentSeriesModality = '';
+                    setGalleryButtonVisibility();
+                    return;
+                }
+                var firstId = 'wadouri:' + series.instances[0].url;
+                try {
+                    cornerstone.loadImage(firstId, { transferPixelData: false }).then(function(img) {
+                        if(img && img.data && img.data.string) {
+                            var m = String(img.data.string('x00080060') || '').trim().toUpperCase();
+                            if(m) currentSeriesModality = m;
+                        }
+                        if(callback) callback();
+                        setGalleryButtonVisibility();
+                    }, function(){ setGalleryButtonVisibility(); });
+                } catch(e) { setGalleryButtonVisibility(); }
+            }
+
+            function toggleGalleryMode(stopPlayingCallback) {
+                var series = studyData[currentSeriesIndex];
+                if(!series) return;
+                var cont = document.getElementById('galleryContainer');
+                var dcmEl = document.getElementById('dicomImage');
+                var btn = document.getElementById('galleryToggle');
+                galleryMode = !galleryMode;
+                if(galleryMode) {
+                    cont.style.display = 'flex';
+                    dcmEl.style.display = 'none';
+                    if(btn) btn.classList.add('active');
+                    galleryPage = 0;
+                    renderGalleryPage(galleryPage);
+                    if(typeof stopPlayingCallback === 'function') stopPlayingCallback();
+                } else {
+                    cont.style.display = 'none';
+                    dcmEl.style.display = '';
+                    if(btn) btn.classList.remove('active');
+                    cleanupGalleryCanvases();
+                }
+            }
+
+            function cleanupGalleryCanvases() {
+                var grid = document.getElementById('galleryGrid');
+                if(!grid) return;
+                grid.innerHTML = '';
+            }
+
+            function renderGalleryPage(page) {
+                var series = studyData[currentSeriesIndex];
+                if(!series) return;
+                var total = series.instances.length;
+                var totalPages = Math.max(1, Math.ceil(total / GALLERY_PER_PAGE));
+                if(page < 0) page = 0;
+                if(page >= totalPages) page = totalPages - 1;
+                galleryPage = page;
+
+                var start = page * GALLERY_PER_PAGE;
+                var end = Math.min(start + GALLERY_PER_PAGE, total);
+
+                cleanupGalleryCanvases();
+                var grid = document.getElementById('galleryGrid');
+                grid.innerHTML = '';
+
+                var info = document.getElementById('galleryPageInfo');
+                info.textContent = 'Slide ' + (page + 1) + '/' + totalPages +
+                                   '  (Slice ' + (start + 1) + '-' + end + ' dari total ' + total + ')';
+
+                document.getElementById('galleryPrev').disabled = (page <= 0);
+                document.getElementById('galleryNext').disabled = (page >= totalPages - 1);
+
+                for(var i = 0; i < GALLERY_PER_PAGE; i++) {
+                    var globalIdx = start + i;
+                    var cell = document.createElement('div');
+                    cell.className = 'gallery-cell';
+                    if(globalIdx < total) {
+                        var ins = series.instances[globalIdx];
+                        var label = document.createElement('span');
+                        label.className = 'cell-label';
+                        label.textContent = '#' + (globalIdx + 1);
+                        cell.appendChild(label);
+                        var img = document.createElement('img');
+                        img.src = ins.jpg_url;
+                        img.alt = 'Slice ' + (globalIdx + 1);
+                        img.loading = 'lazy';
+                        img.onerror = (function(idx){ return function(){
+                            this.style.display = 'none';
+                            var f = document.createElement('span');
+                            f.className = 'cell-empty';
+                            f.textContent = 'Slice ' + (idx + 1) + ' (render gagal)';
+                            if(this.parentNode) this.parentNode.appendChild(f);
+                        };})(globalIdx);
+                        cell.appendChild(img);
+                        (function(gIdx){
+                            cell.onclick = function() { openSingleAt(gIdx); };
+                        })(globalIdx);
+                    } else {
+                        var emp = document.createElement('span');
+                        emp.className = 'cell-empty';
+                        emp.textContent = '—';
+                        cell.appendChild(emp);
+                    }
+                    grid.appendChild(cell);
+                }
+            }
+
+            function openSingleAt(globalIndex) {
+                var series = studyData[currentSeriesIndex];
+                if(!series || globalIndex < 0 || globalIndex >= series.instances.length) return;
+                toggleGalleryMode();
+                var stackData = cornerstoneTools.getToolState(dicomImageElement, 'stack');
+                if(stackData && stackData.data && stackData.data.length > 0) {
+                    stackData.data[0].currentImageIdIndex = globalIndex;
+                    var imageId = stackData.data[0].imageIds[globalIndex];
+                    cornerstone.loadAndCacheImage(imageId).then(function(image){
+                        cornerstone.displayImage(dicomImageElement, image);
+                        updateOverlays(image, globalIndex);
+                        document.getElementById('frameSlider').value = globalIndex;
+                        document.getElementById('frameCounter').innerHTML =
+                            'Image: ' + (globalIndex + 1) + '/' + stackData.data[0].imageIds.length;
+                    });
+                }
+            }
+
             cornerstone.enable(dicomImageElement);
+
+            // Sort imageIds berdasarkan Instance Number / Z Position yang dibaca langsung dari file DICOM
+            function sortStackByMetadata(element, imageIds, doneCb) {
+                var n = imageIds.length;
+                if(n < 2) return;
+                var metaArr = new Array(n);
+                var loaded = 0;
+                var finished = false;
+                var timeOut = setTimeout(finish, 15000);
+                for(var i = 0; i < n; i++) (function(idx){
+                    var id = imageIds[idx];
+                    try {
+                        cornerstone.loadImage(id, { transferPixelData: false }).then(function(img){
+                            metaArr[idx] = { id: id };
+                            if(img.data) {
+                                var insS = img.data.string ? img.data.string('x00200013') : null;
+                                if(insS) {
+                                    var insN = parseInt(String(insS).trim(), 10);
+                                    if(!isNaN(insN)) metaArr[idx].instanceNumber = insN;
+                                }
+                                var ipp = img.data.string ? img.data.string('x00200032') : null;
+                                if(ipp) {
+                                    var pp = String(ipp).split(/[\\\\]/);
+                                    if(pp.length >= 3) {
+                                        var z = parseFloat(pp[2].trim());
+                                        if(!isNaN(z)) metaArr[idx].zPosition = z;
+                                    }
+                                }
+                            }
+                            loaded++;
+                            if(loaded === n) finish();
+                        }, function(){
+                            metaArr[idx] = { id: id };
+                            loaded++;
+                            if(loaded === n) finish();
+                        });
+                    } catch(err) {
+                        metaArr[idx] = { id: id };
+                        loaded++;
+                        if(loaded === n) finish();
+                    }
+                })(i);
+
+                function finish() {
+                    if(finished) return;
+                    finished = true;
+                    clearTimeout(timeOut);
+                    for(var k = 0; k < n; k++) if(!metaArr[k]) metaArr[k] = { id: imageIds[k] };
+                    var anySortable = metaArr.some(function(m){ return m.instanceNumber !== undefined || m.zPosition !== undefined; });
+                    if(!anySortable) { doneCb(false); return; }
+                    var indexed = metaArr.map(function(m, i){ return { idx: i, m: m }; });
+                    indexed.sort(function(a, b){
+                        var an = (a.m.instanceNumber !== undefined) ? a.m.instanceNumber : 999999999;
+                        var bn = (b.m.instanceNumber !== undefined) ? b.m.instanceNumber : 999999999;
+                        if(an !== bn) return an - bn;
+                        var az = (a.m.zPosition !== undefined) ? a.m.zPosition : 999999999;
+                        var bz = (b.m.zPosition !== undefined) ? b.m.zPosition : 999999999;
+                        if(az !== bz) return az - bz;
+                        return a.idx - b.idx;
+                    });
+                    var changed = false;
+                    for(var c = 0; c < n; c++) { if(indexed[c].idx !== c) { changed = true; break; } }
+                    if(!changed) { doneCb(false); return; }
+                    var sortedIds = indexed.map(function(item){ return item.m.id; });
+                    var sd = cornerstoneTools.getToolState(element, 'stack');
+                    if(sd && sd.data && sd.data.length > 0) {
+                        sd.data[0].imageIds = sortedIds;
+                    }
+                    doneCb(true);
+                }
+            }
 
             // Function to update overlays
             function updateOverlays(image, index) {
@@ -1955,7 +2134,7 @@ class Admin extends AdminModule
                     if(i === index) t.classList.add('active'); else t.classList.remove('active');
                 });
 
-                const firstImageId = 'wadouri:' + series.instances[0];
+                const firstImageId = 'wadouri:' + series.instances[0].url;
 
                 cornerstone.loadAndCacheImage(firstImageId).then(function(image) {
                     cornerstone.displayImage(dicomImageElement, image);
@@ -1964,9 +2143,10 @@ class Admin extends AdminModule
                     // Re-initialize stack
                     cornerstoneTools.clearToolState(dicomImageElement, 'stack');
                     cornerstoneTools.addStackStateManager(dicomImageElement, ['stack']);
+                    var sortedImageIds = series.instances.map(function(o){ return 'wadouri:' + o.url; });
                     cornerstoneTools.addToolState(dicomImageElement, 'stack', {
                         currentImageIdIndex: 0,
-                        imageIds: series.instances.map(url => 'wadouri:' + url)
+                        imageIds: sortedImageIds
                     });
 
                     // Update Cine controls
@@ -1974,6 +2154,37 @@ class Admin extends AdminModule
                     frameSlider.max = series.instances.length - 1;
                     frameSlider.value = 0;
                     document.getElementById('frameCounter').innerHTML = 'Image: 1/' + series.instances.length;
+
+                    // Fallback: sort stack by DICOM Instance Number / Image Position Patient Z
+                    // Workaround for missing metadata in DB (read live from file headers)
+                    if(sortedImageIds.length > 1) {
+                        sortStackByMetadata(dicomImageElement, sortedImageIds, function(reOrdered) {
+                            if(!reOrdered) return;
+                            var st = cornerstoneTools.getToolState(dicomImageElement, 'stack');
+                            if(st && st.data && st.data.length > 0) {
+                                st.data[0].currentImageIdIndex = 0;
+                                var maxId = st.data[0].imageIds.length - 1;
+                                if(maxId >= 0) {
+                                    cornerstone.loadAndCacheImage(st.data[0].imageIds[0]).then(function(imgFirst){
+                                        cornerstone.displayImage(dicomImageElement, imgFirst);
+                                        updateOverlays(imgFirst, 0);
+                                    });
+                                }
+                                document.getElementById('frameSlider').max = maxId;
+                                document.getElementById('frameSlider').value = 0;
+                                document.getElementById('frameCounter').innerHTML = 'Image: 1/' + (maxId + 1);
+                            }
+                        });
+                    }
+
+                    // Detect Modality untuk tombol Gallery (hanya aktif untuk CT)
+                    currentSeriesModality = '';
+                    if(image && image.data && image.data.string) {
+                        var mod = String(image.data.string('x00080060') || '').trim().toUpperCase();
+                        if(mod) currentSeriesModality = mod;
+                    }
+                    setGalleryButtonVisibility();
+                    if(!currentSeriesModality) detectModalityFromFirstImage();
 
                 }, function(err) { alert('Error loading DICOM image: ' + err); });
             }
@@ -1997,7 +2208,7 @@ class Admin extends AdminModule
                     
                     // Enable Cornerstone on thumbnail
                     cornerstone.enable(canvasContainer);
-                    const thumbImageId = 'wadouri:' + series.instances[0];
+                    const thumbImageId = 'wadouri:' + series.instances[0].url;
                     cornerstone.loadAndCacheImage(thumbImageId).then(image => {
                         cornerstone.displayImage(canvasContainer, image);
                     });
@@ -2090,7 +2301,8 @@ class Admin extends AdminModule
 
                 // Cine Play/Pause
                 var isPlaying = false;
-                document.getElementById('playClip').onclick = function() {
+                var playBtn = document.getElementById('playClip');
+                playBtn.onclick = function() {
                     if(isPlaying) {
                         cornerstoneTools.stopClip(dicomImageElement);
                         this.innerHTML = '<i class=\"fa fa-play\"></i>';
@@ -2100,6 +2312,78 @@ class Admin extends AdminModule
                     }
                     isPlaying = !isPlaying;
                 };
+
+                function stopCineIfPlaying() {
+                    if(isPlaying) { playBtn.click(); }
+                }
+
+                // Gallery button (hanya aktif untuk CT)
+                var gToggle = document.getElementById('galleryToggle');
+                if(gToggle) {
+                    gToggle.onclick = function() { toggleGalleryMode(stopCineIfPlaying); };
+                }
+                var gPrev = document.getElementById('galleryPrev');
+                if(gPrev) {
+                    gPrev.onclick = function() {
+                        if(galleryPage > 0) renderGalleryPage(galleryPage - 1);
+                    };
+                }
+                var gNext = document.getElementById('galleryNext');
+                if(gNext) {
+                    gNext.onclick = function() {
+                        var s = studyData[currentSeriesIndex];
+                        if(!s) return;
+                        var totalPages = Math.max(1, Math.ceil(s.instances.length / GALLERY_PER_PAGE));
+                        if(galleryPage < totalPages - 1) renderGalleryPage(galleryPage + 1);
+                    };
+                }
+                // Keyboard shortcut: left/right navigasi gallery page bila gallery aktif, ESC keluar gallery
+                document.addEventListener('keydown', function(e){
+                    // Toggle Fullscreen Modal dengan tombol F (case-insensitive)
+                    if((e.key === 'f' || e.key === 'F') && !e.ctrlKey && !e.altKey && !e.metaKey) {
+                        // Jangan trigger jika user sedang mengetik di input / textarea
+                        var tag = (e.target && e.target.tagName ? e.target.tagName : '').toUpperCase();
+                        if(tag !== 'INPUT' && tag !== 'TEXTAREA' && tag !== 'SELECT') {
+                            toggleParentFullscreen();
+                            e.preventDefault();
+                            return;
+                        }
+                    }
+                    if(!galleryMode) return;
+                    var s = studyData[currentSeriesIndex];
+                    if(!s) return;
+                    var totalPages = Math.max(1, Math.ceil(s.instances.length / GALLERY_PER_PAGE));
+                    if(e.key === 'ArrowRight' || e.key === 'PageDown') {
+                        if(galleryPage < totalPages - 1) renderGalleryPage(galleryPage + 1);
+                        e.preventDefault();
+                    } else if(e.key === 'ArrowLeft' || e.key === 'PageUp') {
+                        if(galleryPage > 0) renderGalleryPage(galleryPage - 1);
+                        e.preventDefault();
+                    } else if(e.key === 'Escape') {
+                        toggleGalleryMode();
+                        e.preventDefault();
+                    }
+                });
+
+                // === Fullscreen modal via parent window postMessage (jika di dalam iframe) ===
+                function toggleParentFullscreen() {
+                    try {
+                        if(window.parent && typeof window.parent.postMessage === 'function') {
+                            window.parent.postMessage({ type: 'mini_pacs_toggle_fullscreen' }, '*');
+                        }
+                    } catch(err) {}
+                }
+                var btnFs = document.getElementById('btnToggleFullscreen');
+                if(btnFs) btnFs.onclick = function() { toggleParentFullscreen(); };
+
+                // Update state tombol Fullscreen bila parent mengirimkan status
+                window.addEventListener('message', function(ev) {
+                    var data = ev && ev.data ? ev.data : {};
+                    if(data && data.type === 'mini_pacs_fullscreen_state') {
+                        var el = document.getElementById('btnToggleFullscreen');
+                        if(!el) return;
+                    }
+                });
             }
 
             if(studyData.length > 0) {
@@ -2111,289 +2395,6 @@ class Admin extends AdminModule
             }
         ";
         exit();
-    }
-
-
-    public function apiOhifJson($studyId)
-    {
-        if (!$this->_isMono()) {
-            header('Content-Type: application/json');
-            $response = $this->_remoteCall('GET', '/admin/api/mini_pacs/ohifjson/' . $studyId);
-            echo json_encode($response);
-            exit();
-        }
-        header('Content-Type: application/json');
-
-        $study = $this->db('mlite_mini_pacs_study')
-            ->select(['mlite_mini_pacs_study.*', 'pasien.nm_pasien', 'pasien.no_rkm_medis'])
-            ->join('reg_periksa', 'reg_periksa.no_rawat = mlite_mini_pacs_study.no_rawat')
-            ->join('pasien', 'pasien.no_rkm_medis = reg_periksa.no_rkm_medis')
-            ->where('mlite_mini_pacs_study.id', $studyId)
-            ->oneArray();
-
-        if (!$study) {
-            $study = $this->db('mlite_mini_pacs_study')->where('id', $studyId)->oneArray();
-            if (!isset($study['nm_pasien']))
-                $study['nm_pasien'] = 'Unknown Patient';
-            if (!isset($study['no_rkm_medis']))
-                $study['no_rkm_medis'] = 'Unknown ID';
-        }
-
-        if (!$study) {
-            echo json_encode(['studies' => []]);
-            exit;
-        }
-
-        $seriesList = $this->db('mlite_mini_pacs_series')
-            ->where('study_id', $studyId)
-            ->toArray();
-
-        $permintaan_radiologi = $this->db('permintaan_radiologi')->where('no_rawat', $study['no_rawat'])->where('tgl_permintaan', date('Y-m-d', strtotime($study['study_date'])))->oneArray();
-
-        $formattedSeries = [];
-
-        foreach ($seriesList as $series) {
-
-            $instances = $this->db('mlite_mini_pacs_instance')
-                ->where('series_id', $series['id'])
-                ->toArray();
-
-            $formattedInstances = [];
-            $seriesModality = 'CR'; // default aman
-
-            $formattedDate = '19700101';
-            $formattedTime = '000000';
-
-            if (!empty($study['study_date'])) {
-                $ts = strtotime($study['study_date']);
-                $formattedDate = date('Y-m-d', $ts);
-                $formattedTime = date('H:i:s', $ts);
-            }
-
-
-            foreach ($instances as $ins) {
-
-                $fileUrl = url([ADMIN, 'api', 'mini_pacs', 'dicomfile', $ins['id']]);
-                // $meta = $this->getDicomMeta($ins['id']);
-                $meta = $this->getDicomMetaFromDicom($ins['file_path']);
-
-                // 🔥 CLEAN VALUE
-                foreach ($meta as $k => $v) {
-                    $meta[$k] = trim($v, "'\" ");
-                }
-
-                // ✅ SOPClassUID
-                // $sopClass = $meta['0008,0016'] ?? '';
-                if (empty($sopClass)) {
-                    $sopClass = '1.2.840.10008.5.1.4.1.1.7'; // fallback Secondary Capture
-                }
-
-                // ✅ MODALITY (WAJIB dari DICOM, bukan DB)
-                $modality = strtoupper(trim($meta['0008,0060'] ?? 'CR'));
-                if (!empty($modality)) {
-                    $seriesModality = $modality;
-                }
-
-                // ✅ Rows & Columns (WAJIB > 0)
-                $rows = intval($meta['0028,0010'] ?? 0);
-                $cols = intval($meta['0028,0011'] ?? 0);
-
-                if ($rows <= 0)
-                    $rows = 512;
-                if ($cols <= 0)
-                    $cols = 512;
-
-                // ✅ PixelSpacing
-                $pixelSpacing = [1, 1];
-                if (!empty($meta['0018,1164'])) {
-                    $ps = preg_split('/[,\s]+/', $meta['0018,1164']);
-                    if (count($ps) >= 2) {
-                        $pixelSpacing = [
-                            floatval($ps[0]),
-                            floatval($ps[1])
-                        ];
-                    }
-                }
-
-                // ✅ Numeric
-                $samplesPerPixel = intval($meta['0028,0002'] ?? 1);
-                $bitsAllocated = intval($meta['0028,0100'] ?? 16);
-                $bitsStored = intval($meta['0028,0101'] ?? 15);
-                $highBit = intval($meta['0028,0102'] ?? 14);
-                $pixelRepresentation = intval($meta['0028,0103'] ?? 0);
-
-                $windowCenter = floatval($meta['0028,1050'] ?? 2000);
-                $windowWidth = floatval($meta['0028,1051'] ?? 4000);
-                $rescaleSlope = floatval($meta['0028,1053'] ?? 1);
-                $rescaleIntercept = floatval($meta['0028,1052'] ?? 0);
-
-                $photo = strtoupper($meta['0028,0004'] ?? 'MONOCHROME2');
-
-                // jika YBR / RGB → jangan pakai grayscale pipeline
-                // FIX COLOR
-                if (strpos($photo, 'YBR') !== false || $samplesPerPixel > 1) {
-                    $photo = 'RGB';
-                }
-
-                // FIX WINDOW
-                if ($photo !== 'MONOCHROME1' && $photo !== 'MONOCHROME2') {
-                    $windowCenter = null;
-                    $windowWidth = null;
-                }
-
-                // 🔥 OPTIONAL: skip format yang belum didukung
-                // if (in_array($photo, ['YBR_FULL_422', 'RGB'])) continue;
-
-                $nama = trim($study['nm_pasien']);
-                $parts = explode(' ', $nama);
-
-                // minimal: Given^Family
-                if (count($parts) >= 2) {
-                    $dicomName = $parts[1] . '^' . $parts[0];
-                } else {
-                    $dicomName = $parts[0];
-                }
-
-
-                $formattedInstances[] = [
-                    'metadata' => [
-                        'SOPInstanceUID' => $ins['sop_instance_uid'],
-                        'SeriesInstanceUID' => $series['series_instance_uid'],
-                        'StudyInstanceUID' => $study['study_instance_uid'],
-                        'studyInstanceUIDs' => [$study['study_instance_uid']],
-
-                        'StudyDate' => $formattedDate,
-                        'StudyTime' => $formattedTime,
-
-                        'PatientName' => $dicomName,
-                        'PatientID' => $study['no_rkm_medis'],
-                        // 'PatientID' => $dicomName,
-                        'AccessionNumber' => $permintaan_radiologi['noorder'] ?? '',
-
-                        'Rows' => $rows,
-                        'Columns' => $cols,
-                        'PixelSpacing' => $pixelSpacing,
-
-                        'SamplesPerPixel' => $samplesPerPixel,
-                        'PhotometricInterpretation' => $photo,
-
-                        'BitsAllocated' => $bitsAllocated,
-                        'BitsStored' => $bitsStored,
-                        'HighBit' => $highBit,
-                        'PixelRepresentation' => $pixelRepresentation,
-
-                        'WindowCenter' => $windowCenter,
-                        'WindowWidth' => $windowWidth,
-                        'RescaleSlope' => $rescaleSlope,
-                        'RescaleIntercept' => $rescaleIntercept,
-
-                        'VOILUTFunction' => $meta['0028,1056'] ?? 'LINEAR',
-
-                        'SOPClassUID' => $sopClass,
-                    ],
-                    'url' => 'wadouri:' . $fileUrl,
-                    // 'metaku' => $meta
-                ];
-            }
-
-            // ✅ hanya masukkan series kalau ada instance
-            if (!empty($formattedInstances)) {
-
-                // 🔥 VALIDASI MODALITY (biar tidak error OHIF)
-                $allowedModalities = ['CR', 'DX', 'CT', 'MR', 'PT'];
-                if (!in_array($seriesModality, $allowedModalities)) {
-                    $seriesModality = 'CR';
-                }
-
-                $formattedSeries[] = [
-                    'SeriesInstanceUID' => $series['series_instance_uid'],
-                    'SeriesDescription' => $series['series_description'] ?: '',
-                    'SeriesNumber' => 1,
-                    'Modality' => $seriesModality,
-                    'instances' => $formattedInstances
-                ];
-            }
-        }
-
-        $ohifJson = [
-            'studies' => [
-                [
-                    'StudyInstanceUID' => $study['study_instance_uid'],
-                    'studyInstanceUIDs' => [$study['study_instance_uid']],
-                    'StudyDate' => $formattedDate,
-                    'StudyTime' => $formattedTime,
-                    'PatientName' => $dicomName,
-                    'PatientID' => $study['no_rkm_medis'],
-                    'AccessionNumber' => $permintaan_radiologi['noorder'],
-                    'StudyDescription' => $study['description'] ?: '',
-                    'series' => $formattedSeries
-                ]
-            ]
-        ];
-
-        echo json_encode($ohifJson);
-        exit;
-    }
-
-
-    public function getDicomMetaFromDicom($filePath)
-    {
-        $meta = [];
-
-        if (!file_exists($filePath)) {
-            return $meta;
-        }
-
-        // 🔥 tag penting saja (biar cepat)
-        $tags = [
-            '0008,0016', // SOPClassUID
-            '0008,0060', // Modality
-            '0028,0010', // Rows
-            '0028,0011', // Columns
-            '0028,0002', // SamplesPerPixel
-            '0028,0004', // PhotometricInterpretation
-            '0028,0100', // BitsAllocated
-            '0028,0101', // BitsStored
-            '0028,0102', // HighBit
-            '0028,0103', // PixelRepresentation
-            '0028,1050', // WindowCenter
-            '0028,1051', // WindowWidth
-            '0028,1052', // RescaleIntercept
-            '0028,1053', // RescaleSlope
-            '0028,1056', // VOILUTFunction
-            '0018,1164', // PixelSpacing
-        ];
-
-        // format: +P 0028,0010 +P 0028,0011 ...
-        $tagString = implode(' ', array_map(fn($t) => "+P $t", $tags));
-
-        // 🔥 gunakan shell_exec + export PATH
-        $cmd = "export PATH=\$PATH:/usr/local/bin:/usr/bin:/opt/homebrew/bin && dcmdump $tagString "
-            . escapeshellarg($filePath) . " 2>&1";
-
-        $output = shell_exec($cmd);
-
-        if (!$output) {
-            return $meta;
-        }
-
-        foreach (explode("\n", $output) as $line) {
-
-            // format: (0028,0010) US [1547]
-            if (preg_match('/\(([\dA-Fa-f]{4},[\dA-Fa-f]{4})\)\s+\w+\s+\[(.*?)\]/', $line, $m)) {
-                $tag = strtoupper($m[1]);
-                $val = trim($m[2]);
-                $meta[$tag] = $val;
-            }
-            // fallback: tanpa []
-            elseif (preg_match('/\(([\dA-Fa-f]{4},[\dA-Fa-f]{4})\)\s+\w+\s+(.+)/', $line, $m)) {
-                $tag = strtoupper($m[1]);
-                $val = trim($m[2]);
-                $meta[$tag] = trim($val, '[] ');
-            }
-        }
-
-        return $meta;
     }
 
     private function getMetaValue($meta, $tag, $default = null)
@@ -2474,6 +2475,31 @@ class Admin extends AdminModule
             $digits .= ($i === 0) ? random_int(1, 9) : random_int(0, 9);
         }
         return '2.25.' . $digits;
+    }
+
+    private function _getSortedInstancesBySeriesId($seriesId)
+    {
+        $seriesId = intval($seriesId);
+        try {
+            $sql = "SELECT i.*,
+                           COALESCE(CAST(MAX(CASE WHEN m.tag = '0020,0013' THEN m.value END) AS UNSIGNED), 999999999) as instance_number,
+                           COALESCE(
+                             CAST(SUBSTRING_INDEX(SUBSTRING_INDEX(MAX(CASE WHEN m.tag = '0020,0032' THEN m.value END), '\\\\', -1), '\\\\', 1) AS DECIMAL(20,5)),
+                             999999999
+                           ) as z_position
+                    FROM mlite_mini_pacs_instance i
+                    LEFT JOIN mlite_mini_pacs_instance_metadata m ON m.instance_id = i.id
+                    WHERE i.series_id = ?
+                    GROUP BY i.id
+                    ORDER BY instance_number ASC, z_position ASC, i.id ASC";
+            $stmt = $this->db()->pdo()->prepare($sql);
+            $stmt->execute([$seriesId]);
+            $rows = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+            if ($rows && is_array($rows)) return $rows;
+        } catch (\Exception $e) {
+            // fallthrough
+        }
+        return $this->db('mlite_mini_pacs_instance')->where('series_id', $seriesId)->asc('id')->toArray();
     }
 
     private function _extractAndSaveMetadata($instanceId, $filepath)

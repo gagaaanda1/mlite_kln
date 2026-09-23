@@ -5,6 +5,7 @@
  * 
  * Usage: PHP_CLI_SERVER_WORKERS=8 php -S localhost:8000 tools.php
  * Usage: PHP_CLI_SERVER_WORKERS=8 ~/Server/runtime/php/bin/php -c ~/Server/data/php.ini -S 0.0.0.0:8000 tools.php
+ * Usage: PHP_CLI_SERVER_WORKERS=8 /opt/homebrew/opt/php@8.3/bin/php -c /opt/homebrew/etc/php/8.3/php.ini -S 0.0.0.0:8000 tools.php (PHP 8.3 via Homebrew di macOS)
  */
 
 if (!defined('BASE_DIR')) {

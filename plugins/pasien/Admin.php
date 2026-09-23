@@ -1660,45 +1660,61 @@ class Admin extends AdminModule
     exit;
   }
 
-  public function getCetakRiwayatMpdf()
+  public function getCetakRiwayatMpdf($no_rkm_medis = null)
   {
-    $mpdf = new \Mpdf\Mpdf([
-      'mode' => 'utf-8',
-      'orientation' => 'L'
-    ]);
+    try {
+      $username = $this->core->checkAuth('GET');
+      if (!$this->core->checkPermission($username, 'can_read', 'pasien')) {
+        http_response_code(403);
+        echo 'Forbidden';
+        exit;
+      }
 
-    $css = '
-      <style>
-        del { 
-          display: none;
-        }
-        table {
-          padding-top: 1cm;
-          padding-bottom: 1cm;
-          font-size: 10px;
-        }
-        td, th {
-          border-bottom: 1px solid #dddddd;
-          padding: 5px;
-        }        
-        tr:nth-child(even) {
-          background-color: #ffffff;
-        }
-      </style>
-      ';
+      if (empty($no_rkm_medis)) {
+        $no_rkm_medis = isset($_GET['no_rkm_medis']) ? trim((string) $_GET['no_rkm_medis']) : '';
+      }
+      if (empty($no_rkm_medis)) {
+        http_response_code(400);
+        echo 'Parameter no_rkm_medis tidak ditemukan. Pastikan anda membuka halaman Riwayat Perawatan Pasien dulu sebelum klik Cetak PDF.';
+        exit;
+      }
 
-    // $mpdf->SetHTMLHeader($this->core->setPrintHeader());
-    // $mpdf->SetHTMLFooter($this->core->setPrintFooter());
+      $data = $this->_getRiwayatData($no_rkm_medis, null, true);
+      if (empty($data['pasien'])) {
+        http_response_code(404);
+        echo 'Data pasien dengan No RM ' . htmlspecialchars($no_rkm_medis) . ' tidak ditemukan.';
+        exit;
+      }
 
-    $url = url(ADMIN . '/tmp/riwayat.perawatan.html');
-    $html = file_get_contents($url);
-    $mpdf->WriteHTML($this->core->setPrintCss(), \Mpdf\HTMLParserMode::HEADER_CSS);
-    $mpdf->WriteHTML($css);
-    $mpdf->WriteHTML($html);
+      $mpdf = new \Mpdf\Mpdf([
+        'mode' => 'utf-8',
+        'format' => 'A4-L',
+        'margin_left' => 10,
+        'margin_right' => 10,
+        'margin_top' => 15,
+        'margin_bottom' => 15
+      ]);
 
-    // Output a PDF file directly to the browser
-    $mpdf->Output();
-    exit();
+      $html = $this->_renderHtmlRiwayat($data);
+      $mpdf->WriteHTML($html);
+
+      $safeRm = preg_replace('/[^A-Za-z0-9]/', '', (string) $no_rkm_medis);
+      $fileName = 'Riwayat_Perawatan_' . $safeRm . '.pdf';
+
+      header('Content-Type: application/pdf');
+      header('Content-Disposition: inline; filename="' . $fileName . '"');
+      $mpdf->Output();
+      exit;
+    } catch (\Throwable $e) {
+      http_response_code(500);
+      header('Content-Type: text/plain; charset=utf-8');
+      echo 'Error generate PDF: ' . $e->getMessage() . "\n";
+      if (defined('DEV_MODE') && DEV_MODE) {
+        echo "\nFile: " . $e->getFile() . ' Line: ' . $e->getLine() . "\n";
+        echo "\nTrace:\n" . $e->getTraceAsString() . "\n";
+      }
+      exit;
+    }
   }
 
   public function getExcel()

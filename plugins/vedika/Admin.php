@@ -2330,6 +2330,14 @@ class Admin extends AdminModule
       ->asc('master_berkas_digital.nama')
       ->toArray();
 
+    $allowedImgExt = ['jpg','jpeg','png','gif','bmp','webp'];
+    $berkas_digital = array_values(array_filter($berkas_digital, function($b) use ($allowedImgExt) {
+        $lf = (string)($b['lokasi_file'] ?? '');
+        if ($lf === '') return false;
+        $ext = strtolower(pathinfo($lf, PATHINFO_EXTENSION));
+        return in_array($ext, $allowedImgExt, true);
+    }));
+
     $no_rawat = $this->revertNorawat($id);
 
     $rows = [];
